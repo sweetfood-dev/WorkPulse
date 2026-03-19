@@ -288,13 +288,24 @@ final class AttendanceTimePopoverViewController: NSViewController {
         static let monthlyWorkedTimePlaceholder = "이번 달: --:--"
         static let todayStartTimePlaceholder = "오늘 출근: --"
         static let todayStartTimePrefix = "오늘 출근: "
+        static let currentSessionTitle = "CURRENT SESSION"
+        static let dailyGoalText = "Goal: 8h"
+        static let dailyGoalDuration: TimeInterval = 8 * 60 * 60
     }
 
     private let workedTimeDisplayFactory: WorkedTimeDisplayModelFactory
+    private let workedTimeCalculator = WorkedTimeCalculator()
     private(set) var workedTimeLabel = NSTextField(labelWithString: "")
     private(set) var weeklyWorkedTimeLabel = NSTextField(labelWithString: "")
     private(set) var weeklyTargetProgressLabel = NSTextField(labelWithString: "")
     private(set) var monthlyWorkedTimeLabel = NSTextField(labelWithString: "")
+    private(set) var dateTitleLabel = NSTextField(labelWithString: "")
+    private(set) var sessionSubtitleLabel = NSTextField(labelWithString: "")
+    private(set) var currentSessionLabel = NSTextField(labelWithString: UIConstants.currentSessionTitle)
+    private(set) var progressStartLabel = NSTextField(labelWithString: "0h")
+    private(set) var progressGoalLabel = NSTextField(labelWithString: UIConstants.dailyGoalText)
+    private(set) var currentSessionProgressView = AttendanceProgressBarView()
+    private(set) var settingsButton = NSButton()
     private(set) var startTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var endTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var saveButton = NSButton(title: "Save", target: nil, action: nil)
@@ -380,7 +391,7 @@ final class AttendanceTimePopoverViewController: NSViewController {
         view = makeContentView()
         refreshAttendanceDisplayState()
         applyInitialInputValues()
-        configureSaveAction()
+        configureInputActions()
     }
 
     private func makeContentView() -> NSView {
@@ -389,7 +400,13 @@ final class AttendanceTimePopoverViewController: NSViewController {
             weeklyWorkedTimeLabel: weeklyWorkedTimeLabel,
             weeklyTargetProgressLabel: weeklyTargetProgressLabel,
             monthlyWorkedTimeLabel: monthlyWorkedTimeLabel,
-            todayStartTimeLabel: todayStartTimeLabel,
+            dateTitleLabel: dateTitleLabel,
+            sessionSubtitleLabel: sessionSubtitleLabel,
+            currentSessionLabel: currentSessionLabel,
+            progressStartLabel: progressStartLabel,
+            progressGoalLabel: progressGoalLabel,
+            currentSessionProgressView: currentSessionProgressView,
+            settingsButton: settingsButton,
             startTimePicker: startTimePicker,
             endTimePicker: endTimePicker,
             saveButton: saveButton
@@ -404,11 +421,26 @@ final class AttendanceTimePopoverViewController: NSViewController {
         )
 
         applyWorkedTimeDisplay(displayModel)
+        refreshCurrentSessionProgress()
     }
 
     func applyWorkedTimeDisplay(_ displayModel: WorkedTimeDisplayModel) {
-        workedTimeLabel.stringValue = displayModel.popoverText
+        workedTimeLabel.stringValue = currentWorkedTimeText()
         workedTimeLabel.isHidden = false
+    }
+
+    private func currentWorkedTimeText() -> String {
+        let workedDuration = workedTimeCalculator.workedDuration(
+            startTime: attendanceTimeStore.startTime,
+            endTime: attendanceTimeStore.endTime,
+            currentDate: currentDateProvider()
+        )
+
+        guard let workedDuration else {
+            return UIConstants.workedTimeTimePlaceholder
+        }
+
+        return workedDurationFormatter.stringIncludingSeconds(from: workedDuration)
     }
 
     private func configureWorkedTimeRefreshTimer() {
@@ -441,12 +473,46 @@ final class AttendanceTimePopoverViewController: NSViewController {
     private func applyTodayStartTimeDisplay(_ displayModel: TodayStartTimeDisplayModel) {
         todayStartTimeLabel.stringValue = displayModel.text
         todayStartTimeLabel.isHidden = displayModel.isHidden
+        sessionSubtitleLabel.stringValue = checkedInText()
+        sessionSubtitleLabel.textColor = .secondaryLabelColor
     }
 
     private func refreshSummaryDisplay() {
+        refreshHeaderDisplay()
         refreshWorkedTimeDisplay()
         refreshWeeklySummaryDisplay()
         refreshMonthlyWorkedTimeDisplay()
+    }
+
+    private func refreshHeaderDisplay() {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEEE, MMM d"
+        dateTitleLabel.stringValue = formatter.string(from: referenceDate)
+        sessionSubtitleLabel.stringValue = checkedInText()
+    }
+
+    private func checkedInText() -> String {
+        guard let startTime = attendanceTimeStore.startTime else {
+            return "Checked in at --"
+        }
+
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "hh:mm a"
+        return "Checked in at \(formatter.string(from: startTime))"
+    }
+
+    private func refreshCurrentSessionProgress() {
+        let workedDuration = workedTimeCalculator.workedDuration(
+            startTime: attendanceTimeStore.startTime,
+            endTime: attendanceTimeStore.endTime,
+            currentDate: currentDateProvider()
+        ) ?? 0
+        let ratio = min(max(workedDuration / UIConstants.dailyGoalDuration, 0), 1)
+        currentSessionProgressView.setProgress(ratio)
     }
 
     private func refreshWeeklySummaryDisplay() {
@@ -472,7 +538,7 @@ final class AttendanceTimePopoverViewController: NSViewController {
             return
         }
 
-        weeklyWorkedTimeLabel.stringValue = "이번 주: \(workedDurationFormatter.string(from: totalWorkedDuration))"
+        weeklyWorkedTimeLabel.stringValue = workedDurationFormatter.koreanSummaryString(from: totalWorkedDuration)
         weeklyWorkedTimeLabel.isHidden = false
     }
 
@@ -483,13 +549,14 @@ final class AttendanceTimePopoverViewController: NSViewController {
             return
         }
 
-        monthlyWorkedTimeLabel.stringValue = "이번 달: \(workedDurationFormatter.string(from: totalWorkedDuration))"
+        monthlyWorkedTimeLabel.stringValue = workedDurationFormatter.koreanSummaryString(from: totalWorkedDuration)
         monthlyWorkedTimeLabel.isHidden = false
     }
 
     private func applyWeeklyTargetProgressDisplay(_ progress: WeeklyTargetProgress?) {
         guard let progress else {
             weeklyTargetProgressLabel.isHidden = true
+            weeklyTargetProgressLabel.superview?.isHidden = true
             return
         }
 
@@ -508,6 +575,7 @@ final class AttendanceTimePopoverViewController: NSViewController {
         }
 
         weeklyTargetProgressLabel.textColor = weeklyTargetProgressStylePalette.textColor(for: semanticStyle)
+        weeklyTargetProgressLabel.superview?.isHidden = false
     }
 
     private func refreshMonthlyWorkedTimeDisplay() {
@@ -554,9 +622,13 @@ final class AttendanceTimePopoverViewController: NSViewController {
         endTimePicker.dateValue = defaultEndTime
     }
 
-    private func configureSaveAction() {
-        saveButton.target = self
-        saveButton.action = #selector(handleSaveButtonClick)
+    private func configureInputActions() {
+        startTimePicker.target = self
+        startTimePicker.action = #selector(handleTimePickerChange)
+        endTimePicker.target = self
+        endTimePicker.action = #selector(handleTimePickerChange)
+        settingsButton.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Settings")
+        settingsButton.isBordered = false
     }
 
     private static func makeTimePicker() -> NSDatePicker {
@@ -566,7 +638,7 @@ final class AttendanceTimePopoverViewController: NSViewController {
         return picker
     }
 
-    @objc private func handleSaveButtonClick() {
+    @objc private func handleTimePickerChange() {
         saveCurrentInput()
     }
 
@@ -599,39 +671,460 @@ final class AttendanceTimePopoverViewController: NSViewController {
 }
 
 private final class AttendanceTimePopoverContentView: NSView {
+    private enum Layout {
+        static let contentSize = NSSize(width: 340, height: 420)
+        static let horizontalInset: CGFloat = 20
+        static let sectionSpacing: CGFloat = 14
+        static let cornerRadius: CGFloat = 14
+    }
+
     init(
         workedTimeLabel: NSTextField,
         weeklyWorkedTimeLabel: NSTextField,
         weeklyTargetProgressLabel: NSTextField,
         monthlyWorkedTimeLabel: NSTextField,
-        todayStartTimeLabel: NSTextField,
+        dateTitleLabel: NSTextField,
+        sessionSubtitleLabel: NSTextField,
+        currentSessionLabel: NSTextField,
+        progressStartLabel: NSTextField,
+        progressGoalLabel: NSTextField,
+        currentSessionProgressView: AttendanceProgressBarView,
+        settingsButton: NSButton,
         startTimePicker: NSDatePicker,
         endTimePicker: NSDatePicker,
-        saveButton: NSButton
+        saveButton _: NSButton
     ) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 290))
+        super.init(frame: NSRect(origin: .zero, size: Layout.contentSize))
 
-        workedTimeLabel.frame = NSRect(x: 20, y: 240, width: 240, height: 20)
-        weeklyWorkedTimeLabel.frame = NSRect(x: 20, y: 212, width: 240, height: 20)
-        weeklyTargetProgressLabel.frame = NSRect(x: 20, y: 184, width: 240, height: 20)
-        monthlyWorkedTimeLabel.frame = NSRect(x: 20, y: 156, width: 240, height: 20)
-        todayStartTimeLabel.frame = NSRect(x: 20, y: 128, width: 240, height: 20)
-        startTimePicker.frame = NSRect(x: 20, y: 100, width: 240, height: 24)
-        endTimePicker.frame = NSRect(x: 20, y: 52, width: 240, height: 24)
-        saveButton.frame = NSRect(x: 200, y: 16, width: 60, height: 30)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor(
+            calibratedRed: 244 / 255,
+            green: 247 / 255,
+            blue: 251 / 255,
+            alpha: 1
+        ).cgColor
 
-        addSubview(workedTimeLabel)
-        addSubview(weeklyWorkedTimeLabel)
-        addSubview(weeklyTargetProgressLabel)
-        addSubview(monthlyWorkedTimeLabel)
-        addSubview(todayStartTimeLabel)
-        addSubview(startTimePicker)
-        addSubview(endTimePicker)
-        addSubview(saveButton)
+        let cardView = makeCardView()
+        addSubview(cardView)
+
+        NSLayoutConstraint.activate([
+            cardView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            cardView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            cardView.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            cardView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
+        ])
+
+        styleHeaderTitle(dateTitleLabel)
+        styleHeaderSubtitle(sessionSubtitleLabel)
+        styleCurrentSessionLabel(currentSessionLabel)
+        let inputCard = makeInputCard(
+            startTimePicker: startTimePicker,
+            endTimePicker: endTimePicker
+        )
+
+        styleWorkedTimeLabel(workedTimeLabel)
+        styleProgressCaption(progressStartLabel, alignment: .left)
+        styleProgressCaption(progressGoalLabel, alignment: .right)
+        styleSettingsButton(settingsButton)
+
+        let headerStack = makeHeader(
+            dateTitleLabel: dateTitleLabel,
+            sessionSubtitleLabel: sessionSubtitleLabel,
+            settingsButton: settingsButton
+        )
+        let progressLabelsRow = makeProgressLabelsRow(
+            progressStartLabel: progressStartLabel,
+            progressGoalLabel: progressGoalLabel
+        )
+        let footer = makeFooter(
+            weeklyWorkedTimeLabel: weeklyWorkedTimeLabel,
+            monthlyWorkedTimeLabel: monthlyWorkedTimeLabel
+        )
+        let contentStack = NSStackView(views: [
+            headerStack,
+            makeSessionHeading(currentSessionLabel: currentSessionLabel),
+            workedTimeLabel,
+            currentSessionProgressView,
+            progressLabelsRow,
+            inputCard,
+            footer,
+        ])
+        contentStack.orientation = .vertical
+        contentStack.alignment = .centerX
+        contentStack.spacing = Layout.sectionSpacing
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+
+        cardView.addSubview(contentStack)
+
+        NSLayoutConstraint.activate([
+            contentStack.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: Layout.horizontalInset),
+            contentStack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -Layout.horizontalInset),
+            contentStack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 18),
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: cardView.bottomAnchor, constant: -18),
+            headerStack.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            currentSessionProgressView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            progressLabelsRow.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            inputCard.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            footer.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+        ])
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    private func makeCardView() -> NSView {
+        let view = NSView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.wantsLayer = true
+        view.layer?.cornerRadius = Layout.cornerRadius
+        view.layer?.backgroundColor = NSColor.white.cgColor
+        view.layer?.borderWidth = 1
+        view.layer?.borderColor = NSColor(
+            calibratedRed: 223 / 255,
+            green: 230 / 255,
+            blue: 240 / 255,
+            alpha: 1
+        ).cgColor
+        return view
+    }
+
+    private func styleHeaderTitle(_ label: NSTextField) {
+        label.font = .systemFont(ofSize: 13, weight: .bold)
+        label.textColor = .labelColor
+    }
+
+    private func styleHeaderSubtitle(_ label: NSTextField) {
+        label.font = .systemFont(ofSize: 11, weight: .medium)
+        label.textColor = .secondaryLabelColor
+    }
+
+    private func styleCurrentSessionLabel(_ label: NSTextField) {
+        label.font = .systemFont(ofSize: 10, weight: .bold)
+        label.textColor = NSColor(
+            calibratedRed: 148 / 255,
+            green: 163 / 255,
+            blue: 184 / 255,
+            alpha: 1
+        )
+        label.alignment = .center
+    }
+
+    private func makeIconView(symbolName: String, tintColor: NSColor, pointSize: CGFloat) -> NSImageView {
+        let imageView = NSImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        let configuration = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .regular)
+        imageView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(configuration)
+        imageView.contentTintColor = tintColor
+        NSLayoutConstraint.activate([
+            imageView.widthAnchor.constraint(equalToConstant: pointSize + 4),
+            imageView.heightAnchor.constraint(equalToConstant: pointSize + 4),
+        ])
+        return imageView
+    }
+
+    private func makeMutedLabel(with text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: 12, weight: .medium)
+        label.textColor = .secondaryLabelColor
+        return label
+    }
+
+    private func styleWorkedTimeLabel(_ label: NSTextField) {
+        label.font = .monospacedDigitSystemFont(ofSize: 42, weight: .light)
+        label.textColor = NSColor(
+            calibratedRed: 35 / 255,
+            green: 111 / 255,
+            blue: 255 / 255,
+            alpha: 1
+        )
+        label.alignment = .center
+        label.maximumNumberOfLines = 1
+        label.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            label.widthAnchor.constraint(equalToConstant: 280),
+        ])
+    }
+
+    private func styleProgressCaption(_ label: NSTextField, alignment: NSTextAlignment) {
+        label.font = .systemFont(ofSize: 9, weight: .bold)
+        label.textColor = .secondaryLabelColor
+        label.alignment = alignment
+    }
+
+    private func makeHeader(
+        dateTitleLabel: NSTextField,
+        sessionSubtitleLabel: NSTextField,
+        settingsButton: NSButton
+    ) -> NSView {
+        let dateRow = NSStackView(views: [
+            makeIconView(symbolName: "calendar", tintColor: .secondaryLabelColor, pointSize: 15),
+            dateTitleLabel,
+        ])
+        dateRow.orientation = .horizontal
+        dateRow.alignment = .centerY
+        dateRow.spacing = 8
+
+        let subtitleRow = NSStackView(views: [
+            makeIconView(symbolName: "arrow.right.to.line", tintColor: .systemGreen, pointSize: 15),
+            sessionSubtitleLabel,
+        ])
+        subtitleRow.orientation = .horizontal
+        subtitleRow.alignment = .centerY
+        subtitleRow.spacing = 8
+
+        let leftStack = NSStackView(views: [dateRow, subtitleRow])
+        leftStack.orientation = .vertical
+        leftStack.alignment = .leading
+        leftStack.spacing = 4
+
+        let header = NSStackView(views: [leftStack, settingsButton])
+        header.orientation = .horizontal
+        header.alignment = .top
+        header.distribution = .fill
+        header.translatesAutoresizingMaskIntoConstraints = false
+        return header
+    }
+
+    private func makeSessionHeading(currentSessionLabel: NSTextField) -> NSView {
+        let row = NSStackView(views: [
+            makeIconView(symbolName: "hourglass", tintColor: NSColor(calibratedRed: 0 / 255, green: 122 / 255, blue: 255 / 255, alpha: 1), pointSize: 16),
+            currentSessionLabel,
+        ])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 10
+        row.translatesAutoresizingMaskIntoConstraints = false
+        return row
+    }
+
+    private func makeProgressLabelsRow(
+        progressStartLabel: NSTextField,
+        progressGoalLabel: NSTextField
+    ) -> NSView {
+        let row = NSStackView(views: [progressStartLabel, progressGoalLabel])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.distribution = .fillEqually
+        row.translatesAutoresizingMaskIntoConstraints = false
+        return row
+    }
+
+    private func makeFooter(
+        weeklyWorkedTimeLabel: NSTextField,
+        monthlyWorkedTimeLabel: NSTextField
+    ) -> NSView {
+        let weeklyCaption = makeFooterCaption(with: "THIS WEEK")
+        let monthlyCaption = makeFooterCaption(with: "THIS MONTH")
+        styleFooterValue(weeklyWorkedTimeLabel, alignment: .left)
+        styleFooterValue(monthlyWorkedTimeLabel, alignment: .right)
+
+        let weeklyHeader = NSStackView(views: [
+            makeIconView(symbolName: "calendar", tintColor: .secondaryLabelColor, pointSize: 14),
+            weeklyCaption,
+        ])
+        weeklyHeader.orientation = .horizontal
+        weeklyHeader.alignment = .centerY
+        weeklyHeader.spacing = 6
+
+        let monthlyHeader = NSStackView(views: [
+            monthlyCaption,
+            makeIconView(symbolName: "chart.bar", tintColor: .secondaryLabelColor, pointSize: 14),
+        ])
+        monthlyHeader.orientation = .horizontal
+        monthlyHeader.alignment = .centerY
+        monthlyHeader.spacing = 6
+
+        let weeklyStack = NSStackView(views: [weeklyHeader, weeklyWorkedTimeLabel])
+        weeklyStack.orientation = .vertical
+        weeklyStack.alignment = .leading
+        weeklyStack.spacing = 4
+
+        let monthlyStack = NSStackView(views: [monthlyHeader, monthlyWorkedTimeLabel])
+        monthlyStack.orientation = .vertical
+        monthlyStack.alignment = .trailing
+        monthlyStack.spacing = 4
+
+        let spacer = NSView()
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+
+        let footer = NSStackView(views: [weeklyStack, spacer, monthlyStack])
+        footer.orientation = .horizontal
+        footer.alignment = .top
+        footer.distribution = .fill
+        footer.translatesAutoresizingMaskIntoConstraints = false
+        return footer
+    }
+
+    private func makeFooterCaption(with text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: 9, weight: .bold)
+        label.textColor = .secondaryLabelColor
+        return label
+    }
+
+    private func styleFooterValue(_ label: NSTextField, alignment: NSTextAlignment) {
+        label.font = .systemFont(ofSize: 14, weight: .bold)
+        label.textColor = .labelColor
+        label.alignment = alignment
+        label.translatesAutoresizingMaskIntoConstraints = false
+    }
+
+    private func makeInputCard(
+        startTimePicker: NSDatePicker,
+        endTimePicker: NSDatePicker
+    ) -> NSView {
+        styleTimePicker(startTimePicker)
+        styleTimePicker(endTimePicker)
+
+        let startRow = makeInputRow(title: "Start Time", picker: startTimePicker)
+        let endRow = makeInputRow(title: "End Time", picker: endTimePicker)
+        let stack = NSStackView(views: [startRow, endRow])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.distribution = .fillEqually
+        stack.spacing = 16
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(
+            calibratedRed: 247 / 255,
+            green: 247 / 255,
+            blue: 248 / 255,
+            alpha: 1
+        ).cgColor
+
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
+            startRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            endRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+        ])
+
+        return container
+    }
+
+    private func makeInputRow(title: String, picker: NSDatePicker) -> NSView {
+        let titleLabel = makeMutedLabel(with: title)
+        titleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        titleLabel.textColor = NSColor(
+            calibratedRed: 89 / 255,
+            green: 89 / 255,
+            blue: 102 / 255,
+            alpha: 1
+        )
+
+        let iconName = title == "Start Time" ? "arrow.right.to.line" : "rectangle.portrait.and.arrow.right"
+        let row = NSStackView(views: [
+            makeIconView(symbolName: iconName, tintColor: .secondaryLabelColor, pointSize: 15),
+            titleLabel,
+            NSView(),
+            picker,
+        ])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.distribution = .fill
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+
+        NSLayoutConstraint.activate([
+            picker.widthAnchor.constraint(equalToConstant: 84),
+            picker.heightAnchor.constraint(equalToConstant: 80),
+        ])
+
+        return row
+    }
+
+    private func styleTimePicker(_ picker: NSDatePicker) {
+        picker.datePickerStyle = .textField
+        picker.font = .monospacedDigitSystemFont(ofSize: 18, weight: .medium)
+        picker.translatesAutoresizingMaskIntoConstraints = false
+        picker.controlSize = .regular
+        picker.wantsLayer = true
+        picker.layer?.cornerRadius = 6
+        picker.layer?.borderWidth = 1
+        picker.layer?.borderColor = NSColor(
+            calibratedRed: 209 / 255,
+            green: 209 / 255,
+            blue: 209 / 255,
+            alpha: 1
+        ).cgColor
+        picker.layer?.backgroundColor = NSColor.white.cgColor
+        picker.drawsBackground = true
+        picker.backgroundColor = .white
+        picker.textColor = .labelColor
+        picker.alignment = .center
+    }
+
+    private func styleSettingsButton(_ button: NSButton) {
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.contentTintColor = .secondaryLabelColor
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 28),
+            button.heightAnchor.constraint(equalToConstant: 28),
+        ])
+    }
+}
+
+final class AttendanceProgressBarView: NSView {
+    private let fillView = NSView()
+    private var fillWidthConstraint: NSLayoutConstraint?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        layer?.cornerRadius = 4
+        layer?.backgroundColor = NSColor(
+            calibratedRed: 229 / 255,
+            green: 231 / 255,
+            blue: 235 / 255,
+            alpha: 1
+        ).cgColor
+
+        fillView.translatesAutoresizingMaskIntoConstraints = false
+        fillView.wantsLayer = true
+        fillView.layer?.cornerRadius = 4
+        fillView.layer?.backgroundColor = NSColor(
+            calibratedRed: 0 / 255,
+            green: 122 / 255,
+            blue: 255 / 255,
+            alpha: 1
+        ).cgColor
+        addSubview(fillView)
+
+        fillWidthConstraint = fillView.widthAnchor.constraint(equalToConstant: 0)
+        fillWidthConstraint?.isActive = true
+
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: 8),
+            fillView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            fillView.topAnchor.constraint(equalTo: topAnchor),
+            fillView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func setProgress(_ progress: Double) {
+        layoutSubtreeIfNeeded()
+        let width = max(bounds.width * progress, progress > 0 ? 8 : 0)
+        fillWidthConstraint?.constant = width
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        fillWidthConstraint?.constant = min(fillWidthConstraint?.constant ?? 0, bounds.width)
     }
 }
