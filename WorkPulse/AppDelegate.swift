@@ -12,6 +12,26 @@ protocol AttendanceTimeStore: AnyObject {
     var endTime: Date? { get set }
 }
 
+struct AttendanceTimeRecord: Equatable {
+    let startTime: Date
+    let endTime: Date?
+}
+
+extension AttendanceTimeStore {
+    func todayRecord(
+        referenceDate: Date,
+        dayMatcher: AttendanceDayMatcher
+    ) -> AttendanceTimeRecord? {
+        guard let startTime else { return nil }
+        guard dayMatcher.isInSameDay(startTime, as: referenceDate) else { return nil }
+
+        return AttendanceTimeRecord(
+            startTime: startTime,
+            endTime: endTime
+        )
+    }
+}
+
 struct AttendanceTimeInputModel: Equatable {
     let startTime: Date
     let endTime: Date
@@ -168,13 +188,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPo
 }
 
 final class AttendanceTimePopoverViewController: NSViewController {
+    private enum UIConstants {
+        static let todayStartTimePlaceholder = "오늘 출근: --"
+        static let todayStartTimePrefix = "오늘 출근: "
+    }
+
     private(set) var startTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var endTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var saveButton = NSButton(title: "Save", target: nil, action: nil)
+    private(set) var todayStartTimeLabel = NSTextField(labelWithString: "")
     var defaultStartTime: Date { initialInputModel.startTime }
     var defaultEndTime: Date { initialInputModel.endTime }
     private let attendanceTimeStore: AttendanceTimeStore
     private let initialInputModel: AttendanceTimeInputModel
+    private let referenceDate: Date
+    private let calendar: Calendar
+    private let dayMatcher: AttendanceDayMatcher
+    private let timeFormatter: AttendanceTimeFormatter
+    private let todayStartTimeDisplayFactory: TodayStartTimeDisplayModelFactory
 
     init(
         attendanceTimeStore: AttendanceTimeStore,
@@ -182,6 +213,15 @@ final class AttendanceTimePopoverViewController: NSViewController {
         calendar: Calendar = .current
     ) {
         self.attendanceTimeStore = attendanceTimeStore
+        self.referenceDate = referenceDate
+        self.calendar = calendar
+        dayMatcher = AttendanceDayMatcher(calendar: calendar)
+        timeFormatter = AttendanceTimeFormatter(calendar: calendar)
+        todayStartTimeDisplayFactory = TodayStartTimeDisplayModelFactory(
+            placeholderText: UIConstants.todayStartTimePlaceholder,
+            prefixText: UIConstants.todayStartTimePrefix,
+            timeFormatter: timeFormatter
+        )
         initialInputModel = AttendanceTimeInputModel.fromStoredValues(
             startTime: attendanceTimeStore.startTime,
             endTime: attendanceTimeStore.endTime,
@@ -198,16 +238,36 @@ final class AttendanceTimePopoverViewController: NSViewController {
 
     override func loadView() {
         view = makeContentView()
+        refreshTodayStartTimeDisplay()
         applyInitialInputValues()
         configureSaveAction()
     }
 
     private func makeContentView() -> NSView {
         AttendanceTimePopoverContentView(
+            todayStartTimeLabel: todayStartTimeLabel,
             startTimePicker: startTimePicker,
             endTimePicker: endTimePicker,
             saveButton: saveButton
         )
+    }
+
+    private func refreshTodayStartTimeDisplay() {
+        let todayRecord = attendanceTimeStore.todayRecord(
+            referenceDate: referenceDate,
+            dayMatcher: dayMatcher
+        )
+        let displayModel = todayStartTimeDisplayFactory.make(
+            startTime: attendanceTimeStore.startTime,
+            todayRecord: todayRecord
+        )
+
+        applyTodayStartTimeDisplay(displayModel)
+    }
+
+    private func applyTodayStartTimeDisplay(_ displayModel: TodayStartTimeDisplayModel) {
+        todayStartTimeLabel.stringValue = displayModel.text
+        todayStartTimeLabel.isHidden = displayModel.isHidden
     }
 
     private func applyInitialInputValues() {
@@ -234,17 +294,26 @@ final class AttendanceTimePopoverViewController: NSViewController {
     private func saveCurrentInput() {
         attendanceTimeStore.startTime = startTimePicker.dateValue
         attendanceTimeStore.endTime = endTimePicker.dateValue
+        refreshTodayStartTimeDisplay()
     }
+
 }
 
 private final class AttendanceTimePopoverContentView: NSView {
-    init(startTimePicker: NSDatePicker, endTimePicker: NSDatePicker, saveButton: NSButton) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 180))
+    init(
+        todayStartTimeLabel: NSTextField,
+        startTimePicker: NSDatePicker,
+        endTimePicker: NSDatePicker,
+        saveButton: NSButton
+    ) {
+        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 210))
 
+        todayStartTimeLabel.frame = NSRect(x: 20, y: 160, width: 240, height: 20)
         startTimePicker.frame = NSRect(x: 20, y: 104, width: 240, height: 24)
         endTimePicker.frame = NSRect(x: 20, y: 56, width: 240, height: 24)
         saveButton.frame = NSRect(x: 200, y: 16, width: 60, height: 30)
 
+        addSubview(todayStartTimeLabel)
         addSubview(startTimePicker)
         addSubview(endTimePicker)
         addSubview(saveButton)

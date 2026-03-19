@@ -254,6 +254,202 @@ struct AppDelegateStatusItemTests {
     }
 
     @MainActor
+    @Test("popover shows a placeholder for today's start time when no start time is stored")
+    func popoverShowsPlaceholderForTodayStartTimeWhenNoStartTimeIsStored() throws {
+        let sut = AppDelegate()
+        sut.attendanceTimeStore = TestAttendanceTimeStore()
+
+        sut.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        defer {
+            sut.attendancePopover?.close()
+            sut.window?.close()
+
+            if let statusItem = sut.statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+            }
+        }
+
+        let button = try #require(sut.statusItem?.button)
+        button.performClick(nil)
+
+        let popover = try #require(sut.attendancePopover)
+        let controller = try #require(popover.contentViewController as? AttendanceTimePopoverViewController)
+        controller.loadViewIfNeeded()
+
+        #expect(controller.todayStartTimeLabel.stringValue == "오늘 출근: --")
+        #expect(!controller.todayStartTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover shows today's stored start time when today's start time exists")
+    func popoverShowsStoredTodayStartTimeWhenStartTimeExists() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 12, minute: 0))
+        )
+        let todayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 3))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = todayStartTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: 09:03")
+        #expect(!sut.todayStartTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover does not reflect start time when only previous day start time exists")
+    func popoverDoesNotReflectPreviousDayStartTime() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let previousDayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 3))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = previousDayStartTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.todayStartTimeLabel.stringValue.isEmpty)
+        #expect(sut.todayStartTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("saving a new today start time refreshes the today start time label immediately")
+    func savingNewTodayStartTimeRefreshesLabelImmediately() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let startTimeToSave = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 3))
+        )
+        let store = TestAttendanceTimeStore()
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: --")
+
+        sut.startTimePicker.dateValue = startTimeToSave
+        sut.saveButton.performClick(nil)
+
+        #expect(store.startTime == startTimeToSave)
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: 09:03")
+        #expect(!sut.todayStartTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("updating today's start time replaces the previous displayed value")
+    func updatingTodayStartTimeReplacesPreviousDisplayedValue() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let initialStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 8, minute: 30))
+        )
+        let updatedStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 45))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = initialStartTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: 08:30")
+
+        sut.startTimePicker.dateValue = updatedStartTime
+        sut.saveButton.performClick(nil)
+
+        #expect(store.startTime == updatedStartTime)
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: 09:45")
+        #expect(sut.todayStartTimeLabel.stringValue != "오늘 출근: 08:30")
+    }
+
+    @MainActor
+    @Test("today start time display does not break existing persisted time input behavior")
+    func todayStartTimeDisplayDoesNotBreakPersistedTimeInputBehavior() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let persistedStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 3))
+        )
+        let persistedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 10))
+        )
+        let updatedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 5))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = persistedStartTime
+        store.endTime = persistedEndTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: 09:03")
+        #expect(sut.startTimePicker.dateValue == persistedStartTime)
+        #expect(sut.endTimePicker.dateValue == persistedEndTime)
+
+        sut.endTimePicker.dateValue = updatedEndTime
+        sut.saveButton.performClick(nil)
+
+        #expect(store.endTime == updatedEndTime)
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: 09:03")
+    }
+
+    @MainActor
     @Test("saving start time in the popover writes to local store")
     func savingStartTimeInPopoverWritesToLocalStore() throws {
         let sut = AppDelegate()
