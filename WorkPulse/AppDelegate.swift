@@ -264,6 +264,9 @@ final class AttendanceTimePopoverViewController: NSViewController {
         static let workedTimeTimePlaceholder = "--:--"
         static let workedTimePrefix = "현재 근무: "
         static let weeklyWorkedTimePlaceholder = "이번 주: --:--"
+        static let weeklyTargetMetText = "주간 목표 달성"
+        static let weeklyTargetOvertimePrefix = "초과된 시간 "
+        static let weeklyTargetRemainingPrefix = "채워야 하는 시간 "
         static let todayStartTimePlaceholder = "오늘 출근: --"
         static let todayStartTimePrefix = "오늘 출근: "
     }
@@ -271,6 +274,7 @@ final class AttendanceTimePopoverViewController: NSViewController {
     private let workedTimeDisplayFactory: WorkedTimeDisplayModelFactory
     private(set) var workedTimeLabel = NSTextField(labelWithString: "")
     private(set) var weeklyWorkedTimeLabel = NSTextField(labelWithString: "")
+    private(set) var weeklyTargetProgressLabel = NSTextField(labelWithString: "")
     private(set) var startTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var endTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var saveButton = NSButton(title: "Save", target: nil, action: nil)
@@ -288,6 +292,9 @@ final class AttendanceTimePopoverViewController: NSViewController {
     private let workedDurationFormatter: WorkedDurationFormatter
     private let todayStartTimeDisplayFactory: TodayStartTimeDisplayModelFactory
     private let weeklyWorkedTimeCalculator: WeeklyWorkedTimeCalculator
+    private let weeklyTargetProgressCalculator: WeeklyTargetProgressCalculator
+    private let weeklyTargetProgressStyleResolver: WeeklyTargetProgressSemanticStyleResolver
+    private let weeklyTargetProgressStylePalette: WeeklyTargetProgressStylePalette
     private let onSave: (() -> Void)?
     private var workedTimeRefreshTimer: Timer?
 
@@ -320,6 +327,11 @@ final class AttendanceTimePopoverViewController: NSViewController {
             timeFormatter: timeFormatter
         )
         weeklyWorkedTimeCalculator = WeeklyWorkedTimeCalculator(calendar: calendar)
+        weeklyTargetProgressCalculator = WeeklyTargetProgressCalculator(
+            targetDuration: WeeklyTargetConfiguration.standard.duration
+        )
+        weeklyTargetProgressStyleResolver = WeeklyTargetProgressSemanticStyleResolver()
+        weeklyTargetProgressStylePalette = WeeklyTargetProgressStylePalette()
         initialInputModel = AttendanceTimeInputModel.fromStoredValues(
             startTime: attendanceTimeStore.startTime,
             endTime: attendanceTimeStore.endTime,
@@ -349,6 +361,7 @@ final class AttendanceTimePopoverViewController: NSViewController {
         AttendanceTimePopoverContentView(
             workedTimeLabel: workedTimeLabel,
             weeklyWorkedTimeLabel: weeklyWorkedTimeLabel,
+            weeklyTargetProgressLabel: weeklyTargetProgressLabel,
             todayStartTimeLabel: todayStartTimeLabel,
             startTimePicker: startTimePicker,
             endTimePicker: endTimePicker,
@@ -403,11 +416,21 @@ final class AttendanceTimePopoverViewController: NSViewController {
         todayStartTimeLabel.isHidden = displayModel.isHidden
     }
 
-    private func refreshWeeklyWorkedTimeDisplay() {
-        guard let totalWorkedDuration = weeklyWorkedTimeCalculator.workedDuration(
+    private func refreshWeeklySummaryDisplay() {
+        let totalWorkedDuration = weeklyWorkedTimeCalculator.workedDuration(
             records: makeWeeklyAttendanceRecords(),
             referenceDate: referenceDate
-        ) else {
+        )
+        let progress = weeklyTargetProgressCalculator.progress(
+            totalWorkedDuration: totalWorkedDuration
+        )
+
+        applyWeeklyWorkedTimeDisplay(totalWorkedDuration: totalWorkedDuration)
+        applyWeeklyTargetProgressDisplay(progress)
+    }
+
+    private func applyWeeklyWorkedTimeDisplay(totalWorkedDuration: TimeInterval?) {
+        guard let totalWorkedDuration else {
             weeklyWorkedTimeLabel.stringValue = UIConstants.weeklyWorkedTimePlaceholder
             weeklyWorkedTimeLabel.isHidden = false
             return
@@ -415,6 +438,29 @@ final class AttendanceTimePopoverViewController: NSViewController {
 
         weeklyWorkedTimeLabel.stringValue = "이번 주: \(workedDurationFormatter.string(from: totalWorkedDuration))"
         weeklyWorkedTimeLabel.isHidden = false
+    }
+
+    private func applyWeeklyTargetProgressDisplay(_ progress: WeeklyTargetProgress?) {
+        guard let progress else {
+            weeklyTargetProgressLabel.isHidden = true
+            return
+        }
+
+        let semanticStyle = weeklyTargetProgressStyleResolver.style(for: progress)
+
+        switch progress.status {
+        case .met:
+            weeklyTargetProgressLabel.stringValue = UIConstants.weeklyTargetMetText
+            weeklyTargetProgressLabel.isHidden = false
+        case let .overtime(overtimeDuration):
+            weeklyTargetProgressLabel.stringValue = "\(UIConstants.weeklyTargetOvertimePrefix)\(workedDurationFormatter.string(from: overtimeDuration))"
+            weeklyTargetProgressLabel.isHidden = false
+        case let .remaining(remainingDuration):
+            weeklyTargetProgressLabel.stringValue = "\(UIConstants.weeklyTargetRemainingPrefix)\(workedDurationFormatter.string(from: remainingDuration))"
+            weeklyTargetProgressLabel.isHidden = false
+        }
+
+        weeklyTargetProgressLabel.textColor = weeklyTargetProgressStylePalette.textColor(for: semanticStyle)
     }
 
     private func makeWeeklyAttendanceRecords() -> [AttendanceRecord] {
@@ -472,7 +518,7 @@ final class AttendanceTimePopoverViewController: NSViewController {
 
     private func refreshAttendanceDisplayState() {
         refreshWorkedTimeDisplay()
-        refreshWeeklyWorkedTimeDisplay()
+        refreshWeeklySummaryDisplay()
         configureWorkedTimeRefreshTimer()
         refreshTodayStartTimeDisplay()
     }
@@ -488,6 +534,7 @@ private final class AttendanceTimePopoverContentView: NSView {
     init(
         workedTimeLabel: NSTextField,
         weeklyWorkedTimeLabel: NSTextField,
+        weeklyTargetProgressLabel: NSTextField,
         todayStartTimeLabel: NSTextField,
         startTimePicker: NSDatePicker,
         endTimePicker: NSDatePicker,
@@ -497,13 +544,15 @@ private final class AttendanceTimePopoverContentView: NSView {
 
         workedTimeLabel.frame = NSRect(x: 20, y: 212, width: 240, height: 20)
         weeklyWorkedTimeLabel.frame = NSRect(x: 20, y: 184, width: 240, height: 20)
-        todayStartTimeLabel.frame = NSRect(x: 20, y: 156, width: 240, height: 20)
+        weeklyTargetProgressLabel.frame = NSRect(x: 20, y: 156, width: 240, height: 20)
+        todayStartTimeLabel.frame = NSRect(x: 20, y: 128, width: 240, height: 20)
         startTimePicker.frame = NSRect(x: 20, y: 100, width: 240, height: 24)
         endTimePicker.frame = NSRect(x: 20, y: 52, width: 240, height: 24)
         saveButton.frame = NSRect(x: 200, y: 16, width: 60, height: 30)
 
         addSubview(workedTimeLabel)
         addSubview(weeklyWorkedTimeLabel)
+        addSubview(weeklyTargetProgressLabel)
         addSubview(todayStartTimeLabel)
         addSubview(startTimePicker)
         addSubview(endTimePicker)

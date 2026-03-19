@@ -678,6 +678,412 @@ struct AppDelegateStatusItemTests {
     }
 
     @MainActor
+    @Test("popover shows remaining weekly target time when this week's total is under forty hours")
+    func popoverShowsRemainingWeeklyTargetTimeWhenWeeklyTotalIsUnderFortyHours() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0))
+        )
+        let wednesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))
+        )
+        let wednesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 18, minute: 0))
+        )
+        let thursdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))
+        )
+        let thursdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 13, minute: 30))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime),
+            AttendanceRecord(startTime: wednesdayStartTime, endTime: wednesdayEndTime),
+            AttendanceRecord(startTime: thursdayStartTime, endTime: thursdayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyTargetProgressLabel.stringValue == "채워야 하는 시간 08:30")
+        #expect(!sut.weeklyTargetProgressLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover shows a completion state when this week's total reaches exactly forty hours")
+    func popoverShowsCompletionStateWhenWeeklyTotalReachesExactlyFortyHours() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 19, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 0))
+        )
+        let wednesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))
+        )
+        let wednesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 19, minute: 0))
+        )
+        let thursdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))
+        )
+        let thursdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 19, minute: 0))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime),
+            AttendanceRecord(startTime: wednesdayStartTime, endTime: wednesdayEndTime),
+            AttendanceRecord(startTime: thursdayStartTime, endTime: thursdayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyTargetProgressLabel.stringValue == "주간 목표 달성")
+        #expect(!sut.weeklyTargetProgressLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover shows overtime when this week's total exceeds forty hours")
+    func popoverShowsOvertimeWhenWeeklyTotalExceedsFortyHours() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 19, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 0))
+        )
+        let wednesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))
+        )
+        let wednesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 19, minute: 0))
+        )
+        let thursdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))
+        )
+        let thursdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 19, minute: 0))
+        )
+        let fridayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 9, minute: 0))
+        )
+        let fridayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 13, minute: 15))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime),
+            AttendanceRecord(startTime: wednesdayStartTime, endTime: wednesdayEndTime),
+            AttendanceRecord(startTime: thursdayStartTime, endTime: thursdayEndTime),
+            AttendanceRecord(startTime: fridayStartTime, endTime: fridayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyTargetProgressLabel.stringValue == "초과된 시간 04:15")
+        #expect(!sut.weeklyTargetProgressLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover uses different semantic styles for remaining time and overtime")
+    func popoverUsesDifferentSemanticStylesForRemainingTimeAndOvertime() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let underReferenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 12, minute: 0))
+        )
+        let underStore = TestAttendanceTimeStore()
+        underStore.records = [
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 18, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 13, minute: 30)))
+            )
+        ]
+        let underController = AttendanceTimePopoverViewController(
+            attendanceTimeStore: underStore,
+            referenceDate: underReferenceDate,
+            calendar: calendar
+        )
+        underController.loadViewIfNeeded()
+
+        let overtimeReferenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 12, minute: 0))
+        )
+        let overtimeStore = TestAttendanceTimeStore()
+        overtimeStore.records = [
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 19, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 19, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 19, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 13, minute: 15)))
+            )
+        ]
+        let overtimeController = AttendanceTimePopoverViewController(
+            attendanceTimeStore: overtimeStore,
+            referenceDate: overtimeReferenceDate,
+            calendar: calendar
+        )
+        overtimeController.loadViewIfNeeded()
+
+        let underColor = try #require(underController.weeklyTargetProgressLabel.textColor)
+        let overtimeColor = try #require(overtimeController.weeklyTargetProgressLabel.textColor)
+
+        #expect(underColor.isEqual(NSColor.systemOrange))
+        #expect(overtimeColor.isEqual(NSColor.systemRed))
+    }
+
+    @MainActor
+    @Test("popover uses a distinct completion style when this week's total reaches exactly forty hours")
+    func popoverUsesDistinctCompletionStyleWhenWeeklyTotalReachesExactlyFortyHours() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 12, minute: 0))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 19, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 19, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 19, minute: 0)))
+            )
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        let completionColor = try #require(sut.weeklyTargetProgressLabel.textColor)
+
+        #expect(completionColor.isEqual(NSColor.systemGreen))
+    }
+
+    @MainActor
+    @Test("saving updated attendance times refreshes weekly target progress text and style immediately")
+    func savingUpdatedAttendanceTimesRefreshesWeeklyTargetProgressImmediately() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0))
+        )
+        let wednesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))
+        )
+        let wednesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 18, minute: 0))
+        )
+        let thursdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))
+        )
+        let thursdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 18, minute: 0))
+        )
+        let fridayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 9, minute: 0))
+        )
+        let storedFridayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 12, minute: 0))
+        )
+        let updatedFridayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 5, hour: 13, minute: 30))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = fridayStartTime
+        store.endTime = storedFridayEndTime
+        store.records = [
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime),
+            AttendanceRecord(startTime: wednesdayStartTime, endTime: wednesdayEndTime),
+            AttendanceRecord(startTime: thursdayStartTime, endTime: thursdayEndTime),
+            AttendanceRecord(startTime: fridayStartTime, endTime: storedFridayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyTargetProgressLabel.stringValue == "채워야 하는 시간 01:00")
+        #expect(try #require(sut.weeklyTargetProgressLabel.textColor).isEqual(NSColor.systemOrange))
+
+        sut.endTimePicker.dateValue = updatedFridayEndTime
+        sut.saveButton.performClick(nil)
+
+        #expect(store.endTime == updatedFridayEndTime)
+        #expect(store.records.last == AttendanceRecord(startTime: fridayStartTime, endTime: updatedFridayEndTime))
+        #expect(sut.weeklyTargetProgressLabel.stringValue == "초과된 시간 00:30")
+        #expect(try #require(sut.weeklyTargetProgressLabel.textColor).isEqual(NSColor.systemRed))
+    }
+
+    @MainActor
+    @Test("popover keeps weekly worked time visible alongside weekly target progress")
+    func popoverKeepsWeeklyWorkedTimeVisibleAlongsideWeeklyTargetProgress() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 12, minute: 0))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 18, minute: 0)))
+            ),
+            AttendanceRecord(
+                startTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 9, minute: 0))),
+                endTime: try #require(calendar.date(from: DateComponents(year: 2024, month: 4, day: 4, hour: 13, minute: 30)))
+            )
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 31:30")
+        #expect(!sut.weeklyWorkedTimeLabel.isHidden)
+        #expect(sut.weeklyTargetProgressLabel.stringValue == "채워야 하는 시간 08:30")
+        #expect(!sut.weeklyTargetProgressLabel.isHidden)
+    }
+
+    @MainActor
     @Test("popover excludes records outside the current week from the weekly total")
     func popoverExcludesRecordsOutsideCurrentWeekFromWeeklyTotal() throws {
         let timeZone = TimeZone(secondsFromGMT: 0)!
