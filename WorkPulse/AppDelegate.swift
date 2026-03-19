@@ -12,6 +12,32 @@ protocol AttendanceTimeStore: AnyObject {
     var endTime: Date? { get set }
 }
 
+protocol AttendanceRecordStore: AnyObject {
+    var records: [AttendanceRecord] { get set }
+    func upsertRecord(_ record: AttendanceRecord, calendar: Calendar)
+}
+
+struct AttendanceRecord: Codable, Equatable {
+    let startTime: Date
+    let endTime: Date
+}
+
+extension AttendanceRecordStore {
+    func upsertRecord(_ record: AttendanceRecord, calendar: Calendar) {
+        var updatedRecords = records
+
+        if let existingIndex = updatedRecords.lastIndex(where: {
+            calendar.isDate($0.startTime, inSameDayAs: record.startTime)
+        }) {
+            updatedRecords[existingIndex] = record
+        } else {
+            updatedRecords.append(record)
+        }
+
+        records = updatedRecords
+    }
+}
+
 struct AttendanceTimeRecord: Equatable {
     let startTime: Date
     let endTime: Date?
@@ -53,10 +79,11 @@ struct AttendanceTimeInputModel: Equatable {
     }
 }
 
-final class UserDefaultsAttendanceTimeStore: AttendanceTimeStore {
+final class UserDefaultsAttendanceTimeStore: AttendanceTimeStore, AttendanceRecordStore {
     private enum Keys {
         static let startTime = "attendance.startTime"
         static let endTime = "attendance.endTime"
+        static let records = "attendance.records"
     }
 
     private let userDefaults: UserDefaults
@@ -75,6 +102,22 @@ final class UserDefaultsAttendanceTimeStore: AttendanceTimeStore {
         set { set(newValue, forKey: Keys.endTime) }
     }
 
+    var records: [AttendanceRecord] {
+        get {
+            guard let data = userDefaults.data(forKey: Keys.records) else { return [] }
+            return (try? JSONDecoder().decode([AttendanceRecord].self, from: data)) ?? []
+        }
+        set {
+            guard !newValue.isEmpty else {
+                userDefaults.removeObject(forKey: Keys.records)
+                return
+            }
+
+            guard let data = try? JSONEncoder().encode(newValue) else { return }
+            userDefaults.set(data, forKey: Keys.records)
+        }
+    }
+
     private func set(_ value: Date?, forKey key: String) {
         if let value {
             userDefaults.set(value, forKey: key)
@@ -86,10 +129,22 @@ final class UserDefaultsAttendanceTimeStore: AttendanceTimeStore {
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverDelegate {
+    private enum UIConstants {
+        static let workedTimePlaceholder = "--:--"
+        static let workedTimePrefix = "현재 근무: "
+    }
+
+    private let workedTimeDisplayFactory = WorkedTimeDisplayModelFactory(
+        placeholderTimeText: UIConstants.workedTimePlaceholder,
+        popoverPrefixText: UIConstants.workedTimePrefix,
+        workedTimeCalculator: WorkedTimeCalculator(),
+        workedDurationFormatter: WorkedDurationFormatter()
+    )
     private(set) var window: NSWindow?
     private(set) var statusItem: NSStatusItem?
     private(set) var attendancePopover: NSPopover?
     var attendanceTimeStore: AttendanceTimeStore = UserDefaultsAttendanceTimeStore()
+    var currentDateProvider: () -> Date = Date.init
     var applicationActivator: (Bool) -> Void = { shouldIgnoreOtherApps in
         NSApplication.shared.activate(ignoringOtherApps: shouldIgnoreOtherApps)
     }
@@ -109,14 +164,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPo
 
     private func configureStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem?.button?.title = "WorkPulse"
+        refreshWorkedTimeDisplay()
         statusItem?.button?.target = self
         statusItem?.button?.action = #selector(handleStatusItemClick)
     }
 
     @objc private func handleStatusItemClick() {
+        refreshWorkedTimeDisplay()
         guard let button = statusItem?.button else { return }
         handleStatusItemInteraction(with: button)
+    }
+
+    private func refreshWorkedTimeDisplay() {
+        let displayModel = workedTimeDisplayFactory.make(
+            startTime: attendanceTimeStore.startTime,
+            endTime: attendanceTimeStore.endTime,
+            currentDate: currentDateProvider()
+        )
+
+        statusItem?.button?.title = displayModel.statusItemText
+        let controller = attendancePopover?.contentViewController as? AttendanceTimePopoverViewController
+        controller?.applyWorkedTimeDisplay(displayModel)
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -173,7 +241,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPo
         popover.behavior = .transient
         popover.delegate = self
         popover.contentViewController = AttendanceTimePopoverViewController(
-            attendanceTimeStore: attendanceTimeStore
+            attendanceTimeStore: attendanceTimeStore,
+            currentDateProvider: currentDateProvider,
+            onSave: { [weak self] in
+                self?.refreshWorkedTimeDisplay()
+            }
         )
         return popover
     }
@@ -189,10 +261,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPo
 
 final class AttendanceTimePopoverViewController: NSViewController {
     private enum UIConstants {
+        static let workedTimeTimePlaceholder = "--:--"
+        static let workedTimePrefix = "현재 근무: "
+        static let weeklyWorkedTimePlaceholder = "이번 주: --:--"
         static let todayStartTimePlaceholder = "오늘 출근: --"
         static let todayStartTimePrefix = "오늘 출근: "
     }
 
+    private let workedTimeDisplayFactory: WorkedTimeDisplayModelFactory
+    private(set) var workedTimeLabel = NSTextField(labelWithString: "")
+    private(set) var weeklyWorkedTimeLabel = NSTextField(labelWithString: "")
     private(set) var startTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var endTimePicker = AttendanceTimePopoverViewController.makeTimePicker()
     private(set) var saveButton = NSButton(title: "Save", target: nil, action: nil)
@@ -203,25 +281,45 @@ final class AttendanceTimePopoverViewController: NSViewController {
     private let initialInputModel: AttendanceTimeInputModel
     private let referenceDate: Date
     private let calendar: Calendar
+    private let currentDateProvider: () -> Date
+    private let workedTimeRefreshInterval: TimeInterval
     private let dayMatcher: AttendanceDayMatcher
     private let timeFormatter: AttendanceTimeFormatter
+    private let workedDurationFormatter: WorkedDurationFormatter
     private let todayStartTimeDisplayFactory: TodayStartTimeDisplayModelFactory
+    private let weeklyWorkedTimeCalculator: WeeklyWorkedTimeCalculator
+    private let onSave: (() -> Void)?
+    private var workedTimeRefreshTimer: Timer?
 
     init(
         attendanceTimeStore: AttendanceTimeStore,
         referenceDate: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        currentDateProvider: @escaping () -> Date = Date.init,
+        workedTimeRefreshInterval: TimeInterval = 60,
+        onSave: (() -> Void)? = nil
     ) {
         self.attendanceTimeStore = attendanceTimeStore
         self.referenceDate = referenceDate
         self.calendar = calendar
+        self.currentDateProvider = currentDateProvider
+        self.workedTimeRefreshInterval = workedTimeRefreshInterval
+        self.onSave = onSave
         dayMatcher = AttendanceDayMatcher(calendar: calendar)
         timeFormatter = AttendanceTimeFormatter(calendar: calendar)
+        workedDurationFormatter = WorkedDurationFormatter()
+        workedTimeDisplayFactory = WorkedTimeDisplayModelFactory(
+            placeholderTimeText: UIConstants.workedTimeTimePlaceholder,
+            popoverPrefixText: UIConstants.workedTimePrefix,
+            workedTimeCalculator: WorkedTimeCalculator(),
+            workedDurationFormatter: workedDurationFormatter
+        )
         todayStartTimeDisplayFactory = TodayStartTimeDisplayModelFactory(
             placeholderText: UIConstants.todayStartTimePlaceholder,
             prefixText: UIConstants.todayStartTimePrefix,
             timeFormatter: timeFormatter
         )
+        weeklyWorkedTimeCalculator = WeeklyWorkedTimeCalculator(calendar: calendar)
         initialInputModel = AttendanceTimeInputModel.fromStoredValues(
             startTime: attendanceTimeStore.startTime,
             endTime: attendanceTimeStore.endTime,
@@ -236,20 +334,55 @@ final class AttendanceTimePopoverViewController: NSViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        workedTimeRefreshTimer?.invalidate()
+    }
+
     override func loadView() {
         view = makeContentView()
-        refreshTodayStartTimeDisplay()
+        refreshAttendanceDisplayState()
         applyInitialInputValues()
         configureSaveAction()
     }
 
     private func makeContentView() -> NSView {
         AttendanceTimePopoverContentView(
+            workedTimeLabel: workedTimeLabel,
+            weeklyWorkedTimeLabel: weeklyWorkedTimeLabel,
             todayStartTimeLabel: todayStartTimeLabel,
             startTimePicker: startTimePicker,
             endTimePicker: endTimePicker,
             saveButton: saveButton
         )
+    }
+
+    private func refreshWorkedTimeDisplay() {
+        let displayModel = workedTimeDisplayFactory.make(
+            startTime: attendanceTimeStore.startTime,
+            endTime: attendanceTimeStore.endTime,
+            currentDate: currentDateProvider()
+        )
+
+        applyWorkedTimeDisplay(displayModel)
+    }
+
+    func applyWorkedTimeDisplay(_ displayModel: WorkedTimeDisplayModel) {
+        workedTimeLabel.stringValue = displayModel.popoverText
+        workedTimeLabel.isHidden = false
+    }
+
+    private func configureWorkedTimeRefreshTimer() {
+        workedTimeRefreshTimer?.invalidate()
+
+        guard attendanceTimeStore.startTime != nil, attendanceTimeStore.endTime == nil else {
+            workedTimeRefreshTimer = nil
+            return
+        }
+
+        workedTimeRefreshTimer = Timer.scheduledTimer(withTimeInterval: workedTimeRefreshInterval, repeats: true) {
+            [weak self] _ in
+            self?.refreshWorkedTimeDisplay()
+        }
     }
 
     private func refreshTodayStartTimeDisplay() {
@@ -268,6 +401,37 @@ final class AttendanceTimePopoverViewController: NSViewController {
     private func applyTodayStartTimeDisplay(_ displayModel: TodayStartTimeDisplayModel) {
         todayStartTimeLabel.stringValue = displayModel.text
         todayStartTimeLabel.isHidden = displayModel.isHidden
+    }
+
+    private func refreshWeeklyWorkedTimeDisplay() {
+        guard let totalWorkedDuration = weeklyWorkedTimeCalculator.workedDuration(
+            records: makeWeeklyAttendanceRecords(),
+            referenceDate: referenceDate
+        ) else {
+            weeklyWorkedTimeLabel.stringValue = UIConstants.weeklyWorkedTimePlaceholder
+            weeklyWorkedTimeLabel.isHidden = false
+            return
+        }
+
+        weeklyWorkedTimeLabel.stringValue = "이번 주: \(workedDurationFormatter.string(from: totalWorkedDuration))"
+        weeklyWorkedTimeLabel.isHidden = false
+    }
+
+    private func makeWeeklyAttendanceRecords() -> [AttendanceRecord] {
+        if let recordStore = attendanceTimeStore as? AttendanceRecordStore, !recordStore.records.isEmpty {
+            return recordStore.records
+        }
+
+        guard
+            let startTime = attendanceTimeStore.startTime,
+            let endTime = attendanceTimeStore.endTime
+        else {
+            return []
+        }
+
+        return [
+            AttendanceRecord(startTime: startTime, endTime: endTime)
+        ]
     }
 
     private func applyInitialInputValues() {
@@ -292,27 +456,54 @@ final class AttendanceTimePopoverViewController: NSViewController {
     }
 
     private func saveCurrentInput() {
-        attendanceTimeStore.startTime = startTimePicker.dateValue
-        attendanceTimeStore.endTime = endTimePicker.dateValue
+        let savedStartTime = startTimePicker.dateValue
+        let savedEndTime = endTimePicker.dateValue
+
+        attendanceTimeStore.startTime = savedStartTime
+        attendanceTimeStore.endTime = savedEndTime
+
+        if let recordStore = attendanceTimeStore as? AttendanceRecordStore {
+            let savedRecord = AttendanceRecord(startTime: savedStartTime, endTime: savedEndTime)
+            recordStore.upsertRecord(savedRecord, calendar: calendar)
+        }
+
+        handleAttendanceTimeSave()
+    }
+
+    private func refreshAttendanceDisplayState() {
+        refreshWorkedTimeDisplay()
+        refreshWeeklyWorkedTimeDisplay()
+        configureWorkedTimeRefreshTimer()
         refreshTodayStartTimeDisplay()
+    }
+
+    private func handleAttendanceTimeSave() {
+        refreshAttendanceDisplayState()
+        onSave?()
     }
 
 }
 
 private final class AttendanceTimePopoverContentView: NSView {
     init(
+        workedTimeLabel: NSTextField,
+        weeklyWorkedTimeLabel: NSTextField,
         todayStartTimeLabel: NSTextField,
         startTimePicker: NSDatePicker,
         endTimePicker: NSDatePicker,
         saveButton: NSButton
     ) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 210))
+        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 262))
 
-        todayStartTimeLabel.frame = NSRect(x: 20, y: 160, width: 240, height: 20)
-        startTimePicker.frame = NSRect(x: 20, y: 104, width: 240, height: 24)
-        endTimePicker.frame = NSRect(x: 20, y: 56, width: 240, height: 24)
+        workedTimeLabel.frame = NSRect(x: 20, y: 212, width: 240, height: 20)
+        weeklyWorkedTimeLabel.frame = NSRect(x: 20, y: 184, width: 240, height: 20)
+        todayStartTimeLabel.frame = NSRect(x: 20, y: 156, width: 240, height: 20)
+        startTimePicker.frame = NSRect(x: 20, y: 100, width: 240, height: 24)
+        endTimePicker.frame = NSRect(x: 20, y: 52, width: 240, height: 24)
         saveButton.frame = NSRect(x: 200, y: 16, width: 60, height: 30)
 
+        addSubview(workedTimeLabel)
+        addSubview(weeklyWorkedTimeLabel)
         addSubview(todayStartTimeLabel)
         addSubview(startTimePicker)
         addSubview(endTimePicker)

@@ -254,6 +254,615 @@ struct AppDelegateStatusItemTests {
     }
 
     @MainActor
+    @Test("when start and end times are both missing, worked time shows a placeholder")
+    func workedTimeShowsPlaceholderWhenStartAndEndTimesAreMissing() throws {
+        let sut = AppDelegate()
+        sut.attendanceTimeStore = TestAttendanceTimeStore()
+
+        sut.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        defer {
+            sut.attendancePopover?.close()
+            sut.window?.close()
+
+            if let statusItem = sut.statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+            }
+        }
+
+        let button = try #require(sut.statusItem?.button)
+        #expect(button.title == "--:--")
+
+        button.performClick(nil)
+
+        let popover = try #require(sut.attendancePopover)
+        let controller = try #require(popover.contentViewController as? AttendanceTimePopoverViewController)
+        controller.loadViewIfNeeded()
+
+        #expect(controller.workedTimeLabel.stringValue == "현재 근무: --:--")
+        #expect(!controller.workedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("when only start time exists, worked time shows elapsed time from the current time")
+    func workedTimeShowsElapsedTimeWhenOnlyStartTimeExists() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let startTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 30))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = startTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar,
+            currentDateProvider: { referenceDate }
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.workedTimeLabel.stringValue == "현재 근무: 02:30")
+        #expect(!sut.workedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("status item and popover use the injected current time provider for ongoing worked time")
+    func statusItemAndPopoverUseInjectedCurrentTimeProviderForOngoingWorkedTime() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let currentDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let startTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 30))
+        )
+
+        let sut = AppDelegate()
+        let store = TestAttendanceTimeStore()
+        store.startTime = startTime
+        sut.attendanceTimeStore = store
+        sut.currentDateProvider = { currentDate }
+
+        sut.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        defer {
+            sut.attendancePopover?.close()
+            sut.window?.close()
+
+            if let statusItem = sut.statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+            }
+        }
+
+        let button = try #require(sut.statusItem?.button)
+        #expect(button.title == "02:30")
+
+        button.performClick(nil)
+
+        let popover = try #require(sut.attendancePopover)
+        let controller = try #require(popover.contentViewController as? AttendanceTimePopoverViewController)
+        controller.loadViewIfNeeded()
+
+        #expect(controller.workedTimeLabel.stringValue == "현재 근무: 02:30")
+    }
+
+    @MainActor
+    @Test("when only start time exists, worked time refreshes as the current time changes")
+    func workedTimeRefreshesWhenCurrentTimeChanges() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let initialNow = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let updatedNow = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 1))
+        )
+        let startTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 30))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = startTime
+        var currentNow = initialNow
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: initialNow,
+            calendar: calendar,
+            currentDateProvider: { currentNow },
+            workedTimeRefreshInterval: 0.05
+        )
+
+        sut.loadViewIfNeeded()
+        #expect(sut.workedTimeLabel.stringValue == "현재 근무: 02:30")
+
+        currentNow = updatedNow
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
+
+        #expect(sut.workedTimeLabel.stringValue == "현재 근무: 02:31")
+    }
+
+    @MainActor
+    @Test("when start and end times exist, worked time shows the recorded duration")
+    func workedTimeShowsRecordedDurationWhenStartAndEndTimesExist() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 21, minute: 0))
+        )
+        let startTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 30))
+        )
+        let endTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 15))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = startTime
+        store.endTime = endTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.workedTimeLabel.stringValue == "현재 근무: 08:45")
+        #expect(!sut.workedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("saving updated attendance times refreshes worked time immediately")
+    func savingUpdatedAttendanceTimesRefreshesWorkedTimeImmediately() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let storedStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let storedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0))
+        )
+        let updatedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 5))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = storedStartTime
+        store.endTime = storedEndTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+        #expect(sut.workedTimeLabel.stringValue == "현재 근무: 09:00")
+
+        sut.endTimePicker.dateValue = updatedEndTime
+        sut.saveButton.performClick(nil)
+
+        #expect(store.endTime == updatedEndTime)
+        #expect(sut.workedTimeLabel.stringValue == "현재 근무: 10:05")
+    }
+
+    @MainActor
+    @Test("status item text and popover worked time always use the same calculated result")
+    func statusItemTextAndPopoverWorkedTimeStayInSync() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let storedStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let storedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0))
+        )
+        let updatedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 5))
+        )
+
+        let sut = AppDelegate()
+        let store = TestAttendanceTimeStore()
+        store.startTime = storedStartTime
+        store.endTime = storedEndTime
+        sut.attendanceTimeStore = store
+
+        sut.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        defer {
+            sut.attendancePopover?.close()
+            sut.window?.close()
+
+            if let statusItem = sut.statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+            }
+        }
+
+        let button = try #require(sut.statusItem?.button)
+        #expect(button.title == "09:00")
+
+        button.performClick(nil)
+
+        let popover = try #require(sut.attendancePopover)
+        let controller = try #require(popover.contentViewController as? AttendanceTimePopoverViewController)
+        controller.loadViewIfNeeded()
+
+        #expect(controller.workedTimeLabel.stringValue == "현재 근무: 09:00")
+
+        controller.endTimePicker.dateValue = updatedEndTime
+        controller.saveButton.performClick(nil)
+
+        #expect(button.title == "10:05")
+        #expect(controller.workedTimeLabel.stringValue == "현재 근무: 10:05")
+    }
+
+    @MainActor
+    @Test("saving attendance times refreshes every dependent display immediately")
+    func savingAttendanceTimesRefreshesEveryDependentDisplayImmediately() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let currentDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let startTimeToSave = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 3))
+        )
+        let endTimeToSave = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 10))
+        )
+
+        let sut = AppDelegate()
+        let store = TestAttendanceTimeStore()
+        sut.attendanceTimeStore = store
+        sut.currentDateProvider = { currentDate }
+
+        sut.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        defer {
+            sut.attendancePopover?.close()
+            sut.window?.close()
+
+            if let statusItem = sut.statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+            }
+        }
+
+        let button = try #require(sut.statusItem?.button)
+        button.performClick(nil)
+
+        let popover = try #require(sut.attendancePopover)
+        let controller = try #require(popover.contentViewController as? AttendanceTimePopoverViewController)
+        controller.loadViewIfNeeded()
+
+        controller.startTimePicker.dateValue = startTimeToSave
+        controller.endTimePicker.dateValue = endTimeToSave
+        controller.saveButton.performClick(nil)
+
+        #expect(store.startTime == startTimeToSave)
+        #expect(store.endTime == endTimeToSave)
+        #expect(button.title == "09:07")
+        #expect(controller.workedTimeLabel.stringValue == "현재 근무: 09:07")
+        #expect(controller.todayStartTimeLabel.stringValue == "오늘 출근: 09:03")
+        #expect(!controller.todayStartTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover shows a placeholder for weekly worked time when no weekly records exist")
+    func popoverShowsPlaceholderForWeeklyWorkedTimeWhenNoWeeklyRecordsExist() throws {
+        let sut = AppDelegate()
+        sut.attendanceTimeStore = TestAttendanceTimeStore()
+
+        sut.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        defer {
+            sut.attendancePopover?.close()
+            sut.window?.close()
+
+            if let statusItem = sut.statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+            }
+        }
+
+        let button = try #require(sut.statusItem?.button)
+        button.performClick(nil)
+
+        let popover = try #require(sut.attendancePopover)
+        let controller = try #require(popover.contentViewController as? AttendanceTimePopoverViewController)
+        controller.loadViewIfNeeded()
+
+        #expect(controller.weeklyWorkedTimeLabel.stringValue == "이번 주: --:--")
+        #expect(!controller.weeklyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover shows the weekly worked time when one completed record exists this week")
+    func popoverShowsWeeklyWorkedTimeForSingleCompletedRecordThisWeek() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 12, minute: 0))
+        )
+        let startTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 30))
+        )
+        let endTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 15))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = startTime
+        store.endTime = endTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 08:45")
+        #expect(!sut.weeklyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover sums multiple completed records within this week")
+    func popoverSumsMultipleCompletedRecordsWithinThisWeek() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 10, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 16, minute: 30))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 15:30")
+        #expect(!sut.weeklyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover excludes records outside the current week from the weekly total")
+    func popoverExcludesRecordsOutsideCurrentWeekFromWeeklyTotal() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 12, minute: 0))
+        )
+        let previousWeekStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 3, day: 29, hour: 9, minute: 0))
+        )
+        let previousWeekEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 3, day: 29, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 10, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 16, minute: 30))
+        )
+        let nextWeekStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 8, hour: 9, minute: 0))
+        )
+        let nextWeekEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 8, hour: 11, minute: 0))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: previousWeekStartTime, endTime: previousWeekEndTime),
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime),
+            AttendanceRecord(startTime: nextWeekStartTime, endTime: nextWeekEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 15:30")
+        #expect(!sut.weeklyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover uses the latest record when the same day is updated")
+    func popoverUsesLatestRecordWhenSameDayIsUpdated() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 12, minute: 0))
+        )
+        let originalMondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let originalMondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let updatedMondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 30))
+        )
+        let updatedMondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 19, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 10, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 16, minute: 30))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: originalMondayStartTime, endTime: originalMondayEndTime),
+            AttendanceRecord(startTime: updatedMondayStartTime, endTime: updatedMondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 16:00")
+        #expect(!sut.weeklyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover excludes in-progress work from the weekly total by default")
+    func popoverExcludesInProgressWorkFromWeeklyTotalByDefault() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let inProgressStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 10, minute: 0))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime)
+        ]
+        store.startTime = inProgressStartTime
+        store.endTime = nil
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar,
+            currentDateProvider: { referenceDate }
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 09:00")
+        #expect(!sut.weeklyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("saving updated attendance times refreshes weekly worked time immediately")
+    func savingUpdatedAttendanceTimesRefreshesWeeklyWorkedTimeImmediately() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let storedStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let storedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0))
+        )
+        let updatedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 5))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = storedStartTime
+        store.endTime = storedEndTime
+        store.records = [
+            AttendanceRecord(startTime: storedStartTime, endTime: storedEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 09:00")
+
+        sut.endTimePicker.dateValue = updatedEndTime
+        sut.saveButton.performClick(nil)
+
+        #expect(store.endTime == updatedEndTime)
+        #expect(store.records == [
+            AttendanceRecord(startTime: storedStartTime, endTime: updatedEndTime)
+        ])
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 10:05")
+    }
+
+    @MainActor
     @Test("popover shows a placeholder for today's start time when no start time is stored")
     func popoverShowsPlaceholderForTodayStartTimeWhenNoStartTimeIsStored() throws {
         let sut = AppDelegate()
@@ -632,7 +1241,8 @@ struct AppDelegateStatusItemTests {
     }
 }
 
-private final class TestAttendanceTimeStore: AttendanceTimeStore {
+private final class TestAttendanceTimeStore: AttendanceTimeStore, AttendanceRecordStore {
     var startTime: Date?
     var endTime: Date?
+    var records: [AttendanceRecord] = []
 }
