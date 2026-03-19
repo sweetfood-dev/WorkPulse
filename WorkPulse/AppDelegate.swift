@@ -672,10 +672,16 @@ final class AttendanceTimePopoverViewController: NSViewController {
 
 private final class AttendanceTimePopoverContentView: NSView {
     private enum Layout {
-        static let contentSize = NSSize(width: 340, height: 420)
+        static let contentSize = NSSize(width: 340, height: 440)
         static let horizontalInset: CGFloat = 20
         static let sectionSpacing: CGFloat = 14
         static let cornerRadius: CGFloat = 14
+        static let separatorColor = NSColor(
+            calibratedRed: 232 / 255,
+            green: 235 / 255,
+            blue: 240 / 255,
+            alpha: 1
+        )
     }
 
     init(
@@ -740,32 +746,44 @@ private final class AttendanceTimePopoverContentView: NSView {
             weeklyWorkedTimeLabel: weeklyWorkedTimeLabel,
             monthlyWorkedTimeLabel: monthlyWorkedTimeLabel
         )
-        let contentStack = NSStackView(views: [
-            headerStack,
+        let currentSessionSection = NSStackView(views: [
             makeSessionHeading(currentSessionLabel: currentSessionLabel),
             workedTimeLabel,
             currentSessionProgressView,
             progressLabelsRow,
+        ])
+        currentSessionSection.orientation = .vertical
+        currentSessionSection.alignment = .centerX
+        currentSessionSection.spacing = Layout.sectionSpacing
+        currentSessionSection.translatesAutoresizingMaskIntoConstraints = false
+
+        let headerSection = wrapInInsets(headerStack, horizontal: Layout.horizontalInset, top: 18, bottom: 12)
+        let currentSection = wrapInInsets(currentSessionSection, horizontal: Layout.horizontalInset, top: 18, bottom: 18)
+        let footerSection = wrapInInsets(footer, horizontal: Layout.horizontalInset, top: 14, bottom: 18)
+
+        let contentStack = NSStackView(views: [
+            headerSection,
+            makeSeparator(),
+            currentSection,
             inputCard,
-            footer,
+            footerSection,
         ])
         contentStack.orientation = .vertical
-        contentStack.alignment = .centerX
-        contentStack.spacing = Layout.sectionSpacing
+        contentStack.alignment = .leading
+        contentStack.spacing = 0
         contentStack.translatesAutoresizingMaskIntoConstraints = false
 
         cardView.addSubview(contentStack)
 
         NSLayoutConstraint.activate([
-            contentStack.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: Layout.horizontalInset),
-            contentStack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -Layout.horizontalInset),
-            contentStack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 18),
-            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: cardView.bottomAnchor, constant: -18),
-            headerStack.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            currentSessionProgressView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            progressLabelsRow.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            inputCard.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            footer.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: cardView.leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor),
+            contentStack.topAnchor.constraint(equalTo: cardView.topAnchor),
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: cardView.bottomAnchor),
+            currentSessionSection.widthAnchor.constraint(equalTo: currentSection.widthAnchor, constant: -Layout.horizontalInset * 2),
+            currentSessionProgressView.widthAnchor.constraint(equalTo: currentSessionSection.widthAnchor),
+            progressLabelsRow.widthAnchor.constraint(equalTo: currentSessionSection.widthAnchor),
+            footer.widthAnchor.constraint(equalTo: footerSection.widthAnchor, constant: -Layout.horizontalInset * 2),
         ])
     }
 
@@ -788,6 +806,30 @@ private final class AttendanceTimePopoverContentView: NSView {
             alpha: 1
         ).cgColor
         return view
+    }
+
+    private func makeSeparator() -> NSView {
+        let separator = NSView()
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        separator.wantsLayer = true
+        separator.layer?.backgroundColor = Layout.separatorColor.cgColor
+        NSLayoutConstraint.activate([
+            separator.heightAnchor.constraint(equalToConstant: 1),
+        ])
+        return separator
+    }
+
+    private func wrapInInsets(_ content: NSView, horizontal: CGFloat, top: CGFloat, bottom: CGFloat) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: horizontal),
+            content.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -horizontal),
+            content.topAnchor.constraint(equalTo: container.topAnchor, constant: top),
+            content.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -bottom),
+        ])
+        return container
     }
 
     private func styleHeaderTitle(_ label: NSTextField) {
@@ -985,23 +1027,40 @@ private final class AttendanceTimePopoverContentView: NSView {
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.distribution = .fillEqually
-        stack.spacing = 16
+        stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(
-            calibratedRed: 247 / 255,
-            green: 247 / 255,
-            blue: 248 / 255,
-            alpha: 1
+            calibratedRed: 0,
+            green: 0,
+            blue: 0,
+            alpha: 0.03
+        ).cgColor
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = NSColor(
+            calibratedRed: 0,
+            green: 0,
+            blue: 0,
+            alpha: 0.05
         ).cgColor
 
+        let topBorder = makeSeparator()
+        let bottomBorder = makeSeparator()
+        container.addSubview(topBorder)
+        container.addSubview(bottomBorder)
         container.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            topBorder.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            topBorder.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            topBorder.topAnchor.constraint(equalTo: container.topAnchor),
+            bottomBorder.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            bottomBorder.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            bottomBorder.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
             stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
             stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
             startRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
@@ -1021,12 +1080,13 @@ private final class AttendanceTimePopoverContentView: NSView {
             alpha: 1
         )
 
+        let pickerContainer = makeTimeFieldContainer(for: picker)
         let iconName = title == "Start Time" ? "arrow.right.to.line" : "rectangle.portrait.and.arrow.right"
         let row = NSStackView(views: [
             makeIconView(symbolName: iconName, tintColor: .secondaryLabelColor, pointSize: 15),
             titleLabel,
             NSView(),
-            picker,
+            pickerContainer,
         ])
         row.orientation = .horizontal
         row.alignment = .centerY
@@ -1035,11 +1095,36 @@ private final class AttendanceTimePopoverContentView: NSView {
         row.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            picker.widthAnchor.constraint(equalToConstant: 84),
-            picker.heightAnchor.constraint(equalToConstant: 80),
+            pickerContainer.widthAnchor.constraint(equalToConstant: 116),
+            pickerContainer.heightAnchor.constraint(equalToConstant: 50),
         ])
 
         return row
+    }
+
+    private func makeTimeFieldContainer(for picker: NSDatePicker) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.wantsLayer = true
+        container.layer?.cornerRadius = 6
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = NSColor(
+            calibratedRed: 209 / 255,
+            green: 209 / 255,
+            blue: 209 / 255,
+            alpha: 1
+        ).cgColor
+        container.layer?.backgroundColor = NSColor.white.cgColor
+
+        container.addSubview(picker)
+        NSLayoutConstraint.activate([
+            picker.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            picker.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            picker.widthAnchor.constraint(equalTo: container.widthAnchor, constant: -20),
+            picker.heightAnchor.constraint(equalToConstant: 28),
+        ])
+
+        return container
     }
 
     private func styleTimePicker(_ picker: NSDatePicker) {
@@ -1047,16 +1132,8 @@ private final class AttendanceTimePopoverContentView: NSView {
         picker.font = .monospacedDigitSystemFont(ofSize: 18, weight: .medium)
         picker.translatesAutoresizingMaskIntoConstraints = false
         picker.controlSize = .regular
-        picker.wantsLayer = true
-        picker.layer?.cornerRadius = 6
-        picker.layer?.borderWidth = 1
-        picker.layer?.borderColor = NSColor(
-            calibratedRed: 209 / 255,
-            green: 209 / 255,
-            blue: 209 / 255,
-            alpha: 1
-        ).cgColor
-        picker.layer?.backgroundColor = NSColor.white.cgColor
+        picker.isBordered = false
+        picker.isBezeled = false
         picker.drawsBackground = true
         picker.backgroundColor = .white
         picker.textColor = .labelColor
