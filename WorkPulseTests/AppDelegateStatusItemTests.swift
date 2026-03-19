@@ -606,6 +606,281 @@ struct AppDelegateStatusItemTests {
     }
 
     @MainActor
+    @Test("popover shows a placeholder for monthly worked time when no monthly records exist")
+    func popoverShowsPlaceholderForMonthlyWorkedTimeWhenNoMonthlyRecordsExist() throws {
+        let sut = AppDelegate()
+        sut.attendanceTimeStore = TestAttendanceTimeStore()
+
+        sut.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        defer {
+            sut.attendancePopover?.close()
+            sut.window?.close()
+
+            if let statusItem = sut.statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+            }
+        }
+
+        let button = try #require(sut.statusItem?.button)
+        button.performClick(nil)
+
+        let popover = try #require(sut.attendancePopover)
+        let controller = try #require(popover.contentViewController as? AttendanceTimePopoverViewController)
+        controller.loadViewIfNeeded()
+
+        #expect(controller.monthlyWorkedTimeLabel.stringValue == "이번 달: --:--")
+        #expect(!controller.monthlyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover shows the monthly worked time when one completed record exists this month")
+    func popoverShowsMonthlyWorkedTimeForSingleCompletedRecordThisMonth() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 12, minute: 0))
+        )
+        let startTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 30))
+        )
+        let endTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 15))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = startTime
+        store.endTime = endTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.monthlyWorkedTimeLabel.stringValue == "이번 달: 08:45")
+        #expect(!sut.monthlyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover sums multiple completed records within this month")
+    func popoverSumsMultipleCompletedRecordsWithinThisMonth() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 15, hour: 12, minute: 0))
+        )
+        let mondayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let mondayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let tuesdayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 10, minute: 0))
+        )
+        let tuesdayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 16, minute: 30))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: mondayStartTime, endTime: mondayEndTime),
+            AttendanceRecord(startTime: tuesdayStartTime, endTime: tuesdayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.monthlyWorkedTimeLabel.stringValue == "이번 달: 15:30")
+        #expect(!sut.monthlyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover excludes records outside the current month from monthly total")
+    func popoverExcludesRecordsOutsideCurrentMonthFromMonthlyTotal() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 15, hour: 12, minute: 0))
+        )
+        let previousMonthStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 3, day: 29, hour: 9, minute: 0))
+        )
+        let previousMonthEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 3, day: 29, hour: 18, minute: 0))
+        )
+        let currentMonthStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 10, minute: 0))
+        )
+        let currentMonthEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 16, minute: 30))
+        )
+        let nextMonthStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 5, day: 1, hour: 9, minute: 0))
+        )
+        let nextMonthEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 5, day: 1, hour: 18, minute: 0))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: previousMonthStartTime, endTime: previousMonthEndTime),
+            AttendanceRecord(startTime: currentMonthStartTime, endTime: currentMonthEndTime),
+            AttendanceRecord(startTime: nextMonthStartTime, endTime: nextMonthEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.monthlyWorkedTimeLabel.stringValue == "이번 달: 06:30")
+        #expect(!sut.monthlyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("popover uses the latest record when same day is updated within this month")
+    func popoverUsesLatestRecordWhenSameDayIsUpdatedWithinThisMonth() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 15, hour: 12, minute: 0))
+        )
+        let originalStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let originalEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0))
+        )
+        let updatedStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 10, minute: 0))
+        )
+        let updatedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 16, minute: 30))
+        )
+        let otherDayStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 9, minute: 0))
+        )
+        let otherDayEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 18, minute: 0))
+        )
+        let store = TestAttendanceTimeStore()
+        store.records = [
+            AttendanceRecord(startTime: originalStartTime, endTime: originalEndTime),
+            AttendanceRecord(startTime: updatedStartTime, endTime: updatedEndTime),
+            AttendanceRecord(startTime: otherDayStartTime, endTime: otherDayEndTime)
+        ]
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.monthlyWorkedTimeLabel.stringValue == "이번 달: 15:30")
+        #expect(!sut.monthlyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("saving updated attendance times refreshes monthly worked time immediately")
+    func savingUpdatedAttendanceTimesRefreshesMonthlyWorkedTimeImmediately() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 15, hour: 12, minute: 0))
+        )
+        let initialStartTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 0))
+        )
+        let initialEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 0))
+        )
+        let updatedEndTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 19, minute: 5))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = initialStartTime
+        store.endTime = initialEndTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.monthlyWorkedTimeLabel.stringValue == "이번 달: 09:00")
+
+        sut.endTimePicker.dateValue = updatedEndTime
+        sut.saveButton.performClick(nil)
+
+        #expect(sut.monthlyWorkedTimeLabel.stringValue == "이번 달: 10:05")
+        #expect(!sut.monthlyWorkedTimeLabel.isHidden)
+    }
+
+    @MainActor
+    @Test("monthly aggregation keeps current weekly and today displays intact")
+    func monthlyAggregationKeepsCurrentWeeklyAndTodayDisplaysIntact() throws {
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 12, minute: 0))
+        )
+        let startTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 9, minute: 3))
+        )
+        let endTime = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 2, hour: 18, minute: 10))
+        )
+        let store = TestAttendanceTimeStore()
+        store.startTime = startTime
+        store.endTime = endTime
+
+        let sut = AttendanceTimePopoverViewController(
+            attendanceTimeStore: store,
+            referenceDate: referenceDate,
+            calendar: calendar,
+            currentDateProvider: { referenceDate }
+        )
+
+        sut.loadViewIfNeeded()
+
+        #expect(sut.workedTimeLabel.stringValue == "현재 근무: 09:07")
+        #expect(!sut.workedTimeLabel.isHidden)
+        #expect(sut.weeklyWorkedTimeLabel.stringValue == "이번 주: 09:07")
+        #expect(!sut.weeklyWorkedTimeLabel.isHidden)
+        #expect(sut.monthlyWorkedTimeLabel.stringValue == "이번 달: 09:07")
+        #expect(!sut.monthlyWorkedTimeLabel.isHidden)
+        #expect(sut.todayStartTimeLabel.stringValue == "오늘 출근: 09:03")
+        #expect(!sut.todayStartTimeLabel.isHidden)
+    }
+
+    @MainActor
     @Test("popover shows the weekly worked time when one completed record exists this week")
     func popoverShowsWeeklyWorkedTimeForSingleCompletedRecordThisWeek() throws {
         let timeZone = TimeZone(secondsFromGMT: 0)!

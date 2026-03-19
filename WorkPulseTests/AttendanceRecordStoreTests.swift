@@ -64,6 +64,41 @@ struct AttendanceRecordStoreTests {
         ])
     }
 
+    @Test("store returns only records that match the requested period predicate")
+    func storeReturnsOnlyRecordsThatMatchTheRequestedPeriodPredicate() throws {
+        let calendar = testCalendar()
+        let monthMatcher = AttendanceMonthMatcher(calendar: calendar)
+        let referenceDate = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 3, hour: 12, minute: 0))
+        )
+        let currentMonthStart = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 9, minute: 0))
+        )
+        let currentMonthEnd = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 4, day: 1, hour: 18, minute: 0))
+        )
+        let previousMonthStart = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 3, day: 29, hour: 9, minute: 0))
+        )
+        let previousMonthEnd = try #require(
+            calendar.date(from: DateComponents(year: 2024, month: 3, day: 29, hour: 12, minute: 0))
+        )
+        let store = InMemoryAttendanceRecordStore()
+        store.records = [
+            AttendanceRecord(startTime: currentMonthStart, endTime: currentMonthEnd),
+            AttendanceRecord(startTime: previousMonthStart, endTime: previousMonthEnd)
+        ]
+
+        let records = store.records(
+            containing: referenceDate,
+            matches: monthMatcher.contains
+        )
+
+        #expect(records == [
+            AttendanceRecord(startTime: currentMonthStart, endTime: currentMonthEnd)
+        ])
+    }
+
     private func testCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

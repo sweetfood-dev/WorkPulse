@@ -3,26 +3,22 @@ import Foundation
 struct WeeklyWorkedTimeCalculator {
     let calendar: Calendar
     let weekMatcher: AttendanceWeekMatcher
+    let durationAggregator: AttendanceRecordDurationAggregator
 
     init(calendar: Calendar) {
         self.calendar = calendar
         weekMatcher = AttendanceWeekMatcher(calendar: calendar)
+        durationAggregator = AttendanceRecordDurationAggregator(calendar: calendar)
     }
 
     func workedDuration(
         records: [AttendanceRecord],
         referenceDate: Date
     ) -> TimeInterval? {
-        let weeklyRecords = weeklyRecords(
+        durationAggregator.workedDuration(records: weeklyRecords(
             from: records,
             referenceDate: referenceDate
-        )
-
-        guard !weeklyRecords.isEmpty else { return nil }
-
-        return weeklyRecords.reduce(into: TimeInterval.zero) { partialResult, record in
-            partialResult += record.endTime.timeIntervalSince(record.startTime)
-        }
+        ))
     }
 
     private func weeklyRecords(
