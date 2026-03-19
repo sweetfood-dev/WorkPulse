@@ -21,3 +21,6 @@ xcuserdata/
 .swiftpm/
 Packages/
 Package.resolved
+
+# Coverage artifacts
+*.profraw
