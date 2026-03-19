@@ -138,11 +138,11 @@ final class UserDefaultsAttendanceTimeStore: AttendanceTimeStore, AttendanceReco
     }
 }
 
-@main
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverDelegate {
     private enum UIConstants {
         static let workedTimePlaceholder = "--:--"
         static let workedTimePrefix = "현재 근무: "
+        static let statusItemSymbolName = "clock.badge.checkmark"
     }
 
     private let workedTimeDisplayFactory = WorkedTimeDisplayModelFactory(
@@ -166,6 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPo
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard statusItem == nil else { return }
 
+        NSApp.setActivationPolicy(.accessory)
         configureStatusItem()
     }
 
@@ -175,6 +176,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPo
 
     private func configureStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem?.isVisible = true
+        if let image = NSImage(systemSymbolName: UIConstants.statusItemSymbolName, accessibilityDescription: "WorkPulse") {
+            image.isTemplate = true
+            statusItem?.button?.image = image
+            statusItem?.button?.imagePosition = .imageLeading
+        }
         refreshWorkedTimeDisplay()
         statusItem?.button?.target = self
         statusItem?.button?.action = #selector(handleStatusItemClick)
