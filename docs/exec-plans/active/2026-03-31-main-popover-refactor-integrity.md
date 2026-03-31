@@ -64,7 +64,7 @@
 - [x] picker 값 동기화 책임을 stale-state 제거 규칙과 함께 분리한다
 - [x] `MenuBarPopoverControlling` isolation 계약을 명시한다
 - [x] `AttendanceRecordStore` read/write 경계를 query use-case 단위로 분리한다
-- [ ] `MainPopoverViewController` 책임 분리의 다음 진입점을 정리한다
+- [x] `MainPopoverViewController` 책임 분리의 다음 진입점을 정리한다
 
 ## 테스트 케이스 및 시나리오
 
@@ -83,4 +83,4 @@
 - [x] totals defensive guard
 - [x] actor isolation cleanup
 - [x] store query/write boundary
-- [ ] integration verification
+- [x] integration verification

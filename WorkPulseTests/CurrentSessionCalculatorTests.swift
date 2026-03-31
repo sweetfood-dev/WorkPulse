@@ -46,6 +46,82 @@ struct CurrentSessionCalculatorTests {
     }
 }
 
+@Suite("MainPopoverCurrentSessionRuntime")
+struct MainPopoverCurrentSessionRuntimeTests {
+    @Test
+    @MainActor
+    func beginUsesPlaceholderAndDoesNotScheduleWithoutStartTime() {
+        let scheduler = RuntimeFakeRepeatingScheduler()
+        var receivedTexts: [String] = []
+        let runtime = MainPopoverCurrentSessionRuntime(
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) },
+            currentSessionScheduler: scheduler,
+            onTextChange: { receivedTexts.append($0) }
+        )
+
+        runtime.begin(startTime: nil, endTime: nil)
+
+        #expect(receivedTexts == ["--:--:--"])
+        #expect(scheduler.scheduleCallCount == 0)
+    }
+
+    @Test
+    @MainActor
+    func beginEmitsElapsedTimeImmediatelyAndOnEveryTick() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        var now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T11:45:30+09:00")
+        )
+        let scheduler = RuntimeFakeRepeatingScheduler()
+        var receivedTexts: [String] = []
+        let runtime = MainPopoverCurrentSessionRuntime(
+            currentTimeProvider: { now },
+            currentSessionScheduler: scheduler,
+            onTextChange: { receivedTexts.append($0) }
+        )
+
+        runtime.begin(startTime: startTime, endTime: nil)
+
+        #expect(receivedTexts == ["02:45:30"])
+        #expect(scheduler.scheduleCallCount == 1)
+
+        now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T11:45:31+09:00")
+        )
+        scheduler.fire()
+
+        #expect(receivedTexts == ["02:45:30", "02:45:31"])
+    }
+
+    @Test
+    @MainActor
+    func beginEmitsFixedDurationAndDoesNotScheduleWhenEndTimeExists() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let scheduler = RuntimeFakeRepeatingScheduler()
+        var receivedTexts: [String] = []
+        let runtime = MainPopoverCurrentSessionRuntime(
+            currentTimeProvider: {
+                ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
+                ?? Date(timeIntervalSince1970: 0)
+            },
+            currentSessionScheduler: scheduler,
+            onTextChange: { receivedTexts.append($0) }
+        )
+
+        runtime.begin(startTime: startTime, endTime: endTime)
+
+        #expect(receivedTexts == ["09:30:00"])
+        #expect(scheduler.scheduleCallCount == 0)
+    }
+}
+
 @Suite("AttendanceRecordTotalsCalculator")
 struct AttendanceRecordTotalsCalculatorTests {
     @Test
@@ -619,4 +695,23 @@ private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
 
         records.append(record)
     }
+}
+
+final class RuntimeFakeRepeatingScheduler: CurrentSessionScheduling {
+    private(set) var scheduleCallCount = 0
+    private var action: (() -> Void)?
+
+    func scheduleRepeating(every interval: TimeInterval, action: @escaping () -> Void) -> any CurrentSessionCancellable {
+        scheduleCallCount += 1
+        self.action = action
+        return RuntimeFakeCurrentSessionCancellable()
+    }
+
+    func fire() {
+        action?()
+    }
+}
+
+private struct RuntimeFakeCurrentSessionCancellable: CurrentSessionCancellable {
+    func cancel() {}
 }
