@@ -9,7 +9,7 @@
 
 - 저장소 구조와 문서 라우팅: [`../ARCHITECTURE.md`](../ARCHITECTURE.md)
 - 프론트엔드 공통 기준: [`FRONTEND.md`](./FRONTEND.md)
-- iOS/Swift 보조 규칙: [`ios-architecture.md`](./ios-architecture.md)
+- macOS 전용 보조 규칙: [`macos-architecture.md`](./macos-architecture.md)
 
 ## Scope
 

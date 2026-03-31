@@ -4,17 +4,17 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 missing=0
 
-# Machine-checkable subset of the starter baseline contract defined in docs/BOOTSTRAP.md.
+# Machine-checkable subset of the current WorkPulse docs contract.
 
 required_files='
 AGENTS.md
 ARCHITECTURE.md
 README.md
 Makefile
-docs/BOOTSTRAP.md
 docs/DESIGN.md
 docs/ENGINEERING_RULES.md
 docs/GOLDEN_PRINCIPLES.md
+docs/macos-architecture.md
 docs/PLANS.md
 docs/PRODUCT_SENSE.md
 docs/QUALITY_SCORE.md

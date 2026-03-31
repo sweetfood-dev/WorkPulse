@@ -7,8 +7,8 @@
 
 ## What This Repo Is
 
-이 저장소는 에이전트와 사람이 같은 문서 체계를 기준으로 일하기 위한 운영 문서 저장소입니다.
-starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 현재 저장소 구조와 문서 라우팅만 설명합니다.
+이 저장소는 WorkPulse를 위한 제품 저장소입니다.
+현재는 문서, 규칙, 검증 도구를 먼저 정리한 상태이며, macOS 메뉴바 근태 앱 구현이 이어질 기준점을 담습니다.
 
 핵심 원칙은 아래와 같습니다.
 
@@ -16,12 +16,13 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 - 저장소 구조와 문서 라우팅은 이 문서가 설명합니다.
 - 반복되는 운영 기준은 `docs/*.md`에 둡니다.
 - 실행 계획, 제품 스펙, 디자인 근거, generated, references는 역할별로 분리합니다.
+- 플랫폼 전용 구현 규칙은 `docs/macos-architecture.md`가 설명합니다.
 
 ## Top-Level Layout
 
 | 경로 | 역할 |
 | --- | --- |
-| `README.md` | 사람 기준의 starter template 진입점 |
+| `README.md` | 사람 기준의 WorkPulse 저장소 진입점 |
 | `AGENTS.md` | 읽기 순서를 알려주는 최상위 지도 |
 | `ARCHITECTURE.md` | 저장소 구조와 문서 라우팅을 설명하는 최상위 맵 |
 | `.architecture-invariants.toml` | machine-checkable architecture invariant 설정 |
@@ -36,7 +37,6 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 
 | 경로 | 역할 |
 | --- | --- |
-| `docs/BOOTSTRAP.md` | 새 프로젝트로 가져갈 때의 부트스트랩 절차 |
 | `docs/GOLDEN_PRINCIPLES.md` | repo-level golden principles index와 GC routing |
 | `docs/ENGINEERING_RULES.md` | 기본 작업 방식과 변경 원칙 |
 | `docs/TDD.md` | 테스트 우선 개발과 검증 루프 |
@@ -50,8 +50,7 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 
 ## Specialized Docs Included In This Starter
 
-이 문서가 설명하는 것은 현재 starter에 포함된 specialized doc의 구조입니다.
-무엇을 유지하거나 제거할지는 `docs/BOOTSTRAP.md`의 baseline contract를 따릅니다.
+이 문서가 설명하는 것은 현재 WorkPulse에서 유지하는 specialized doc의 구조입니다.
 
 | 경로 | 역할 |
 | --- | --- |
@@ -59,7 +58,7 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 | `docs/SECURITY.md` | 보안 운영 기준 |
 | `docs/FRONTEND.md` | 프론트엔드 구현 기준 |
 | `docs/clean-architecture.md` | 플랫폼 공통 Clean Architecture 규칙 |
-| `docs/ios-architecture.md` | iOS/Swift 전용 보조 규칙 |
+| `docs/macos-architecture.md` | macOS 전용 애플리케이션 아키텍처 규칙 |
 | `docs/MCP_TOOLING.md` | Codex/MCP 기반 도구 선택 휴리스틱 |
 
 ## Supporting Directories
@@ -81,7 +80,6 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 
 권장 읽기 분기는 아래와 같습니다.
 
-- 새 프로젝트 부트스트랩이면 `README.md`와 `docs/BOOTSTRAP.md`
 - 기본 작업 방식이 필요하면 `docs/ENGINEERING_RULES.md`
 - TDD나 검증 루프가 필요하면 `docs/TDD.md`
 - 실행 흐름이 필요하면 `docs/PLANS.md`
@@ -92,7 +90,7 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 - 신뢰성/보안 판단이 필요하고 해당 specialized doc이 있으면 각각 해당 문서
 - 구조 규칙이 필요하고 해당 specialized doc이 있으면 `docs/clean-architecture.md`
 - UI/프론트엔드 작업이고 해당 specialized doc이 있으면 `docs/FRONTEND.md`
-- iOS/Swift 보조 규칙이 필요하고 해당 specialized doc이 있으면 `docs/ios-architecture.md`
+- macOS 런타임, AppKit, 메뉴바 앱 규칙이 필요하면 `docs/macos-architecture.md`
 - Codex/MCP 도구 휴리스틱이 필요하고 해당 specialized doc이 있으면 `docs/MCP_TOOLING.md`
 - 개별 기능의 디자인 근거가 필요하면 `docs/design-docs/`
 - 구체 기능 요구가 필요하면 `docs/product-specs/`
@@ -111,7 +109,6 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 ## Relation To Specialized Docs
 
 - 이 문서는 저장소 전체 구조를 설명합니다.
-- specialized doc을 유지/제거하는 baseline contract는 `docs/BOOTSTRAP.md`가 정의합니다.
 - specialized architecture rule은 공통 문서와 플랫폼 문서로 나눠 둘 수 있습니다.
 - tool-specific policy는 specialized tooling 문서로 분리할 수 있습니다.
 - `docs/clean-architecture.md`를 유지한다면 machine-checkable subset은 `.architecture-invariants.toml`과 `scripts/check-architecture-invariants.py`가 집행합니다.
@@ -127,7 +124,6 @@ starter baseline contract는 `docs/BOOTSTRAP.md`가 정의하고, 이 문서는 
 
 - `AGENTS.md`는 짧게 유지합니다.
 - 저장소 라우팅과 책임 분리는 이 문서가 설명합니다.
-- starter baseline contract는 `docs/BOOTSTRAP.md`가 정의합니다.
 - specialized doc은 유지한다면 정확한 프로젝트 기준으로 갱신해야 합니다.
 - 루트 운영 문서는 반복 기준만 담고, 개별 기능 문서는 하위 디렉터리에서 관리합니다.
 - generated 문서는 handwritten 문서처럼 다루지 않습니다.
