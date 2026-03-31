@@ -39,13 +39,14 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
-          branch: codex/monthly-gc-smoke
+          branch: codex/monthly-gc-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           commit-message: "Smoke test monthly garbage collection"
-          title: "Smoke: Monthly garbage collection"
+          title: "Smoke: Monthly garbage collection (${{ github.run_number }}.${{ github.run_attempt }})"
           body: |
             Smoke workflow for Monthly Garbage Collection.
 
             This PR is expected to exist whenever the smoke workflow seeds stale generated reports.
+            Workflow run: `${{ github.run_id }}` / attempt `${{ github.run_attempt }}`
           draft: true
 
       - name: Assert Draft PR Created
