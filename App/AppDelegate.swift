@@ -1,26 +1,49 @@
 import AppKit
 
+struct MainPopoverRuntimeDependencies {
+    let calendar: Calendar
+    let locale: Locale
+    let timeZone: TimeZone
+    let currentDateProvider: () -> Date
+    let currentSessionScheduler: any CurrentSessionScheduling
+
+    static var live: MainPopoverRuntimeDependencies {
+        MainPopoverRuntimeDependencies(
+            calendar: .current,
+            locale: .current,
+            timeZone: .current,
+            currentDateProvider: Date.init,
+            currentSessionScheduler: TimerCurrentSessionScheduler()
+        )
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarShellController: MenuBarShellController?
     private var popoverViewController: MainPopoverViewController?
     private let recordStore: any AttendanceRecordStore
-    private let currentDateProvider: () -> Date
+    private let runtimeDependencies: MainPopoverRuntimeDependencies
 
     init(
-        recordStore: any AttendanceRecordStore = UserDefaultsAttendanceRecordStore(),
-        currentDateProvider: @escaping () -> Date = Date.init
+        runtimeDependencies: MainPopoverRuntimeDependencies = .live,
+        recordStore: (any AttendanceRecordStore)? = nil
     ) {
-        self.recordStore = recordStore
-        self.currentDateProvider = currentDateProvider
+        self.runtimeDependencies = runtimeDependencies
+        self.recordStore = recordStore ?? UserDefaultsAttendanceRecordStore(
+            calendar: runtimeDependencies.calendar
+        )
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let popoverViewController = MainPopoverViewController()
+        let popoverViewController = MainPopoverViewController(
+            currentTimeProvider: runtimeDependencies.currentDateProvider,
+            currentSessionScheduler: runtimeDependencies.currentSessionScheduler
+        )
         popoverViewController.loadViewIfNeeded()
         configurePopoverViewController(
             popoverViewController,
-            referenceDate: currentDateProvider()
+            referenceDate: runtimeDependencies.currentDateProvider()
         )
 
         menuBarShellController = MenuBarShellController(
@@ -40,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
-        let referenceDate = currentDateProvider()
+        let referenceDate = runtimeDependencies.currentDateProvider()
         recordStore.upsertRecord(
             AttendanceRecord(
                 date: referenceDate,
@@ -55,7 +78,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let popoverViewController else { return }
 
         let loadedState = MainPopoverStateLoader(
-            recordStore: recordStore
+            recordStore: recordStore,
+            viewStateFactory: MainPopoverViewStateFactory(
+                calendar: runtimeDependencies.calendar,
+                locale: runtimeDependencies.locale,
+                timeZone: runtimeDependencies.timeZone
+            ),
+            calendar: runtimeDependencies.calendar
         ).load(referenceDate: referenceDate)
         popoverViewController.apply(state: loadedState.viewState)
         popoverViewController.beginCurrentSessionUpdates(

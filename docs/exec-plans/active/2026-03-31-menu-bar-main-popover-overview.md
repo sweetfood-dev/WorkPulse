@@ -78,7 +78,7 @@ popover는 `Current Session`, 오늘 출근/퇴근 시간, 이번 주/이번 달
 ## 구조 변경 (Structural Changes - Tidy First)
 
 - [x] runtime/ui/service/repo 경계에 맞는 초기 디렉터리/타입 배치를 정한다
-- [-] `Date`, `Calendar`, `TimeZone`, timer 의존을 주입 가능한 owner로 분리한다
+- [x] `Date`, `Calendar`, `TimeZone`, timer 의존을 주입 가능한 owner로 분리한다
 - [x] 시간 계산과 집계 계산을 AppKit view/controller 밖으로 분리한다
 - [x] persistence protocol과 concrete adapter를 분리한다
 - [x] popover 조회 상태와 edit mode 상태 전환을 presentation 계층으로 모은다

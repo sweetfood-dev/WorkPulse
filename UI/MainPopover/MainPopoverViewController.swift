@@ -11,7 +11,7 @@ protocol CurrentSessionScheduling {
     ) -> any CurrentSessionCancellable
 }
 
-private final class TimerCurrentSessionCancellable: CurrentSessionCancellable {
+final class TimerCurrentSessionCancellable: CurrentSessionCancellable {
     private weak var timer: Timer?
 
     init(timer: Timer) {
@@ -23,7 +23,7 @@ private final class TimerCurrentSessionCancellable: CurrentSessionCancellable {
     }
 }
 
-private struct TimerCurrentSessionScheduler: CurrentSessionScheduling {
+struct TimerCurrentSessionScheduler: CurrentSessionScheduling {
     func scheduleRepeating(
         every interval: TimeInterval,
         action: @escaping () -> Void

@@ -291,8 +291,14 @@ struct AppDelegateTests {
             currentTimeProvider: { referenceDate }
         )
         let appDelegate = AppDelegate(
-            recordStore: store,
-            currentDateProvider: { referenceDate }
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                currentDateProvider: { referenceDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: store
         )
 
         controller.loadViewIfNeeded()
@@ -310,6 +316,40 @@ struct AppDelegateTests {
         #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
         #expect(controller.weeklyValueLabel.stringValue == "17:30")
         #expect(controller.monthlyValueLabel.stringValue == "17:30")
+    }
+
+    @Test
+    @MainActor
+    func configurePopoverUsesInjectedCalendarLocaleAndTimeZone() throws {
+        let seoulTimeZone = try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T15:30:00Z")
+        )
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { referenceDate }
+        )
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: seoulTimeZone,
+                currentDateProvider: { referenceDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: InMemoryAttendanceRecordStore(records: [])
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
+
+        #expect(controller.dateLabel.stringValue == "Wednesday, Apr 1")
+    }
+
+    private static var seoulCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+        return calendar
     }
 }
 

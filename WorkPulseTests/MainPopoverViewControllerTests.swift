@@ -282,7 +282,7 @@ struct MainPopoverViewControllerTests {
     }
 }
 
-private final class FakeRepeatingScheduler: CurrentSessionScheduling {
+final class FakeRepeatingScheduler: CurrentSessionScheduling {
     private(set) var scheduleCallCount = 0
     private var action: (() -> Void)?
 
