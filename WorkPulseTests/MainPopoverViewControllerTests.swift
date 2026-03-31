@@ -114,6 +114,35 @@ struct MainPopoverViewControllerTests {
 
     @Test
     @MainActor
+    func stoppingCurrentSessionUpdatesCancelsRepeatingRefresh() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        var now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T11:45:30+09:00")
+        )
+        let scheduler = FakeRepeatingScheduler()
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { now },
+            currentSessionScheduler: scheduler
+        )
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
+        controller.stopCurrentSessionUpdates()
+
+        #expect(scheduler.cancellable.cancelCallCount == 1)
+
+        now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T11:45:31+09:00")
+        )
+        scheduler.fire()
+
+        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+    }
+
+    @Test
+    @MainActor
     func beginningCurrentSessionUpdatesDoesNotScheduleWithoutStartTime() {
         let scheduler = FakeRepeatingScheduler()
         let controller = MainPopoverViewController(
@@ -336,21 +365,27 @@ struct MainPopoverViewControllerTests {
 
 final class FakeRepeatingScheduler: CurrentSessionScheduling {
     private(set) var scheduleCallCount = 0
+    let cancellable = FakeCurrentSessionCancellable()
     private var action: (() -> Void)?
 
     func scheduleRepeating(every interval: TimeInterval, action: @escaping () -> Void) -> any CurrentSessionCancellable {
         scheduleCallCount += 1
         self.action = action
-        return FakeCurrentSessionCancellable()
+        return cancellable
     }
 
     func fire() {
+        guard cancellable.cancelCallCount == 0 else { return }
         action?()
     }
 }
 
-private struct FakeCurrentSessionCancellable: CurrentSessionCancellable {
-    func cancel() {}
+final class FakeCurrentSessionCancellable: CurrentSessionCancellable {
+    private(set) var cancelCallCount = 0
+
+    func cancel() {
+        cancelCallCount += 1
+    }
 }
 
 @Suite("MainPopoverViewStateFactory")
