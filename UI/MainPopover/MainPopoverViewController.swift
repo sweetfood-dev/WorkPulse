@@ -1,0 +1,188 @@
+import AppKit
+
+struct MainPopoverViewState {
+    let dateText: String
+    let checkedInSummaryText: String
+    let currentSessionText: String
+    let startTimeText: String
+    let endTimeText: String
+    let weeklyTotalText: String
+    let monthlyTotalText: String
+
+    static let placeholder = MainPopoverViewState(
+        dateText: "Today",
+        checkedInSummaryText: "Checked in at --:--",
+        currentSessionText: "--:--:--",
+        startTimeText: "--:--",
+        endTimeText: "--:--",
+        weeklyTotalText: "--",
+        monthlyTotalText: "--"
+    )
+}
+
+final class MainPopoverViewController: NSViewController {
+    private var state: MainPopoverViewState
+
+    let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
+    let checkedInSummaryLabel = MainPopoverViewController.makeSecondaryLabel()
+    let currentSessionTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
+    let currentSessionValueLabel = MainPopoverViewController.makeValueLabel()
+    let startTimeTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
+    let startTimeValueLabel = MainPopoverViewController.makeRowValueLabel()
+    let endTimeTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
+    let endTimeValueLabel = MainPopoverViewController.makeRowValueLabel()
+    let weeklyTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
+    let weeklyValueLabel = MainPopoverViewController.makeSummaryValueLabel()
+    let monthlyTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
+    let monthlyValueLabel = MainPopoverViewController.makeSummaryValueLabel()
+
+    init(state: MainPopoverViewState = .placeholder) {
+        self.state = state
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func loadView() {
+        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 320))
+        rootView.wantsLayer = true
+        rootView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+
+        let contentStack = NSStackView()
+        contentStack.orientation = .vertical
+        contentStack.spacing = 16
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let headerStack = NSStackView(views: [dateLabel, checkedInSummaryLabel])
+        headerStack.orientation = .vertical
+        headerStack.alignment = .leading
+        headerStack.spacing = 6
+
+        currentSessionTitleLabel.stringValue = "Current Session"
+        let currentSessionStack = NSStackView(views: [currentSessionTitleLabel, currentSessionValueLabel])
+        currentSessionStack.orientation = .vertical
+        currentSessionStack.alignment = .centerX
+        currentSessionStack.spacing = 8
+
+        startTimeTitleLabel.stringValue = "Start Time"
+        endTimeTitleLabel.stringValue = "End Time"
+        let todayTimesStack = NSStackView(views: [
+            makeReadOnlyRow(titleLabel: startTimeTitleLabel, valueLabel: startTimeValueLabel),
+            makeReadOnlyRow(titleLabel: endTimeTitleLabel, valueLabel: endTimeValueLabel)
+        ])
+        todayTimesStack.orientation = .vertical
+        todayTimesStack.spacing = 12
+
+        weeklyTitleLabel.stringValue = "This Week"
+        monthlyTitleLabel.stringValue = "This Month"
+        let summaryStack = NSStackView(views: [
+            makeSummaryColumn(titleLabel: weeklyTitleLabel, valueLabel: weeklyValueLabel),
+            makeSummaryColumn(titleLabel: monthlyTitleLabel, valueLabel: monthlyValueLabel)
+        ])
+        summaryStack.orientation = .horizontal
+        summaryStack.distribution = .fillEqually
+        summaryStack.spacing = 24
+
+        contentStack.addArrangedSubview(headerStack)
+        contentStack.addArrangedSubview(Self.makeSeparator())
+        contentStack.addArrangedSubview(currentSessionStack)
+        contentStack.addArrangedSubview(Self.makeSeparator())
+        contentStack.addArrangedSubview(todayTimesStack)
+        contentStack.addArrangedSubview(Self.makeSeparator())
+        contentStack.addArrangedSubview(summaryStack)
+
+        rootView.addSubview(contentStack)
+
+        NSLayoutConstraint.activate([
+            contentStack.topAnchor.constraint(equalTo: rootView.topAnchor, constant: 20),
+            contentStack.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 20),
+            contentStack.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -20),
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: rootView.bottomAnchor, constant: -20)
+        ])
+
+        view = rootView
+        apply(state: state)
+    }
+
+    func apply(state: MainPopoverViewState) {
+        self.state = state
+
+        guard isViewLoaded else { return }
+
+        dateLabel.stringValue = state.dateText
+        checkedInSummaryLabel.stringValue = state.checkedInSummaryText
+        currentSessionValueLabel.stringValue = state.currentSessionText
+        startTimeValueLabel.stringValue = state.startTimeText
+        endTimeValueLabel.stringValue = state.endTimeText
+        weeklyValueLabel.stringValue = state.weeklyTotalText
+        monthlyValueLabel.stringValue = state.monthlyTotalText
+    }
+
+    private func makeReadOnlyRow(titleLabel: NSTextField, valueLabel: NSTextField) -> NSView {
+        let stack = NSStackView(views: [titleLabel, valueLabel])
+        stack.orientation = .horizontal
+        stack.alignment = .firstBaseline
+        stack.distribution = .fill
+        stack.spacing = 12
+
+        titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        valueLabel.alignment = .right
+
+        return stack
+    }
+
+    private func makeSummaryColumn(titleLabel: NSTextField, valueLabel: NSTextField) -> NSView {
+        let stack = NSStackView(views: [titleLabel, valueLabel])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 6
+        return stack
+    }
+
+    private static func makeSectionTitleLabel() -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+        label.font = .systemFont(ofSize: 13, weight: .semibold)
+        label.textColor = .labelColor
+        return label
+    }
+
+    private static func makeSecondaryLabel() -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+        label.font = .systemFont(ofSize: 12)
+        label.textColor = .secondaryLabelColor
+        return label
+    }
+
+    private static func makeValueLabel() -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+        label.font = .monospacedDigitSystemFont(ofSize: 34, weight: .regular)
+        label.textColor = .labelColor
+        label.alignment = .center
+        return label
+    }
+
+    private static func makeRowValueLabel() -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+        label.font = .monospacedDigitSystemFont(ofSize: 14, weight: .regular)
+        label.textColor = .secondaryLabelColor
+        return label
+    }
+
+    private static func makeSummaryValueLabel() -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+        label.font = .systemFont(ofSize: 18, weight: .semibold)
+        label.textColor = .labelColor
+        return label
+    }
+
+    private static func makeSeparator() -> NSView {
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        return separator
+    }
+}
