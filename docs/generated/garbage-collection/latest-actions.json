@@ -1,0 +1,26 @@
+{
+  "active_plan": [],
+  "autofix": [
+    {
+      "confidence": "high",
+      "kind": "stale-generated-gc-report",
+      "next_action": "cleanup-pr",
+      "path": "docs/generated/garbage-collection/2025-02-report.md",
+      "principle_id": "GP-02",
+      "severity": "advisory",
+      "title": "Stale generated GC report",
+      "why": "Generated garbage collection reports beyond the retention window should be removed by an automated cleanup PR."
+    },
+    {
+      "confidence": "high",
+      "kind": "stale-generated-gc-report",
+      "next_action": "cleanup-pr",
+      "path": "docs/generated/garbage-collection/2025-01-report.md",
+      "principle_id": "GP-02",
+      "severity": "advisory",
+      "title": "Stale generated GC report",
+      "why": "Generated garbage collection reports beyond the retention window should be removed by an automated cleanup PR."
+    }
+  ],
+  "debt": []
+}
