@@ -40,7 +40,7 @@
 
 - spec: [main-popover-refactor-integrity.md](../../product-specs/main-popover-refactor-integrity.md)
 - design: [main-popover-refactor-boundaries.md](../../design-docs/main-popover-refactor-boundaries.md)
-- previous feature plan: [2026-03-31-menu-bar-main-popover-overview.md](./2026-03-31-menu-bar-main-popover-overview.md)
+- previous feature plan: [2026-03-31-menu-bar-main-popover-overview.md](../completed/2026-03-31-menu-bar-main-popover-overview.md)
 - architecture: [macos-architecture.md](../../macos-architecture.md)
 
 ## 명시적 가정
