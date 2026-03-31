@@ -62,7 +62,7 @@
 - [x] today edit validation 경계를 명시적으로 둔다
 - [x] popover가 표시 중인 reference date를 저장 경로에서 명시적으로 소유한다
 - [x] picker 값 동기화 책임을 stale-state 제거 규칙과 함께 분리한다
-- [ ] `MenuBarPopoverControlling` isolation 계약을 명시한다
+- [x] `MenuBarPopoverControlling` isolation 계약을 명시한다
 - [ ] `MainPopoverViewController` 책임 분리의 다음 진입점을 정리한다
 
 ## 테스트 케이스 및 시나리오
@@ -80,5 +80,5 @@
 - [x] displayed reference date 보존
 - [x] stale picker reset
 - [x] totals defensive guard
-- [ ] actor isolation cleanup
+- [x] actor isolation cleanup
 - [ ] integration verification
