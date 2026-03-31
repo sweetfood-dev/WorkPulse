@@ -15,6 +15,9 @@ struct MainPopoverViewControllerTests {
         #expect(controller.checkedInSummaryLabel.stringValue == "Checked in at --:--")
         #expect(controller.currentSessionTitleLabel.stringValue == "Current Session")
         #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
+        #expect(controller.currentSessionProgressLeadingLabel.stringValue == "0H")
+        #expect(controller.currentSessionProgressTrailingLabel.stringValue == "Goal: 8h")
+        #expect(controller.currentSessionProgressBar.progressFraction == 0)
         #expect(controller.startTimeTitleLabel.stringValue == "Start Time")
         #expect(controller.startTimeValueLabel.stringValue == "--:--")
         #expect(controller.endTimeTitleLabel.stringValue == "End Time")
@@ -68,6 +71,7 @@ struct MainPopoverViewControllerTests {
         controller.applyCurrentSession(startTime: startTime, endTime: nil)
 
         #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+        #expect(abs(controller.currentSessionProgressBar.progressFraction - 0.3448) < 0.001)
     }
 
     @Test
