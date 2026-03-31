@@ -55,12 +55,20 @@ struct MainPopoverViewState {
     )
 }
 
+private enum EditingTimeField {
+    case startTime
+    case endTime
+}
+
 final class MainPopoverViewController: NSViewController {
     private var state: MainPopoverViewState
     private let currentSessionCalculator: CurrentSessionCalculator
     private let currentTimeProvider: () -> Date
     private let currentSessionScheduler: any CurrentSessionScheduling
     private var currentSessionRefresh: (any CurrentSessionCancellable)?
+    private var todayStartTime: Date?
+    private var todayEndTime: Date?
+    private var editingField: EditingTimeField?
 
     let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
     let checkedInSummaryLabel = MainPopoverViewController.makeSecondaryLabel()
@@ -68,12 +76,22 @@ final class MainPopoverViewController: NSViewController {
     let currentSessionValueLabel = MainPopoverViewController.makeValueLabel()
     let startTimeTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
     let startTimeValueLabel = MainPopoverViewController.makeRowValueLabel()
+    let startTimePicker = MainPopoverViewController.makeTimePicker()
+    let startTimeApplyButton = MainPopoverViewController.makeActionButton(title: "Apply")
+    let startTimeCancelButton = MainPopoverViewController.makeActionButton(title: "Cancel")
     let endTimeTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
     let endTimeValueLabel = MainPopoverViewController.makeRowValueLabel()
+    let endTimePicker = MainPopoverViewController.makeTimePicker()
+    let endTimeApplyButton = MainPopoverViewController.makeActionButton(title: "Apply")
+    let endTimeCancelButton = MainPopoverViewController.makeActionButton(title: "Cancel")
     let weeklyTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
     let weeklyValueLabel = MainPopoverViewController.makeSummaryValueLabel()
     let monthlyTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
     let monthlyValueLabel = MainPopoverViewController.makeSummaryValueLabel()
+    private let startTimeEditStack = NSStackView()
+    private let endTimeEditStack = NSStackView()
+    private let startTimeRow = NSStackView()
+    private let endTimeRow = NSStackView()
 
     init(
         state: MainPopoverViewState = .placeholder,
@@ -116,10 +134,22 @@ final class MainPopoverViewController: NSViewController {
 
         startTimeTitleLabel.stringValue = "Start Time"
         endTimeTitleLabel.stringValue = "End Time"
-        let todayTimesStack = NSStackView(views: [
-            makeReadOnlyRow(titleLabel: startTimeTitleLabel, valueLabel: startTimeValueLabel),
-            makeReadOnlyRow(titleLabel: endTimeTitleLabel, valueLabel: endTimeValueLabel)
-        ])
+        configureEditControls()
+        configureTimeRow(
+            startTimeRow,
+            titleLabel: startTimeTitleLabel,
+            valueLabel: startTimeValueLabel,
+            editStack: startTimeEditStack,
+            action: #selector(handleStartTimeRowTap)
+        )
+        configureTimeRow(
+            endTimeRow,
+            titleLabel: endTimeTitleLabel,
+            valueLabel: endTimeValueLabel,
+            editStack: endTimeEditStack,
+            action: #selector(handleEndTimeRowTap)
+        )
+        let todayTimesStack = NSStackView(views: [startTimeRow, endTimeRow])
         todayTimesStack.orientation = .vertical
         todayTimesStack.spacing = 12
 
@@ -152,6 +182,7 @@ final class MainPopoverViewController: NSViewController {
 
         view = rootView
         apply(state: state)
+        syncEditingUI()
     }
 
     func apply(state: MainPopoverViewState) {
@@ -185,10 +216,13 @@ final class MainPopoverViewController: NSViewController {
     }
 
     func beginCurrentSessionUpdates(startTime: Date?, endTime: Date?) {
+        todayStartTime = startTime
+        todayEndTime = endTime
         currentSessionRefresh?.cancel()
         currentSessionRefresh = nil
 
         applyCurrentSession(startTime: startTime, endTime: endTime)
+        syncEditorValues()
 
         guard let startTime, endTime == nil else { return }
 
@@ -199,17 +233,136 @@ final class MainPopoverViewController: NSViewController {
         }
     }
 
-    private func makeReadOnlyRow(titleLabel: NSTextField, valueLabel: NSTextField) -> NSView {
-        let stack = NSStackView(views: [titleLabel, valueLabel])
-        stack.orientation = .horizontal
-        stack.alignment = .firstBaseline
-        stack.distribution = .fill
-        stack.spacing = 12
+    func beginEditingStartTime() {
+        editingField = .startTime
+        syncEditingUI()
+    }
 
+    func beginEditingEndTime() {
+        editingField = .endTime
+        syncEditingUI()
+    }
+
+    func cancelEditingTime() {
+        editingField = nil
+        syncEditingUI()
+    }
+
+    @objc
+    private func handleStartTimeRowTap() {
+        beginEditingStartTime()
+    }
+
+    @objc
+    private func handleEndTimeRowTap() {
+        beginEditingEndTime()
+    }
+
+    @objc
+    private func handleCancelEditing() {
+        cancelEditingTime()
+    }
+
+    private func configureEditControls() {
+        configureEditStack(
+            startTimeEditStack,
+            picker: startTimePicker,
+            applyButton: startTimeApplyButton,
+            cancelButton: startTimeCancelButton
+        )
+        configureEditStack(
+            endTimeEditStack,
+            picker: endTimePicker,
+            applyButton: endTimeApplyButton,
+            cancelButton: endTimeCancelButton
+        )
+
+        startTimeCancelButton.target = self
+        startTimeCancelButton.action = #selector(handleCancelEditing)
+        endTimeCancelButton.target = self
+        endTimeCancelButton.action = #selector(handleCancelEditing)
+        startTimeApplyButton.isEnabled = false
+        endTimeApplyButton.isEnabled = false
+    }
+
+    private func configureEditStack(
+        _ stack: NSStackView,
+        picker: NSDatePicker,
+        applyButton: NSButton,
+        cancelButton: NSButton
+    ) {
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        stack.addArrangedSubview(picker)
+        stack.addArrangedSubview(applyButton)
+        stack.addArrangedSubview(cancelButton)
+        stack.isHidden = true
+    }
+
+    private func configureTimeRow(
+        _ row: NSStackView,
+        titleLabel: NSTextField,
+        valueLabel: NSTextField,
+        editStack: NSStackView,
+        action: Selector
+    ) {
+        let trailingContainer = NSView()
+        trailingContainer.translatesAutoresizingMaskIntoConstraints = false
+        valueLabel.translatesAutoresizingMaskIntoConstraints = false
+        editStack.translatesAutoresizingMaskIntoConstraints = false
+        trailingContainer.addSubview(valueLabel)
+        trailingContainer.addSubview(editStack)
+        NSLayoutConstraint.activate([
+            valueLabel.leadingAnchor.constraint(equalTo: trailingContainer.leadingAnchor),
+            valueLabel.trailingAnchor.constraint(equalTo: trailingContainer.trailingAnchor),
+            valueLabel.centerYAnchor.constraint(equalTo: trailingContainer.centerYAnchor),
+            editStack.leadingAnchor.constraint(equalTo: trailingContainer.leadingAnchor),
+            editStack.trailingAnchor.constraint(equalTo: trailingContainer.trailingAnchor),
+            editStack.topAnchor.constraint(equalTo: trailingContainer.topAnchor),
+            editStack.bottomAnchor.constraint(equalTo: trailingContainer.bottomAnchor),
+        ])
+
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.distribution = .fill
+        row.spacing = 12
+        row.addArrangedSubview(titleLabel)
+        row.addArrangedSubview(NSView())
+        row.addArrangedSubview(trailingContainer)
         titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        trailingContainer.widthAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
         valueLabel.alignment = .right
 
-        return stack
+        let recognizer = NSClickGestureRecognizer(target: self, action: action)
+        row.addGestureRecognizer(recognizer)
+    }
+
+    private func syncEditorValues() {
+        if let todayStartTime {
+            startTimePicker.dateValue = todayStartTime
+        }
+
+        if let todayEndTime {
+            endTimePicker.dateValue = todayEndTime
+        }
+    }
+
+    private func syncEditingUI() {
+        let isEditingStartTime = editingField == .startTime
+        let isEditingEndTime = editingField == .endTime
+
+        startTimeValueLabel.isHidden = isEditingStartTime
+        startTimeEditStack.isHidden = !isEditingStartTime
+        startTimePicker.isHidden = !isEditingStartTime
+        startTimeApplyButton.isHidden = !isEditingStartTime
+        startTimeCancelButton.isHidden = !isEditingStartTime
+
+        endTimeValueLabel.isHidden = isEditingEndTime
+        endTimeEditStack.isHidden = !isEditingEndTime
+        endTimePicker.isHidden = !isEditingEndTime
+        endTimeApplyButton.isHidden = !isEditingEndTime
+        endTimeCancelButton.isHidden = !isEditingEndTime
     }
 
     private func makeSummaryColumn(titleLabel: NSTextField, valueLabel: NSTextField) -> NSView {
@@ -247,6 +400,23 @@ final class MainPopoverViewController: NSViewController {
         label.font = .monospacedDigitSystemFont(ofSize: 14, weight: .regular)
         label.textColor = .secondaryLabelColor
         return label
+    }
+
+    private static func makeTimePicker() -> NSDatePicker {
+        let picker = NSDatePicker()
+        picker.datePickerElements = [.hourMinute]
+        picker.datePickerStyle = .textFieldAndStepper
+        picker.datePickerMode = .single
+        picker.translatesAutoresizingMaskIntoConstraints = false
+        picker.isHidden = true
+        return picker
+    }
+
+    private static func makeActionButton(title: String) -> NSButton {
+        let button = NSButton(title: title, target: nil, action: nil)
+        button.bezelStyle = .rounded
+        button.isHidden = true
+        return button
     }
 
     private static func makeSummaryValueLabel() -> NSTextField {

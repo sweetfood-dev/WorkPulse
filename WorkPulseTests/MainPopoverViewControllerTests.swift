@@ -152,6 +152,71 @@ struct MainPopoverViewControllerTests {
         #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
         #expect(scheduler.scheduleCallCount == 0)
     }
+
+    @Test
+    @MainActor
+    func beginningStartTimeEditingShowsPickerInTheSameRow() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let controller = MainPopoverViewController()
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
+        controller.beginEditingStartTime()
+
+        #expect(controller.startTimeValueLabel.isHidden)
+        #expect(controller.startTimePicker.isHidden == false)
+        #expect(controller.startTimePicker.dateValue == startTime)
+        #expect(controller.startTimeApplyButton.isHidden == false)
+        #expect(controller.startTimeApplyButton.isEnabled == false)
+        #expect(controller.startTimeCancelButton.isHidden == false)
+        #expect(controller.endTimeValueLabel.isHidden == false)
+        #expect(controller.currentSessionValueLabel.isHidden == false)
+    }
+
+    @Test
+    @MainActor
+    func cancelingStartTimeEditingReturnsToReadOnlyMode() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let controller = MainPopoverViewController()
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
+        controller.beginEditingStartTime()
+        controller.cancelEditingTime()
+
+        #expect(controller.startTimeValueLabel.isHidden == false)
+        #expect(controller.startTimePicker.isHidden)
+        #expect(controller.startTimeApplyButton.isHidden)
+        #expect(controller.startTimeCancelButton.isHidden)
+    }
+
+    @Test
+    @MainActor
+    func beginningEndTimeEditingShowsEndPickerInTheSameRow() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let controller = MainPopoverViewController()
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
+        controller.beginEditingEndTime()
+
+        #expect(controller.endTimeValueLabel.isHidden)
+        #expect(controller.endTimePicker.isHidden == false)
+        #expect(controller.endTimePicker.dateValue == endTime)
+        #expect(controller.endTimeApplyButton.isHidden == false)
+        #expect(controller.endTimeApplyButton.isEnabled == false)
+        #expect(controller.endTimeCancelButton.isHidden == false)
+        #expect(controller.startTimeValueLabel.isHidden == false)
+    }
 }
 
 private final class FakeRepeatingScheduler: CurrentSessionScheduling {
