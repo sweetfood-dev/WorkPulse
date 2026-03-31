@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: verify verify-architecture verify-golden-principles test-architecture-linter test-golden-principles garbage-collect classify-gc-actions apply-safe-cleanups verify-all
+.PHONY: verify verify-architecture verify-golden-principles test-architecture-linter test-golden-principles test-monthly-gc garbage-collect classify-gc-actions apply-safe-cleanups verify-all
 
 verify:
 	bash scripts/check-required-docs.sh
@@ -18,6 +18,9 @@ test-architecture-linter:
 test-golden-principles:
 	bash scripts/test-golden-principles.sh
 
+test-monthly-gc:
+	bash scripts/test-monthly-gc.sh
+
 garbage-collect:
 	$(PYTHON) scripts/run-garbage-collection.py --config .golden-principles.toml --write-report --write-plan
 
@@ -27,4 +30,4 @@ classify-gc-actions:
 apply-safe-cleanups:
 	$(PYTHON) scripts/apply-safe-cleanups.py --config .golden-principles.toml
 
-verify-all: verify test-architecture-linter verify-architecture test-golden-principles verify-golden-principles
+verify-all: verify test-architecture-linter verify-architecture test-golden-principles test-monthly-gc verify-golden-principles
