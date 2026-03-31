@@ -1,5 +1,40 @@
 import AppKit
 
+protocol CurrentSessionCancellable {
+    func cancel()
+}
+
+protocol CurrentSessionScheduling {
+    func scheduleRepeating(
+        every interval: TimeInterval,
+        action: @escaping () -> Void
+    ) -> any CurrentSessionCancellable
+}
+
+private final class TimerCurrentSessionCancellable: CurrentSessionCancellable {
+    private weak var timer: Timer?
+
+    init(timer: Timer) {
+        self.timer = timer
+    }
+
+    func cancel() {
+        timer?.invalidate()
+    }
+}
+
+private struct TimerCurrentSessionScheduler: CurrentSessionScheduling {
+    func scheduleRepeating(
+        every interval: TimeInterval,
+        action: @escaping () -> Void
+    ) -> any CurrentSessionCancellable {
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
+            action()
+        }
+        return TimerCurrentSessionCancellable(timer: timer)
+    }
+}
+
 struct MainPopoverViewState {
     let dateText: String
     let checkedInSummaryText: String
@@ -24,6 +59,8 @@ final class MainPopoverViewController: NSViewController {
     private var state: MainPopoverViewState
     private let currentSessionCalculator: CurrentSessionCalculator
     private let currentTimeProvider: () -> Date
+    private let currentSessionScheduler: any CurrentSessionScheduling
+    private var currentSessionRefresh: (any CurrentSessionCancellable)?
 
     let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
     let checkedInSummaryLabel = MainPopoverViewController.makeSecondaryLabel()
@@ -41,11 +78,13 @@ final class MainPopoverViewController: NSViewController {
     init(
         state: MainPopoverViewState = .placeholder,
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
-        currentTimeProvider: @escaping () -> Date = Date.init
+        currentTimeProvider: @escaping () -> Date = Date.init,
+        currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler()
     ) {
         self.state = state
         self.currentSessionCalculator = currentSessionCalculator
         self.currentTimeProvider = currentTimeProvider
+        self.currentSessionScheduler = currentSessionScheduler
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -142,6 +181,21 @@ final class MainPopoverViewController: NSViewController {
         }
 
         currentSessionValueLabel.stringValue = text
+    }
+
+    func beginCurrentSessionUpdates(startTime: Date?) {
+        currentSessionRefresh?.cancel()
+        currentSessionRefresh = nil
+
+        applyCurrentSession(startTime: startTime)
+
+        guard let startTime else { return }
+
+        currentSessionRefresh = currentSessionScheduler.scheduleRepeating(
+            every: 1
+        ) { [weak self] in
+            self?.applyCurrentSession(startTime: startTime)
+        }
     }
 
     private func makeReadOnlyRow(titleLabel: NSTextField, valueLabel: NSTextField) -> NSView {
