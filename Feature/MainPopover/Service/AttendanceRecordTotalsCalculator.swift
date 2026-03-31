@@ -42,7 +42,12 @@ struct AttendanceRecordTotalsCalculator {
                 return partialResult
             }
 
-            return partialResult + endTime.timeIntervalSince(startTime)
+            let duration = endTime.timeIntervalSince(startTime)
+            guard duration >= 0 else {
+                return partialResult
+            }
+
+            return partialResult + duration
         }
     }
 }

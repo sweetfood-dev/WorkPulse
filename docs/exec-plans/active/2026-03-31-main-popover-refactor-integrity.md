@@ -55,7 +55,7 @@
 - [x] `endTime < startTime`인 수정값은 저장되지 않는다
 - [x] 자정 경계 이후에도 edit apply는 popover가 표시 중인 날짜의 record를 수정한다
 - [x] 빈 시간 필드 편집 진입 시 picker는 이전 편집의 stale 값을 보여주지 않는다
-- [ ] invalid stored record는 주간/월간 집계에서 제외된다
+- [x] invalid stored record는 주간/월간 집계에서 제외된다
 
 ## 구조 변경 (Structural Changes - Tidy First)
 
@@ -79,6 +79,6 @@
 - [x] invalid time edit 차단
 - [x] displayed reference date 보존
 - [x] stale picker reset
-- [ ] totals defensive guard
+- [x] totals defensive guard
 - [ ] actor isolation cleanup
 - [ ] integration verification

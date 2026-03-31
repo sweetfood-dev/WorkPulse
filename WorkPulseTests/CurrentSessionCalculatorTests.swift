@@ -200,6 +200,44 @@ struct MainPopoverStateLoaderTests {
         #expect(loadedState.viewState.monthlyTotalText == "--")
     }
 
+    @Test
+    func excludesInvalidStoredDurationFromWeeklyAndMonthlyTotals() throws {
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let loader = MainPopoverStateLoader(
+            recordStore: InMemoryAttendanceRecordStore(records: [
+                AttendanceRecord(
+                    date: try #require(ISO8601DateFormatter().date(from: "2026-03-30T00:00:00+09:00")),
+                    startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T09:00:00+09:00")),
+                    endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T18:00:00+09:00"))
+                ),
+                AttendanceRecord(
+                    date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                    startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")),
+                    endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00"))
+                ),
+                AttendanceRecord(
+                    date: try #require(ISO8601DateFormatter().date(from: "2026-03-03T00:00:00+09:00")),
+                    startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-03T09:30:00+09:00")),
+                    endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-03T18:00:00+09:00"))
+                )
+            ]),
+            viewStateFactory: MainPopoverViewStateFactory(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+            ),
+            totalsCalculator: AttendanceRecordTotalsCalculator(),
+            calendar: Self.seoulCalendar
+        )
+
+        let loadedState = loader.load(referenceDate: referenceDate)
+
+        #expect(loadedState.viewState.weeklyTotalText == "09:00")
+        #expect(loadedState.viewState.monthlyTotalText == "17:30")
+    }
+
     private static var seoulCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "en_US_POSIX")
