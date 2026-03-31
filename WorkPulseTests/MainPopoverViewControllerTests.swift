@@ -50,4 +50,36 @@ struct MainPopoverViewControllerTests {
         #expect(controller.weeklyValueLabel.stringValue == "08:30")
         #expect(controller.monthlyValueLabel.stringValue == "42:10")
     }
+
+    @Test
+    @MainActor
+    func refreshingCurrentSessionUsesStartTimeAndClockProvider() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T11:45:30+09:00")
+        )
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { now }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: startTime)
+
+        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+    }
+
+    @Test
+    @MainActor
+    func refreshingCurrentSessionKeepsPlaceholderWhenStartTimeIsMissing() {
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: nil)
+
+        #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
+    }
 }

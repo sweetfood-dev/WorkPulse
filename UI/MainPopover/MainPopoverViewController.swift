@@ -22,6 +22,8 @@ struct MainPopoverViewState {
 
 final class MainPopoverViewController: NSViewController {
     private var state: MainPopoverViewState
+    private let currentSessionCalculator: CurrentSessionCalculator
+    private let currentTimeProvider: () -> Date
 
     let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
     let checkedInSummaryLabel = MainPopoverViewController.makeSecondaryLabel()
@@ -36,8 +38,14 @@ final class MainPopoverViewController: NSViewController {
     let monthlyTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
     let monthlyValueLabel = MainPopoverViewController.makeSummaryValueLabel()
 
-    init(state: MainPopoverViewState = .placeholder) {
+    init(
+        state: MainPopoverViewState = .placeholder,
+        currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
+        currentTimeProvider: @escaping () -> Date = Date.init
+    ) {
         self.state = state
+        self.currentSessionCalculator = currentSessionCalculator
+        self.currentTimeProvider = currentTimeProvider
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -121,6 +129,21 @@ final class MainPopoverViewController: NSViewController {
         monthlyValueLabel.stringValue = state.monthlyTotalText
     }
 
+    func applyCurrentSession(startTime: Date?) {
+        let text: String
+
+        if let duration = currentSessionCalculator.runningDuration(
+            startTime: startTime,
+            now: currentTimeProvider()
+        ) {
+            text = Self.format(duration: duration)
+        } else {
+            text = MainPopoverViewState.placeholder.currentSessionText
+        }
+
+        currentSessionValueLabel.stringValue = text
+    }
+
     private func makeReadOnlyRow(titleLabel: NSTextField, valueLabel: NSTextField) -> NSView {
         let stack = NSStackView(views: [titleLabel, valueLabel])
         stack.orientation = .horizontal
@@ -184,5 +207,13 @@ final class MainPopoverViewController: NSViewController {
         separator.translatesAutoresizingMaskIntoConstraints = false
         separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return separator
+    }
+
+    private static func format(duration: TimeInterval) -> String {
+        let totalSeconds = max(0, Int(duration.rounded(.down)))
+        let hours = totalSeconds / 3_600
+        let minutes = (totalSeconds % 3_600) / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
