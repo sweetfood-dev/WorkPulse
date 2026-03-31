@@ -7,7 +7,8 @@ on:
       - main
 
 jobs:
-  verify:
+  docs_verify:
+    name: Docs Verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
