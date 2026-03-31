@@ -38,7 +38,7 @@ paths = ["App/**", "Runtime/**", "Sources/**/Runtime/**", "Modules/**/Runtime/**
 forbidden_import_prefixes = []
 
 [layers.ui]
-paths = ["UI/**", "Feature/**/UI/**", "Sources/**/UI/**", "Modules/**/UI/**"]
+paths = ["UI/**", "Feature/**/UI/**", "Feature/**/Presentation/**", "Sources/**/UI/**", "Modules/**/UI/**"]
 forbidden_import_prefixes = ["Realm", "RealmSwift", "CoreData"]
 
 [[zones]]
