@@ -308,6 +308,30 @@ struct MainPopoverViewControllerTests {
         #expect(controller.endTimePicker.isHidden == false)
         #expect(controller.endTimeApplyButton.isHidden == false)
     }
+
+    @Test
+    @MainActor
+    func beginningEditingEmptyEndTimeResetsPickerAwayFromPreviousStaleValue() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let previousEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let currentTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T14:15:00+09:00")
+        )
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { currentTime }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: previousEndTime)
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
+        controller.beginEditingEndTime()
+
+        #expect(controller.endTimePicker.dateValue == currentTime)
+    }
 }
 
 final class FakeRepeatingScheduler: CurrentSessionScheduling {

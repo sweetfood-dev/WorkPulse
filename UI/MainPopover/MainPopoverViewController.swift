@@ -367,10 +367,14 @@ final class MainPopoverViewController: NSViewController {
     private func syncEditorValues() {
         if let startTime = todayTimeEditModeState.draftStartTime {
             startTimePicker.dateValue = startTime
+        } else {
+            startTimePicker.dateValue = currentTimeProvider()
         }
 
         if let endTime = todayTimeEditModeState.draftEndTime {
             endTimePicker.dateValue = endTime
+        } else {
+            endTimePicker.dateValue = currentTimeProvider()
         }
     }
 
