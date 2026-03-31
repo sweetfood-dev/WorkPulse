@@ -12,7 +12,7 @@ report_retention = "6"
 [autofix]
 enabled = "true"
 allowed_paths = ["docs/generated/garbage-collection/**"]
-blocked_paths = ["ARCHITECTURE.md", "docs/BOOTSTRAP.md", "docs/GOLDEN_PRINCIPLES.md", "docs/PLANS.md", "docs/QUALITY_SCORE.md", "docs/RELIABILITY.md", "docs/clean-architecture.md", ".golden-principles.toml", ".architecture-invariants.toml", ".github/workflows/**"]
+blocked_paths = ["ARCHITECTURE.md", "docs/GOLDEN_PRINCIPLES.md", "docs/PLANS.md", "docs/QUALITY_SCORE.md", "docs/RELIABILITY.md", "docs/clean-architecture.md", "docs/macos-architecture.md", ".golden-principles.toml", ".architecture-invariants.toml", ".github/workflows/**"]
 allowed_finding_kinds = ["stale-generated-gc-report"]
 max_files_changed = "5"
 max_net_lines = "100"

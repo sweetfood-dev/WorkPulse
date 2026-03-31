@@ -24,8 +24,7 @@ docs/
 ├── DESIGN.md
 ├── FRONTEND.md
 ├── clean-architecture.md
-├── ios-architecture.md
-├── BOOTSTRAP.md
+├── macos-architecture.md
 ├── design-docs/
 ├── exec-plans/
 ├── product-specs/
@@ -34,8 +33,8 @@ docs/
 ```
 
 먼저 [`ARCHITECTURE.md`](./ARCHITECTURE.md)를 읽습니다.
-starter baseline contract와 customization 절차는 [`docs/BOOTSTRAP.md`](./docs/BOOTSTRAP.md)를 따릅니다.
 specialized guidance와 문서 라우팅은 [`ARCHITECTURE.md`](./ARCHITECTURE.md)가 설명합니다.
 문서를 어디에 둘지 헷갈리면 [`ARCHITECTURE.md`](./ARCHITECTURE.md)의 분류 기준을 먼저 봅니다.
 리포지토리 수준의 golden principles와 월간 garbage collection 기준은 [`docs/GOLDEN_PRINCIPLES.md`](./docs/GOLDEN_PRINCIPLES.md)를 봅니다.
 레이어 경계나 구조 규칙을 바꾸면 [`docs/clean-architecture.md`](./docs/clean-architecture.md)와 [`.architecture-invariants.toml`](./.architecture-invariants.toml)을 함께 봅니다.
+macOS 애플리케이션 구조, AppKit UI, 메뉴바 런타임 규칙은 [`docs/macos-architecture.md`](./docs/macos-architecture.md)를 먼저 봅니다.

@@ -2,7 +2,7 @@
 
 이 디렉터리는 이 프로젝트에서 반복적으로 유용한 custom subagent 정의를 담습니다.
 
-현재 기본 세트는 아래 5개입니다.
+현재 기본 세트는 아래 6개입니다.
 
 - `spec-plan-scout.toml`
   - 요구사항을 구현 전에 분해하고 범위, 제약, 성공 기준, 실행 슬라이스를 정리
@@ -10,6 +10,8 @@
   - 구현 후 correctness, regression, missing tests, reliability, security risk를 점검
 - `docs-gardener.toml`
   - durable knowledge 변화가 생겼을 때 어떤 문서를 갱신해야 하는지 맞추고 문서 일관성을 복원
+- `appkit-menu-bar-reviewer.toml`
+  - WorkPulse의 AppKit 메뉴바 앱 변경을 읽기 전용으로 점검
 - `gc-curator.toml`
   - 월간 garbage collection finding을 cleanup PR, debt item, active plan 중 어디로 보낼지 triage
 - `cleanup-patcher.toml`

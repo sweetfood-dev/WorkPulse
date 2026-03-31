@@ -14,5 +14,5 @@
 ## Related Architecture Docs
 
 - 공통 구조 규칙은 [`clean-architecture.md`](./clean-architecture.md)를 기준으로 봅니다.
-- iOS/Swift 보조 규칙은 [`ios-architecture.md`](./ios-architecture.md)를 기준으로 봅니다.
+- macOS 전용 보조 규칙은 [`macos-architecture.md`](./macos-architecture.md)를 기준으로 봅니다.
 - 플랫폼별 세부 구조 규칙은 이 문서가 아니라 해당 아키텍처 문서가 소유합니다.
