@@ -33,7 +33,7 @@ jobs:
         run: make verify-all
 
       - name: Create Draft Cleanup PR
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: codex/monthly-gc
           commit-message: "Run monthly garbage collection"
