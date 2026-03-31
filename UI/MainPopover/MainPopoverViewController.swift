@@ -65,10 +65,12 @@ final class MainPopoverViewController: NSViewController {
     private let currentSessionCalculator: CurrentSessionCalculator
     private let currentTimeProvider: () -> Date
     private let currentSessionScheduler: any CurrentSessionScheduling
+    private let timeFormatter: DateFormatter
     private var currentSessionRefresh: (any CurrentSessionCancellable)?
     private var todayStartTime: Date?
     private var todayEndTime: Date?
     private var editingField: EditingTimeField?
+    var onApplyEditedTimes: ((Date?, Date?) -> Void)?
 
     let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
     let checkedInSummaryLabel = MainPopoverViewController.makeSecondaryLabel()
@@ -103,6 +105,9 @@ final class MainPopoverViewController: NSViewController {
         self.currentSessionCalculator = currentSessionCalculator
         self.currentTimeProvider = currentTimeProvider
         self.currentSessionScheduler = currentSessionScheduler
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        self.timeFormatter = formatter
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -248,6 +253,25 @@ final class MainPopoverViewController: NSViewController {
         syncEditingUI()
     }
 
+    func applyEditingTime() {
+        switch editingField {
+        case .startTime:
+            let startTime = startTimePicker.dateValue
+            todayStartTime = startTime
+            startTimeValueLabel.stringValue = timeFormatter.string(from: startTime)
+        case .endTime:
+            let endTime = endTimePicker.dateValue
+            todayEndTime = endTime
+            endTimeValueLabel.stringValue = timeFormatter.string(from: endTime)
+        case nil:
+            return
+        }
+
+        onApplyEditedTimes?(todayStartTime, todayEndTime)
+        editingField = nil
+        syncEditingUI()
+    }
+
     @objc
     private func handleStartTimeRowTap() {
         beginEditingStartTime()
@@ -261,6 +285,11 @@ final class MainPopoverViewController: NSViewController {
     @objc
     private func handleCancelEditing() {
         cancelEditingTime()
+    }
+
+    @objc
+    private func handleApplyEditing() {
+        applyEditingTime()
     }
 
     private func configureEditControls() {
@@ -281,8 +310,12 @@ final class MainPopoverViewController: NSViewController {
         startTimeCancelButton.action = #selector(handleCancelEditing)
         endTimeCancelButton.target = self
         endTimeCancelButton.action = #selector(handleCancelEditing)
-        startTimeApplyButton.isEnabled = false
-        endTimeApplyButton.isEnabled = false
+        startTimeApplyButton.target = self
+        startTimeApplyButton.action = #selector(handleApplyEditing)
+        endTimeApplyButton.target = self
+        endTimeApplyButton.action = #selector(handleApplyEditing)
+        startTimeApplyButton.isEnabled = true
+        endTimeApplyButton.isEnabled = true
     }
 
     private func configureEditStack(

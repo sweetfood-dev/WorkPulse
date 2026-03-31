@@ -169,7 +169,7 @@ struct MainPopoverViewControllerTests {
         #expect(controller.startTimePicker.isHidden == false)
         #expect(controller.startTimePicker.dateValue == startTime)
         #expect(controller.startTimeApplyButton.isHidden == false)
-        #expect(controller.startTimeApplyButton.isEnabled == false)
+        #expect(controller.startTimeApplyButton.isEnabled)
         #expect(controller.startTimeCancelButton.isHidden == false)
         #expect(controller.endTimeValueLabel.isHidden == false)
         #expect(controller.currentSessionValueLabel.isHidden == false)
@@ -213,9 +213,72 @@ struct MainPopoverViewControllerTests {
         #expect(controller.endTimePicker.isHidden == false)
         #expect(controller.endTimePicker.dateValue == endTime)
         #expect(controller.endTimeApplyButton.isHidden == false)
-        #expect(controller.endTimeApplyButton.isEnabled == false)
+        #expect(controller.endTimeApplyButton.isEnabled)
         #expect(controller.endTimeCancelButton.isHidden == false)
         #expect(controller.startTimeValueLabel.isHidden == false)
+    }
+
+    @Test
+    @MainActor
+    func applyingStartTimeEditEmitsUpdatedTodayTimesAndReturnsToReadOnlyMode() throws {
+        let originalStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let editedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")
+        )
+        let controller = MainPopoverViewController()
+        var appliedStartTime: Date?
+        var appliedEndTime: Date?
+        controller.onApplyEditedTimes = { startTime, endTime in
+            appliedStartTime = startTime
+            appliedEndTime = endTime
+        }
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: originalStartTime, endTime: nil)
+        controller.beginEditingStartTime()
+        controller.startTimePicker.dateValue = editedStartTime
+        controller.applyEditingTime()
+
+        #expect(appliedStartTime == editedStartTime)
+        #expect(appliedEndTime == nil)
+        #expect(controller.startTimeValueLabel.stringValue == "08:30")
+        #expect(controller.startTimeValueLabel.isHidden == false)
+        #expect(controller.startTimePicker.isHidden)
+    }
+
+    @Test
+    @MainActor
+    func applyingEndTimeEditEmitsUpdatedTodayTimesAndReturnsToReadOnlyMode() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let originalEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let editedEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T17:45:00+09:00")
+        )
+        let controller = MainPopoverViewController()
+        var appliedStartTime: Date?
+        var appliedEndTime: Date?
+        controller.onApplyEditedTimes = { startTime, endTime in
+            appliedStartTime = startTime
+            appliedEndTime = endTime
+        }
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: originalEndTime)
+        controller.beginEditingEndTime()
+        controller.endTimePicker.dateValue = editedEndTime
+        controller.applyEditingTime()
+
+        #expect(appliedStartTime == startTime)
+        #expect(appliedEndTime == editedEndTime)
+        #expect(controller.endTimeValueLabel.stringValue == "17:45")
+        #expect(controller.endTimeValueLabel.isHidden == false)
+        #expect(controller.endTimePicker.isHidden)
     }
 }
 
