@@ -1,0 +1,72 @@
+version = 1
+profile = "starter-golden-principles"
+
+[garbage_collection]
+report_dir = "docs/generated/garbage-collection"
+active_plan_dir = "docs/exec-plans/active"
+stale_active_plan_days = "45"
+debt_review_grace_days = "30"
+max_cleanup_pr_findings = "5"
+report_retention = "6"
+
+[autofix]
+enabled = "true"
+allowed_paths = ["docs/generated/garbage-collection/**"]
+blocked_paths = ["ARCHITECTURE.md", "docs/BOOTSTRAP.md", "docs/GOLDEN_PRINCIPLES.md", "docs/PLANS.md", "docs/QUALITY_SCORE.md", "docs/RELIABILITY.md", "docs/clean-architecture.md", ".golden-principles.toml", ".architecture-invariants.toml", ".github/workflows/**"]
+allowed_finding_kinds = ["stale-generated-gc-report"]
+max_files_changed = "5"
+max_net_lines = "100"
+
+[[principles]]
+id = "GP-01"
+title = "User Value First"
+owners = ["docs/PRODUCT_SENSE.md"]
+severity_floor = "major"
+exemption_allowed = "no"
+machine_checks = ["owner_docs_exist"]
+gc_checks = ["none"]
+
+[[principles]]
+id = "GP-02"
+title = "Durable Truth Has One Home"
+owners = ["ARCHITECTURE.md", "docs/RELIABILITY.md"]
+severity_floor = "major"
+exemption_allowed = "yes"
+machine_checks = ["owner_docs_exist", "orphan_docs"]
+gc_checks = ["orphan_docs", "doc_drift", "overdue_debt_reviews"]
+
+[[principles]]
+id = "GP-03"
+title = "Plan Coordinated Change"
+owners = ["docs/PLANS.md"]
+severity_floor = "major"
+exemption_allowed = "yes"
+machine_checks = ["owner_docs_exist", "active_plan_metadata"]
+gc_checks = ["stale_active_plans", "promote_debt"]
+
+[[principles]]
+id = "GP-04"
+title = "Evidence Before Confidence"
+owners = ["docs/TDD.md", "docs/QUALITY_SCORE.md"]
+severity_floor = "major"
+exemption_allowed = "yes"
+machine_checks = ["owner_docs_exist"]
+gc_checks = ["repeated_violations"]
+
+[[principles]]
+id = "GP-05"
+title = "Boundaries Are Real"
+owners = ["docs/clean-architecture.md", ".architecture-invariants.toml"]
+severity_floor = "blocker"
+exemption_allowed = "yes"
+machine_checks = ["owner_docs_exist", "architecture_invariants"]
+gc_checks = ["expired_exemptions", "repeated_violations"]
+
+[[principles]]
+id = "GP-06"
+title = "Safe By Default, Reversible When Risky"
+owners = ["docs/SECURITY.md", "docs/RELIABILITY.md", "docs/DESIGN.md"]
+severity_floor = "blocker"
+exemption_allowed = "limited"
+machine_checks = ["owner_docs_exist"]
+gc_checks = ["repeated_violations", "stale_active_plans"]

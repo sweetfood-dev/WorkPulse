@@ -1,0 +1,100 @@
+version = 1
+profile = "starter-swift-clean-architecture"
+
+[source]
+roots = ["App", "Sources", "Shared", "Feature", "Domain", "Repository", "Runtime", "UI", "Modules"]
+extensions = [".swift"]
+
+[mode]
+unknown_paths = "warn"
+multi_layer_match = "error"
+forbidden_imports = "error"
+forbidden_content = "error"
+ownership = "error"
+expired_exemptions = "error"
+
+[layers.types]
+paths = ["Shared/Types/**", "Sources/**/Types/**", "Modules/**/Types/**"]
+forbidden_import_prefixes = ["UIKit", "SwiftUI", "Combine", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "RxSwift"]
+
+[layers.config]
+paths = ["Config/**", "Sources/**/Config/**", "Modules/**/Config/**"]
+forbidden_import_prefixes = ["UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
+
+[layers.domain]
+paths = ["Domain/**", "Sources/**/Domain/**", "Modules/**/Domain/**"]
+forbidden_import_prefixes = ["UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "MapKit"]
+
+[layers.repo]
+paths = ["Repository/**", "Feature/**/Repo/**", "Sources/**/Repository/**", "Sources/**/Data/**", "Modules/**/Repository/**", "Modules/**/Data/**"]
+forbidden_import_prefixes = ["UIKit", "SwiftUI"]
+
+[layers.service]
+paths = ["Feature/**/Service/**", "Sources/**/Service/**", "Sources/**/UseCase/**", "Modules/**/Service/**", "Modules/**/UseCase/**"]
+forbidden_import_prefixes = ["UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
+
+[layers.runtime]
+paths = ["App/**", "Runtime/**", "Sources/**/Runtime/**", "Modules/**/Runtime/**"]
+forbidden_import_prefixes = []
+
+[layers.ui]
+paths = ["UI/**", "Feature/**/UI/**", "Sources/**/UI/**", "Modules/**/UI/**"]
+forbidden_import_prefixes = ["Realm", "RealmSwift", "CoreData"]
+
+[[zones]]
+id = "generated"
+path_globs = ["Generated/**", "Sources/**/Generated/**", "Modules/**/Generated/**", "**/*.generated.swift"]
+policy = "skip"
+
+[[zones]]
+id = "tests"
+path_globs = ["Tests/**", "**/*Tests.swift", "**/*UITests.swift"]
+policy = "relaxed"
+
+[[ownership_rules]]
+id = "view-controller-layer"
+path_globs = ["**/*ViewController.swift"]
+allowed_layers = ["ui"]
+message = "ViewController files must live in the ui layer."
+
+[[ownership_rules]]
+id = "view-model-layer"
+path_globs = ["**/*ViewModel.swift", "**/*Presenter.swift"]
+allowed_layers = ["ui"]
+message = "ViewModel and Presenter files must live in the ui layer."
+
+[[ownership_rules]]
+id = "use-case-layer"
+path_globs = ["**/*UseCase.swift"]
+allowed_layers = ["service"]
+message = "UseCase files must live in the service layer."
+
+[[ownership_rules]]
+id = "dto-layer"
+path_globs = ["**/*DTO.swift"]
+allowed_layers = ["repo"]
+message = "DTO files must live in the repo layer."
+
+[[ownership_rules]]
+id = "mapper-layer"
+path_globs = ["**/*Mapper.swift"]
+allowed_layers = ["repo"]
+message = "Mapper files must live in the repo layer."
+
+[[ownership_rules]]
+id = "app-entry-layer"
+path_globs = ["**/AppDelegate.swift", "**/SceneDelegate.swift"]
+allowed_layers = ["runtime"]
+message = "Application entrypoints must live in the runtime layer."
+
+[[content_rules]]
+id = "no-task-detached"
+layers = ["domain", "repo", "service", "runtime", "ui"]
+pattern = "\\bTask\\.detached\\b"
+message = "Task.detached is forbidden by default. Prefer structured concurrency or add a time-boxed exemption."
+
+[[content_rules]]
+id = "ui-types-outside-ui"
+layers = ["types", "config", "domain", "repo", "service"]
+pattern = "\\bUIViewController\\b|\\b@IBOutlet\\b|\\b@IBAction\\b"
+message = "UIKit presentation types must stay in the ui layer."

@@ -1,0 +1,67 @@
+version = 1
+
+[source]
+roots = ["ok"]
+extensions = [".swift"]
+
+[mode]
+unknown_paths = "warn"
+multi_layer_match = "error"
+forbidden_imports = "error"
+forbidden_content = "error"
+ownership = "error"
+expired_exemptions = "error"
+
+[layers.types]
+paths = ["ok/Shared/Types/**"]
+forbidden_import_prefixes = ["UIKit", "RealmSwift"]
+
+[layers.domain]
+paths = ["ok/Domain/**"]
+forbidden_import_prefixes = ["UIKit", "RealmSwift"]
+
+[layers.repo]
+paths = ["ok/Feature/**/Repo/**"]
+forbidden_import_prefixes = ["UIKit"]
+
+[layers.service]
+paths = ["ok/Feature/**/Service/**"]
+forbidden_import_prefixes = ["UIKit", "RealmSwift"]
+
+[layers.runtime]
+paths = ["ok/App/**"]
+forbidden_import_prefixes = []
+
+[layers.ui]
+paths = ["ok/Feature/**/UI/**"]
+forbidden_import_prefixes = ["RealmSwift"]
+
+[[ownership_rules]]
+id = "view-controller-layer"
+path_globs = ["**/*ViewController.swift"]
+allowed_layers = ["ui"]
+message = "ViewController files must live in the ui layer."
+
+[[ownership_rules]]
+id = "use-case-layer"
+path_globs = ["**/*UseCase.swift"]
+allowed_layers = ["service"]
+message = "UseCase files must live in the service layer."
+
+[[ownership_rules]]
+id = "dto-layer"
+path_globs = ["**/*DTO.swift"]
+allowed_layers = ["repo"]
+message = "DTO files must live in the repo layer."
+
+[[ownership_rules]]
+id = "app-entry-layer"
+path_globs = ["**/AppDelegate.swift"]
+allowed_layers = ["runtime"]
+message = "Application entrypoints must live in the runtime layer."
+
+[[content_rules]]
+id = "no-task-detached"
+layers = ["domain", "repo", "service", "runtime", "ui"]
+pattern = "\\bTask\\.detached\\b"
+message = "Task.detached is forbidden by default."
