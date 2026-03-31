@@ -98,6 +98,11 @@ final class MainPopoverCurrentSessionRuntime {
         }
     }
 
+    func stop() {
+        currentSessionRefresh?.cancel()
+        currentSessionRefresh = nil
+    }
+
     private func resolvedText(startTime: Date?, endTime: Date?) -> String {
         guard let duration = currentSessionCalculator.sessionDuration(
             startTime: startTime,
@@ -268,6 +273,15 @@ final class MainPopoverViewController: NSViewController {
         todayTimeEditModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
         currentSessionRuntime.begin(startTime: startTime, endTime: endTime)
         syncEditorValues()
+    }
+
+    func stopCurrentSessionUpdates() {
+        currentSessionRuntime.stop()
+    }
+
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        stopCurrentSessionUpdates()
     }
 
     func beginEditingStartTime() {

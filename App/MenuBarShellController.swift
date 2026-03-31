@@ -18,6 +18,7 @@ final class MenuBarShellController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: any MenuBarPopoverControlling
     var onWillOpenPopover: (() -> Void)?
+    var onDidClosePopover: (() -> Void)?
 
     convenience init(popoverViewController: NSViewController) {
         self.init(
@@ -64,6 +65,7 @@ final class MenuBarShellController: NSObject {
 
         if popover.isShown {
             popover.performClose(sender)
+            onDidClosePopover?()
             return
         }
 

@@ -654,6 +654,52 @@ struct AppDelegateTests {
         )
     }
 
+    @Test
+    @MainActor
+    func openingPopoverAfterCloseRefreshesCurrentSessionAgainstCurrentClock() throws {
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T10:00:00+09:00")
+        )
+        let laterDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T10:05:00+09:00")
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: startTime,
+                endTime: nil
+            )
+        ])
+        var currentDate = referenceDate
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { currentDate }
+        )
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                currentDateProvider: { currentDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: store
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
+
+        #expect(controller.currentSessionValueLabel.stringValue == "01:00:00")
+
+        controller.stopCurrentSessionUpdates()
+        currentDate = laterDate
+        appDelegate.handlePopoverWillOpen()
+
+        #expect(controller.currentSessionValueLabel.stringValue == "01:05:00")
+    }
+
     private static var seoulCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "en_US_POSIX")

@@ -53,6 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBarShellController.onWillOpenPopover = { [weak self] in
             self?.handlePopoverWillOpen()
         }
+        menuBarShellController.onDidClosePopover = { [weak popoverViewController] in
+            popoverViewController?.stopCurrentSessionUpdates()
+        }
         self.menuBarShellController = menuBarShellController
     }
 
