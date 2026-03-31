@@ -168,11 +168,12 @@ final class MainPopoverViewController: NSViewController {
         monthlyValueLabel.stringValue = state.monthlyTotalText
     }
 
-    func applyCurrentSession(startTime: Date?) {
+    func applyCurrentSession(startTime: Date?, endTime: Date?) {
         let text: String
 
-        if let duration = currentSessionCalculator.runningDuration(
+        if let duration = currentSessionCalculator.sessionDuration(
             startTime: startTime,
+            endTime: endTime,
             now: currentTimeProvider()
         ) {
             text = Self.format(duration: duration)
@@ -183,18 +184,18 @@ final class MainPopoverViewController: NSViewController {
         currentSessionValueLabel.stringValue = text
     }
 
-    func beginCurrentSessionUpdates(startTime: Date?) {
+    func beginCurrentSessionUpdates(startTime: Date?, endTime: Date?) {
         currentSessionRefresh?.cancel()
         currentSessionRefresh = nil
 
-        applyCurrentSession(startTime: startTime)
+        applyCurrentSession(startTime: startTime, endTime: endTime)
 
-        guard let startTime else { return }
+        guard let startTime, endTime == nil else { return }
 
         currentSessionRefresh = currentSessionScheduler.scheduleRepeating(
             every: 1
         ) { [weak self] in
-            self?.applyCurrentSession(startTime: startTime)
+            self?.applyCurrentSession(startTime: startTime, endTime: nil)
         }
     }
 

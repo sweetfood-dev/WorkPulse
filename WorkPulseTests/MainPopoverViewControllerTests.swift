@@ -65,7 +65,7 @@ struct MainPopoverViewControllerTests {
         )
 
         controller.loadViewIfNeeded()
-        controller.applyCurrentSession(startTime: startTime)
+        controller.applyCurrentSession(startTime: startTime, endTime: nil)
 
         #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
     }
@@ -78,7 +78,7 @@ struct MainPopoverViewControllerTests {
         )
 
         controller.loadViewIfNeeded()
-        controller.applyCurrentSession(startTime: nil)
+        controller.applyCurrentSession(startTime: nil, endTime: nil)
 
         #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
     }
@@ -99,7 +99,7 @@ struct MainPopoverViewControllerTests {
         )
 
         controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: startTime)
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
 
         #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
         #expect(scheduler.scheduleCallCount == 1)
@@ -122,9 +122,34 @@ struct MainPopoverViewControllerTests {
         )
 
         controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: nil)
+        controller.beginCurrentSessionUpdates(startTime: nil, endTime: nil)
 
         #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
+        #expect(scheduler.scheduleCallCount == 0)
+    }
+
+    @Test
+    @MainActor
+    func beginningCurrentSessionUpdatesShowsFixedDurationAndDoesNotScheduleWhenEndTimeExists() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let scheduler = FakeRepeatingScheduler()
+        let controller = MainPopoverViewController(
+            currentTimeProvider: {
+                ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
+                ?? Date(timeIntervalSince1970: 0)
+            },
+            currentSessionScheduler: scheduler
+        )
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
+
+        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
         #expect(scheduler.scheduleCallCount == 0)
     }
 }
