@@ -256,6 +256,7 @@ final class MainPopoverViewController: NSViewController {
             return
         }
 
+        guard todayTimeEditModeState.hasValidDraftTimes else { return }
         guard let appliedTimes = todayTimeEditModeState.apply() else { return }
 
         startTimeValueLabel.stringValue = timeText(for: appliedTimes.startTime)

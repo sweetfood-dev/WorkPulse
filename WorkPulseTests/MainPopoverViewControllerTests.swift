@@ -280,6 +280,34 @@ struct MainPopoverViewControllerTests {
         #expect(controller.endTimeValueLabel.isHidden == false)
         #expect(controller.endTimePicker.isHidden)
     }
+
+    @Test
+    @MainActor
+    func applyingEndTimeEarlierThanStartTimeDoesNotEmitInvalidTimes() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let invalidEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")
+        )
+        let controller = MainPopoverViewController()
+        var applyCallCount = 0
+        controller.onApplyEditedTimes = { _, _ in
+            applyCallCount += 1
+        }
+
+        controller.loadViewIfNeeded()
+        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
+        controller.beginEditingEndTime()
+        controller.endTimePicker.dateValue = invalidEndTime
+        controller.applyEditingTime()
+
+        #expect(applyCallCount == 0)
+        #expect(controller.endTimeValueLabel.stringValue == "--:--")
+        #expect(controller.endTimeValueLabel.isHidden)
+        #expect(controller.endTimePicker.isHidden == false)
+        #expect(controller.endTimeApplyButton.isHidden == false)
+    }
 }
 
 final class FakeRepeatingScheduler: CurrentSessionScheduling {
