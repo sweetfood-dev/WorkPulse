@@ -17,6 +17,7 @@ extension NSPopover: MenuBarPopoverControlling {}
 final class MenuBarShellController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: any MenuBarPopoverControlling
+    var onWillOpenPopover: (() -> Void)?
 
     convenience init(popoverViewController: NSViewController) {
         self.init(
@@ -66,6 +67,7 @@ final class MenuBarShellController: NSObject {
             return
         }
 
+        onWillOpenPopover?()
         popover.show(
             relativeTo: button.bounds,
             of: button,
