@@ -53,14 +53,14 @@
 ## 행동 변경 (Behavioral Changes - TDD)
 
 - [x] `endTime < startTime`인 수정값은 저장되지 않는다
-- [ ] 자정 경계 이후에도 edit apply는 popover가 표시 중인 날짜의 record를 수정한다
+- [x] 자정 경계 이후에도 edit apply는 popover가 표시 중인 날짜의 record를 수정한다
 - [ ] 빈 시간 필드 편집 진입 시 picker는 이전 편집의 stale 값을 보여주지 않는다
 - [ ] invalid stored record는 주간/월간 집계에서 제외된다
 
 ## 구조 변경 (Structural Changes - Tidy First)
 
 - [x] today edit validation 경계를 명시적으로 둔다
-- [ ] popover가 표시 중인 reference date를 저장 경로에서 명시적으로 소유한다
+- [x] popover가 표시 중인 reference date를 저장 경로에서 명시적으로 소유한다
 - [ ] picker 값 동기화 책임을 stale-state 제거 규칙과 함께 분리한다
 - [ ] `MenuBarPopoverControlling` isolation 계약을 명시한다
 - [ ] `MainPopoverViewController` 책임 분리의 다음 진입점을 정리한다
@@ -77,7 +77,7 @@
 
 - [x] spec 고정
 - [x] invalid time edit 차단
-- [ ] displayed reference date 보존
+- [x] displayed reference date 보존
 - [ ] stale picker reset
 - [ ] totals defensive guard
 - [ ] actor isolation cleanup
