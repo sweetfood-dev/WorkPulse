@@ -16,7 +16,7 @@
 ## 목표와 범위
 
 - invalid time edit 저장 차단
-- popover가 표시 중인 날짜 기준으로 today record upsert
+- stale displayed reference date에 묶이지 않도록 today record upsert
 - 빈 필드 편집 시 stale picker 값 제거
 - invalid stored record가 집계를 오염시키지 않도록 방어
 - 현재 popover 편집/저장 경계를 더 분명하게 분리
@@ -53,7 +53,7 @@
 ## 행동 변경 (Behavioral Changes - TDD)
 
 - [x] `endTime < startTime`인 수정값은 저장되지 않는다
-- [x] 자정 경계 이후에도 edit apply는 popover가 표시 중인 날짜의 record를 수정한다
+- [x] 자정 경계 이후 stale displayed reference date로 apply해도 current day record로 upsert 된다
 - [x] 빈 시간 필드 편집 진입 시 picker는 이전 편집의 stale 값을 보여주지 않는다
 - [x] invalid stored record는 주간/월간 집계에서 제외된다
 
@@ -69,7 +69,7 @@
 ## 테스트 케이스 및 시나리오
 
 - end time이 start time보다 이르면 apply callback이 호출되지 않는다
-- 자정 후 apply해도 원래 표시 중인 날짜 record가 upsert 된다
+- 자정 후 apply하면 stale displayed reference date 대신 current day record가 upsert 된다
 - nil end time 상태에서 edit mode를 다시 열어도 stale picker 값이 보이지 않는다
 - invalid stored record는 weekly/monthly total 계산에서 제외된다
 - 메뉴바 popover test fake가 Swift 6 isolation 경고 없이 protocol을 구현한다

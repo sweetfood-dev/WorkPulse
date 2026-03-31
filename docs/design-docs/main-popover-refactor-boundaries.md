@@ -8,7 +8,7 @@
 ## 목표
 
 - 데이터 무결성 규칙을 저장 직전 경계에서 강제한다
-- "표시 중인 날짜"와 "저장 대상 날짜"를 같은 개념으로 묶는다
+- stale displayed reference date가 저장 대상 날짜를 잘못 고정하지 않도록 한다
 - 편집 UI의 임시 상태와 AppKit control 상태를 분리한다
 - runtime isolation 계약을 명시해 테스트/프로덕션 경계를 더 안전하게 만든다
 
@@ -36,7 +36,7 @@
 대안 B를 택한다.
 
 - 시간 validation은 편집 적용 직전의 순수 경계가 소유한다
-- 저장 대상 날짜는 "현재 popover가 표시 중인 날짜"로 명시적으로 들고 간다
+- 저장 대상 날짜는 displayed reference date가 stale하지 않을 때만 재사용하고, 자정 이후에는 current day로 전진시킨다
 - picker의 기본값 동기화는 UI helper가 소유하지만, stale state 제거 규칙은 테스트로 고정한다
 - `MenuBarPopoverControlling`는 실제 사용 맥락에 맞는 isolation 계약을 갖도록 조정한다
 
@@ -44,4 +44,3 @@
 
 - validation 결과를 나중에 사용자 메시지로 드러내고 싶어질 수 있다
 - `MainPopoverViewController`의 책임 분리는 이번 refactor 이후에도 한 번 더 필요할 수 있다
-

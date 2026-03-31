@@ -537,7 +537,7 @@ struct AppDelegateTests {
 
     @Test
     @MainActor
-    func applyingEditedTimesUsesDisplayedReferenceDateInsteadOfCurrentClockDate() throws {
+    func applyingEditedTimesAdvancesToCurrentClockDateWhenDisplayedReferenceDateIsStale() throws {
         let displayedReferenceDate = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
         )
@@ -557,15 +557,16 @@ struct AppDelegateTests {
                 endTime: nil
             )
         ])
+        var currentDate = displayedReferenceDate
         let controller = MainPopoverViewController(
-            currentTimeProvider: { currentClockDate }
+            currentTimeProvider: { currentDate }
         )
         let appDelegate = AppDelegate(
             runtimeDependencies: MainPopoverRuntimeDependencies(
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
-                currentDateProvider: { currentClockDate },
+                currentDateProvider: { currentDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
             recordStore: store
@@ -573,19 +574,23 @@ struct AppDelegateTests {
 
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: displayedReferenceDate)
+        currentDate = currentClockDate
         controller.beginEditingEndTime()
         controller.endTimePicker.dateValue = endTime
         controller.applyEditingTime()
 
-        let displayedDayRecord = try #require(
+        let currentDayRecord = try #require(
             store.loadRecords().last(where: {
-                Self.seoulCalendar.isDate($0.date, inSameDayAs: displayedReferenceDate)
+                Self.seoulCalendar.isDate($0.date, inSameDayAs: currentClockDate)
             })
         )
-        #expect(displayedDayRecord.endTime == endTime)
+        #expect(currentDayRecord.startTime == startTime)
+        #expect(currentDayRecord.endTime == endTime)
+        #expect(controller.dateLabel.stringValue == "Wednesday, Apr 1")
         #expect(
             store.loadRecords().contains(where: {
-                Self.seoulCalendar.isDate($0.date, inSameDayAs: currentClockDate)
+                Self.seoulCalendar.isDate($0.date, inSameDayAs: displayedReferenceDate) &&
+                $0.endTime == endTime
             }) == false
         )
     }

@@ -9,7 +9,7 @@
 ## 목표
 
 - 잘못된 시간 입력이 저장/집계에 반영되지 않도록 한다
-- popover가 표시 중인 날짜와 저장 대상 날짜를 일치시킨다
+- 저장 대상 날짜가 stale한 displayed reference date에 묶이지 않도록 한다
 - 빈 시간 필드 편집 시 stale picker 값이 다시 나타나지 않게 한다
 - 메인 popover의 확장 지점을 더 분명하게 만들어 다음 요구사항 추가 시 변경 범위를 줄인다
 - Swift 6 actor isolation 경고를 미래 오류가 되기 전에 정리한다
@@ -25,7 +25,7 @@
 ## 성공 기준
 
 - `endTime < startTime` 입력은 저장되지 않는다
-- edit apply는 화면이 표시 중인 record 날짜에 대해 upsert 된다
+- edit apply 시 displayed reference date가 현재 날짜와 다른 날이면 current day record로 upsert 된다
 - 빈 시간 필드 편집 진입 시 picker가 이전 편집의 stale 값을 보여주지 않는다
 - 주간/월간 집계는 invalid duration을 누적하지 않는다
 - edit mode, 저장, 집계 재계산, runtime wiring의 변경 경계가 더 분명해진다
@@ -34,6 +34,5 @@
 ## 핵심 사용자/개발자 영향
 
 - 사용자는 잘못된 시간 입력으로 인해 주간/월간 합계를 망가뜨리지 않는다
-- 자정 전후 편집에서도 의도한 날짜의 기록만 수정된다
+- 자정 전후 편집에서도 stale displayed reference date가 아니라 현재 날짜 기준 record만 수정된다
 - 후속 요구사항 추가 시 `MainPopoverViewController` 한 곳에 과도하게 수정이 몰리지 않는다
-

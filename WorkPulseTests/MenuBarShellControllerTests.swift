@@ -53,6 +53,31 @@ struct MenuBarShellControllerTests {
         #expect(popover.closeCallCount == 1)
         #expect(!popover.isShown)
     }
+
+    @Test
+    @MainActor
+    func openingPopoverInvokesWillOpenCallbackOnlyOnOpen() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let popover = FakePopoverController()
+        var willOpenCallCount = 0
+        var controller: MenuBarShellController? = MenuBarShellController(
+            statusItem: statusItem,
+            popover: popover,
+            popoverViewController: NSViewController()
+        )
+        controller?.onWillOpenPopover = {
+            willOpenCallCount += 1
+        }
+
+        defer { controller = nil }
+
+        let button = try #require(statusItem.button)
+
+        button.performClick(nil)
+        button.performClick(nil)
+
+        #expect(willOpenCallCount == 1)
+    }
 }
 
 @MainActor
