@@ -172,3 +172,71 @@ private final class FakeRepeatingScheduler: CurrentSessionScheduling {
 private struct FakeCurrentSessionCancellable: CurrentSessionCancellable {
     func cancel() {}
 }
+
+@Suite("MainPopoverViewStateFactory")
+struct MainPopoverViewStateFactoryTests {
+    @Test
+    func makesPlaceholderStateWhenTodayRecordIsMissing() throws {
+        let factory = MainPopoverViewStateFactory(
+            calendar: Self.seoulCalendar,
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+        )
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+
+        let state = factory.make(
+            referenceDate: referenceDate,
+            todayRecord: nil
+        )
+
+        #expect(state.dateText == "Tuesday, Mar 31")
+        #expect(state.checkedInSummaryText == "Checked in at --:--")
+        #expect(state.startTimeText == "--:--")
+        #expect(state.endTimeText == "--:--")
+        #expect(state.currentSessionText == "--:--:--")
+    }
+
+    @Test
+    func usesTodayRecordTimesInReadOnlyState() throws {
+        let factory = MainPopoverViewStateFactory(
+            calendar: Self.seoulCalendar,
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+        )
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let record = AttendanceRecord(
+            date: referenceDate,
+            startTime: try #require(
+                ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+            ),
+            endTime: try #require(
+                ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+            )
+        )
+
+        let state = factory.make(
+            referenceDate: referenceDate,
+            todayRecord: record,
+            weeklyTotalText: "12:30",
+            monthlyTotalText: "44:10"
+        )
+
+        #expect(state.dateText == "Tuesday, Mar 31")
+        #expect(state.checkedInSummaryText == "Checked in at 09:00")
+        #expect(state.startTimeText == "09:00")
+        #expect(state.endTimeText == "18:30")
+        #expect(state.weeklyTotalText == "12:30")
+        #expect(state.monthlyTotalText == "44:10")
+    }
+
+    private static var seoulCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+        return calendar
+    }
+}

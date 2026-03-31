@@ -12,6 +12,7 @@
 		A1B2C3D4E5F6000000000003 /* MenuBarShellController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000013 /* MenuBarShellController.swift */; };
 		A1B2C3D4E5F6000000000004 /* MainPopoverViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000014 /* MainPopoverViewController.swift */; };
 		A1B2C3D4E5F6000000000005 /* CurrentSessionCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000017 /* CurrentSessionCalculator.swift */; };
+		A1B2C3D4E5F6000000000006 /* MainPopoverViewStateFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000018 /* MainPopoverViewStateFactory.swift */; };
 		B1C2D3E4F5A6000000000001 /* MenuBarShellControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */; };
 		B1C2D3E4F5A6000000000002 /* MainPopoverViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */; };
 		B1C2D3E4F5A6000000000003 /* CurrentSessionCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000014 /* CurrentSessionCalculatorTests.swift */; };
@@ -35,6 +36,7 @@
 		A1B2C3D4E5F6000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000000000016 /* WorkPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WorkPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D4E5F6000000000017 /* CurrentSessionCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrentSessionCalculator.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000018 /* MainPopoverViewStateFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverViewStateFactory.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarShellControllerTests.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000012 /* WorkPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WorkPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverViewControllerTests.swift; sourceTree = "<group>"; };
@@ -119,6 +121,7 @@
 			path = MainPopover;
 			sourceTree = "<group>";
 			children = (
+				A1B2C3D4E5F6000000000039 /* Presentation */,
 				A1B2C3D4E5F6000000000038 /* Service */,
 			);
 		};
@@ -128,6 +131,14 @@
 			sourceTree = "<group>";
 			children = (
 				A1B2C3D4E5F6000000000017 /* CurrentSessionCalculator.swift */,
+			);
+		};
+		A1B2C3D4E5F6000000000039 /* Presentation */ = {
+			isa = PBXGroup;
+			path = Presentation;
+			sourceTree = "<group>";
+			children = (
+				A1B2C3D4E5F6000000000018 /* MainPopoverViewStateFactory.swift */,
 			);
 		};
 		B1C2D3E4F5A6000000000031 /* WorkPulseTests */ = {
@@ -240,6 +251,7 @@
 			files = (
 				A1B2C3D4E5F6000000000002 /* AppDelegate.swift in Sources */,
 				A1B2C3D4E5F6000000000005 /* CurrentSessionCalculator.swift in Sources */,
+				A1B2C3D4E5F6000000000006 /* MainPopoverViewStateFactory.swift in Sources */,
 				A1B2C3D4E5F6000000000004 /* MainPopoverViewController.swift in Sources */,
 				A1B2C3D4E5F6000000000003 /* MenuBarShellController.swift in Sources */,
 				A1B2C3D4E5F6000000000001 /* main.swift in Sources */,
