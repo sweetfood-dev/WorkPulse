@@ -2,24 +2,65 @@ import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarShellController: MenuBarShellController?
-    private let recordStore = UserDefaultsAttendanceRecordStore()
+    private var popoverViewController: MainPopoverViewController?
+    private let recordStore: any AttendanceRecordStore
+    private let currentDateProvider: () -> Date
+
+    init(
+        recordStore: any AttendanceRecordStore = UserDefaultsAttendanceRecordStore(),
+        currentDateProvider: @escaping () -> Date = Date.init
+    ) {
+        self.recordStore = recordStore
+        self.currentDateProvider = currentDateProvider
+        super.init()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let referenceDate = Date()
-        let loadedState = MainPopoverStateLoader(
-            recordStore: recordStore
-        ).load(referenceDate: referenceDate)
-        let popoverViewController = MainPopoverViewController(
-            state: loadedState.viewState
-        )
+        let popoverViewController = MainPopoverViewController()
         popoverViewController.loadViewIfNeeded()
-        popoverViewController.beginCurrentSessionUpdates(
-            startTime: loadedState.todayRecord?.startTime,
-            endTime: loadedState.todayRecord?.endTime
+        configurePopoverViewController(
+            popoverViewController,
+            referenceDate: currentDateProvider()
         )
 
         menuBarShellController = MenuBarShellController(
             popoverViewController: popoverViewController
+        )
+    }
+
+    func configurePopoverViewController(
+        _ popoverViewController: MainPopoverViewController,
+        referenceDate: Date
+    ) {
+        self.popoverViewController = popoverViewController
+        popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime in
+            self?.handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
+        }
+        refreshPopover(referenceDate: referenceDate)
+    }
+
+    private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
+        let referenceDate = currentDateProvider()
+        recordStore.upsertRecord(
+            AttendanceRecord(
+                date: referenceDate,
+                startTime: startTime,
+                endTime: endTime
+            )
+        )
+        refreshPopover(referenceDate: referenceDate)
+    }
+
+    private func refreshPopover(referenceDate: Date) {
+        guard let popoverViewController else { return }
+
+        let loadedState = MainPopoverStateLoader(
+            recordStore: recordStore
+        ).load(referenceDate: referenceDate)
+        popoverViewController.apply(state: loadedState.viewState)
+        popoverViewController.beginCurrentSessionUpdates(
+            startTime: loadedState.todayRecord?.startTime,
+            endTime: loadedState.todayRecord?.endTime
         )
     }
 }

@@ -71,16 +71,16 @@ popover는 `Current Session`, 오늘 출근/퇴근 시간, 이번 주/이번 달
 - [x] 오늘 퇴근 시간이 있으면 `Current Session`이 고정값으로 멈춘다
 - [x] 주간/월간 합계는 저장된 기록만 기준으로 계산된다
 - [x] 오늘 시간 영역은 기본 상태에서 읽기 전용으로 보인다
-- [-] 사용자가 row를 눌러 같은 위치의 edit mode에 들어가 오늘 출근/퇴근 시간을 수정할 수 있다
-- [ ] 사용자가 수정값을 적용하면 오늘 기록, 현재 세션, 주간/월간 합계가 다시 계산된다
-- [ ] 사용자가 edit mode를 취소하면 마지막 저장 상태가 유지된다
+- [x] 사용자가 row를 눌러 같은 위치의 edit mode에 들어가 오늘 출근/퇴근 시간을 수정할 수 있다
+- [x] 사용자가 수정값을 적용하면 오늘 기록, 현재 세션, 주간/월간 합계가 다시 계산된다
+- [x] 사용자가 edit mode를 취소하면 마지막 저장 상태가 유지된다
 
 ## 구조 변경 (Structural Changes - Tidy First)
 
 - [x] runtime/ui/service/repo 경계에 맞는 초기 디렉터리/타입 배치를 정한다
 - [-] `Date`, `Calendar`, `TimeZone`, timer 의존을 주입 가능한 owner로 분리한다
 - [x] 시간 계산과 집계 계산을 AppKit view/controller 밖으로 분리한다
-- [-] persistence protocol과 concrete adapter를 분리한다
+- [x] persistence protocol과 concrete adapter를 분리한다
 - [ ] popover 조회 상태와 edit mode 상태 전환을 presentation 계층으로 모은다
 
 ## 테스트 케이스 및 시나리오
@@ -102,5 +102,5 @@ popover는 `Current Session`, 오늘 출근/퇴근 시간, 이번 주/이번 달
 - [x] popover read-only dashboard
 - [x] current session 계산
 - [x] weekly/monthly aggregation
-- [ ] today time edit mode
-- [ ] integration verification
+- [x] today time edit mode
+- [x] integration verification

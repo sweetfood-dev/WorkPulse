@@ -208,10 +208,128 @@ struct MainPopoverStateLoaderTests {
     }
 }
 
-private struct InMemoryAttendanceRecordStore: AttendanceRecordStore {
-    let records: [AttendanceRecord]
+@Suite("UserDefaultsAttendanceRecordStore")
+struct UserDefaultsAttendanceRecordStoreTests {
+    @Test
+    func upsertRecordAppendsWhenDayDoesNotExist() throws {
+        let userDefaults = try makeUserDefaults()
+        defer { userDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let store = UserDefaultsAttendanceRecordStore(userDefaults: userDefaults)
+        let record = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+
+        store.upsertRecord(record)
+
+        #expect(store.loadRecords() == [record])
+    }
+
+    @Test
+    func upsertRecordReplacesExistingRecordForSameDay() throws {
+        let userDefaults = try makeUserDefaults()
+        defer { userDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let store = UserDefaultsAttendanceRecordStore(userDefaults: userDefaults)
+        let originalRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+        let editedRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00"))
+        )
+
+        store.upsertRecord(originalRecord)
+        store.upsertRecord(editedRecord)
+
+        #expect(store.loadRecords() == [editedRecord])
+    }
+
+    private func makeUserDefaults() throws -> UserDefaults {
+        let suiteName = try #require(userDefaultsSuiteName)
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
+        userDefaults.removePersistentDomain(forName: suiteName)
+        return userDefaults
+    }
+
+    private var userDefaultsSuiteName: String? {
+        "UserDefaultsAttendanceRecordStoreTests.\(UUID().uuidString)"
+    }
+}
+
+@Suite("AppDelegate")
+struct AppDelegateTests {
+    @Test
+    @MainActor
+    func applyingEditedTimesPersistsTodayRecordAndRefreshesVisibleSummaries() throws {
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let mondayRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-30T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T17:00:00+09:00"))
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            mondayRecord,
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: startTime,
+                endTime: nil
+            )
+        ])
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { referenceDate }
+        )
+        let appDelegate = AppDelegate(
+            recordStore: store,
+            currentDateProvider: { referenceDate }
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
+        controller.beginEditingEndTime()
+        controller.endTimePicker.dateValue = endTime
+        controller.applyEditingTime()
+
+        let persistedTodayRecord = try #require(
+            store.loadRecords().last(where: { Calendar.current.isDate($0.date, inSameDayAs: referenceDate) })
+        )
+        #expect(persistedTodayRecord.startTime == startTime)
+        #expect(persistedTodayRecord.endTime == endTime)
+        #expect(controller.endTimeValueLabel.stringValue == "18:30")
+        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
+        #expect(controller.weeklyValueLabel.stringValue == "17:30")
+        #expect(controller.monthlyValueLabel.stringValue == "17:30")
+    }
+}
+
+private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
+    private var records: [AttendanceRecord]
+
+    init(records: [AttendanceRecord]) {
+        self.records = records
+    }
 
     func loadRecords() -> [AttendanceRecord] {
         records
+    }
+
+    func upsertRecord(_ record: AttendanceRecord) {
+        if let index = records.lastIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: record.date) }) {
+            records[index] = record
+            return
+        }
+
+        records.append(record)
     }
 }
