@@ -286,6 +286,75 @@ struct UserDefaultsAttendanceRecordStoreTests {
         #expect(store.loadRecords() == [editedRecord])
     }
 
+    @Test
+    func recordReturnsLatestStoredRecordForReferenceDay() throws {
+        let userDefaults = try makeUserDefaults()
+        defer { userDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let store = UserDefaultsAttendanceRecordStore(userDefaults: userDefaults)
+        let originalRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+        let editedRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00"))
+        )
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+
+        store.upsertRecord(originalRecord)
+        store.upsertRecord(editedRecord)
+
+        #expect(store.record(on: referenceDate, calendar: Self.seoulCalendar) == editedRecord)
+    }
+
+    @Test
+    func recordsReturnsOnlyEntriesMatchingRequestedGranularity() throws {
+        let userDefaults = try makeUserDefaults()
+        defer { userDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let store = UserDefaultsAttendanceRecordStore(userDefaults: userDefaults)
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let weeklyRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-30T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T18:00:00+09:00"))
+        )
+        let monthlyRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-03T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-03T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-03T18:00:00+09:00"))
+        )
+        let nextMonthRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-04-01T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T18:00:00+09:00"))
+        )
+
+        store.upsertRecord(weeklyRecord)
+        store.upsertRecord(monthlyRecord)
+        store.upsertRecord(nextMonthRecord)
+
+        #expect(
+            store.records(
+                equalTo: referenceDate,
+                toGranularity: .weekOfYear,
+                calendar: Self.seoulCalendar
+            ) == [weeklyRecord, nextMonthRecord]
+        )
+        #expect(
+            store.records(
+                equalTo: referenceDate,
+                toGranularity: .month,
+                calendar: Self.seoulCalendar
+            ) == [weeklyRecord, monthlyRecord]
+        )
+    }
+
     private func makeUserDefaults() throws -> UserDefaults {
         let suiteName = try #require(userDefaultsSuiteName)
         let userDefaults = try #require(UserDefaults(suiteName: suiteName))
@@ -295,6 +364,13 @@ struct UserDefaultsAttendanceRecordStoreTests {
 
     private var userDefaultsSuiteName: String? {
         "UserDefaultsAttendanceRecordStoreTests.\(UUID().uuidString)"
+    }
+
+    private static var seoulCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+        return calendar
     }
 }
 
@@ -517,6 +593,18 @@ private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
 
     init(records: [AttendanceRecord]) {
         self.records = records
+    }
+
+    func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
+        records.last {
+            calendar.isDate($0.date, inSameDayAs: date)
+        }
+    }
+
+    func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord] {
+        records.filter {
+            calendar.isDate($0.date, equalTo: date, toGranularity: granularity)
+        }
     }
 
     func loadRecords() -> [AttendanceRecord] {
