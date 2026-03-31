@@ -1,0 +1,55 @@
+name: Monthly GC Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Seed GC fixture reports
+        run: |
+          mkdir -p docs/generated/garbage-collection
+          for month in 01 02 03 04 05 06 07 08; do
+            cat >"docs/generated/garbage-collection/2025-${month}-report.md" <<EOF
+          # Fixture Report ${month}
+          EOF
+          done
+
+      - name: Run Garbage Collection
+        run: make garbage-collect
+
+      - name: Classify GC Actions
+        run: make classify-gc-actions
+
+      - name: Apply Safe Cleanups
+        run: make apply-safe-cleanups
+
+      - name: Verify Starter Baseline
+        run: make verify-all
+
+      - name: Create Draft Smoke PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: codex/monthly-gc-smoke
+          commit-message: "Smoke test monthly garbage collection"
+          title: "Smoke: Monthly garbage collection"
+          body: |
+            Smoke workflow for Monthly Garbage Collection.
+
+            This PR is expected to exist whenever the smoke workflow seeds stale generated reports.
+          draft: true
+
+      - name: Assert Draft PR Created
+        run: |
+          test -n "${{ steps.cpr.outputs.pull-request-number }}"
+          test -n "${{ steps.cpr.outputs.pull-request-url }}"
+          echo "Smoke PR #${{ steps.cpr.outputs.pull-request-number }} -> ${{ steps.cpr.outputs.pull-request-url }}"
