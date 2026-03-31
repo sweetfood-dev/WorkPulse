@@ -55,14 +55,77 @@ struct MainPopoverViewState {
     )
 }
 
-final class MainPopoverViewController: NSViewController {
-    private var state: MainPopoverViewState
+@MainActor
+final class MainPopoverCurrentSessionRuntime {
     private let currentSessionCalculator: CurrentSessionCalculator
     private let currentTimeProvider: () -> Date
     private let currentSessionScheduler: any CurrentSessionScheduling
-    private let timeFormatter: DateFormatter
+    private let onTextChange: (String) -> Void
     private var currentSessionRefresh: (any CurrentSessionCancellable)?
+
+    init(
+        currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
+        currentTimeProvider: @escaping () -> Date = Date.init,
+        currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler(),
+        onTextChange: @escaping (String) -> Void
+    ) {
+        self.currentSessionCalculator = currentSessionCalculator
+        self.currentTimeProvider = currentTimeProvider
+        self.currentSessionScheduler = currentSessionScheduler
+        self.onTextChange = onTextChange
+    }
+
+    deinit {
+        currentSessionRefresh?.cancel()
+    }
+
+    func apply(startTime: Date?, endTime: Date?) {
+        onTextChange(resolvedText(startTime: startTime, endTime: endTime))
+    }
+
+    func begin(startTime: Date?, endTime: Date?) {
+        currentSessionRefresh?.cancel()
+        currentSessionRefresh = nil
+
+        apply(startTime: startTime, endTime: endTime)
+
+        guard let startTime, endTime == nil else { return }
+
+        currentSessionRefresh = currentSessionScheduler.scheduleRepeating(
+            every: 1
+        ) { [weak self] in
+            self?.apply(startTime: startTime, endTime: nil)
+        }
+    }
+
+    private func resolvedText(startTime: Date?, endTime: Date?) -> String {
+        guard let duration = currentSessionCalculator.sessionDuration(
+            startTime: startTime,
+            endTime: endTime,
+            now: currentTimeProvider()
+        ) else {
+            return MainPopoverViewState.placeholder.currentSessionText
+        }
+
+        return MainPopoverViewController.format(duration: duration)
+    }
+}
+
+final class MainPopoverViewController: NSViewController {
+    private var state: MainPopoverViewState
+    private let timeFormatter: DateFormatter
     private var todayTimeEditModeState = TodayTimeEditModeState()
+    private lazy var currentSessionRuntime = MainPopoverCurrentSessionRuntime(
+        currentSessionCalculator: currentSessionCalculator,
+        currentTimeProvider: currentTimeProvider,
+        currentSessionScheduler: currentSessionScheduler,
+        onTextChange: { [weak self] text in
+            self?.currentSessionValueLabel.stringValue = text
+        }
+    )
+    private let currentSessionCalculator: CurrentSessionCalculator
+    private let currentTimeProvider: () -> Date
+    private let currentSessionScheduler: any CurrentSessionScheduling
     var onApplyEditedTimes: ((Date?, Date?) -> Void)?
 
     let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
@@ -198,36 +261,13 @@ final class MainPopoverViewController: NSViewController {
     }
 
     func applyCurrentSession(startTime: Date?, endTime: Date?) {
-        let text: String
-
-        if let duration = currentSessionCalculator.sessionDuration(
-            startTime: startTime,
-            endTime: endTime,
-            now: currentTimeProvider()
-        ) {
-            text = Self.format(duration: duration)
-        } else {
-            text = MainPopoverViewState.placeholder.currentSessionText
-        }
-
-        currentSessionValueLabel.stringValue = text
+        currentSessionRuntime.apply(startTime: startTime, endTime: endTime)
     }
 
     func beginCurrentSessionUpdates(startTime: Date?, endTime: Date?) {
         todayTimeEditModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
-        currentSessionRefresh?.cancel()
-        currentSessionRefresh = nil
-
-        applyCurrentSession(startTime: startTime, endTime: endTime)
+        currentSessionRuntime.begin(startTime: startTime, endTime: endTime)
         syncEditorValues()
-
-        guard let startTime, endTime == nil else { return }
-
-        currentSessionRefresh = currentSessionScheduler.scheduleRepeating(
-            every: 1
-        ) { [weak self] in
-            self?.applyCurrentSession(startTime: startTime, endTime: nil)
-        }
     }
 
     func beginEditingStartTime() {
@@ -256,6 +296,7 @@ final class MainPopoverViewController: NSViewController {
             return
         }
 
+        guard todayTimeEditModeState.hasValidDraftTimes else { return }
         guard let appliedTimes = todayTimeEditModeState.apply() else { return }
 
         startTimeValueLabel.stringValue = timeText(for: appliedTimes.startTime)
@@ -366,10 +407,14 @@ final class MainPopoverViewController: NSViewController {
     private func syncEditorValues() {
         if let startTime = todayTimeEditModeState.draftStartTime {
             startTimePicker.dateValue = startTime
+        } else {
+            startTimePicker.dateValue = currentTimeProvider()
         }
 
         if let endTime = todayTimeEditModeState.draftEndTime {
             endTimePicker.dateValue = endTime
+        } else {
+            endTimePicker.dateValue = currentTimeProvider()
         }
     }
 
@@ -467,7 +512,7 @@ final class MainPopoverViewController: NSViewController {
         return separator
     }
 
-    private static func format(duration: TimeInterval) -> String {
+    fileprivate static func format(duration: TimeInterval) -> String {
         let totalSeconds = max(0, Int(duration.rounded(.down)))
         let hours = totalSeconds / 3_600
         let minutes = (totalSeconds % 3_600) / 60

@@ -26,6 +26,14 @@ struct TodayTimeEditModeState {
         editingField == .endTime
     }
 
+    var hasValidDraftTimes: Bool {
+        guard let draftStartTime, let draftEndTime else {
+            return true
+        }
+
+        return draftEndTime >= draftStartTime
+    }
+
     mutating func loadSavedTimes(startTime: Date?, endTime: Date?) {
         savedStartTime = startTime
         savedEndTime = endTime

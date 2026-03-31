@@ -1,5 +1,6 @@
 import AppKit
 
+@MainActor
 protocol MenuBarPopoverControlling: AnyObject {
     var contentViewController: NSViewController? { get set }
     var behavior: NSPopover.Behavior { get set }
@@ -12,13 +13,22 @@ protocol MenuBarPopoverControlling: AnyObject {
 
 extension NSPopover: MenuBarPopoverControlling {}
 
+@MainActor
 final class MenuBarShellController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: any MenuBarPopoverControlling
 
+    convenience init(popoverViewController: NSViewController) {
+        self.init(
+            statusItem: NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength),
+            popover: NSPopover(),
+            popoverViewController: popoverViewController
+        )
+    }
+
     init(
-        statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength),
-        popover: any MenuBarPopoverControlling = NSPopover(),
+        statusItem: NSStatusItem,
+        popover: any MenuBarPopoverControlling,
         popoverViewController: NSViewController
     ) {
         self.statusItem = statusItem

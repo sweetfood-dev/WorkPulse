@@ -21,6 +21,7 @@ struct MainPopoverRuntimeDependencies {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarShellController: MenuBarShellController?
     private var popoverViewController: MainPopoverViewController?
+    private var displayedReferenceDate: Date?
     private let recordStore: any AttendanceRecordStore
     private let runtimeDependencies: MainPopoverRuntimeDependencies
 
@@ -56,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         referenceDate: Date
     ) {
         self.popoverViewController = popoverViewController
+        displayedReferenceDate = referenceDate
         popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime in
             self?.handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
         }
@@ -63,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
-        let referenceDate = runtimeDependencies.currentDateProvider()
+        let referenceDate = displayedReferenceDate ?? runtimeDependencies.currentDateProvider()
         recordStore.upsertRecord(
             AttendanceRecord(
                 date: referenceDate,
@@ -76,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func refreshPopover(referenceDate: Date) {
         guard let popoverViewController else { return }
+        displayedReferenceDate = referenceDate
 
         let loadedState = MainPopoverStateLoader(
             recordStore: recordStore,

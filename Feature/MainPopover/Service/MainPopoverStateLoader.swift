@@ -6,13 +6,13 @@ struct LoadedMainPopoverState {
 }
 
 struct MainPopoverStateLoader {
-    private let recordStore: any AttendanceRecordStore
+    private let recordStore: any AttendanceRecordQuerying
     private let viewStateFactory: MainPopoverViewStateFactory
     private let totalsCalculator: AttendanceRecordTotalsCalculator
     private let calendar: Calendar
 
     init(
-        recordStore: any AttendanceRecordStore,
+        recordStore: any AttendanceRecordQuerying,
         viewStateFactory: MainPopoverViewStateFactory = MainPopoverViewStateFactory(),
         totalsCalculator: AttendanceRecordTotalsCalculator = AttendanceRecordTotalsCalculator(),
         calendar: Calendar = .current
@@ -24,20 +24,27 @@ struct MainPopoverStateLoader {
     }
 
     func load(referenceDate: Date) -> LoadedMainPopoverState {
-        let records = recordStore.loadRecords()
-        let todayRecord = records.last {
-            calendar.isDate($0.date, inSameDayAs: referenceDate)
-        }
+        let todayRecord = recordStore.record(on: referenceDate, calendar: calendar)
+        let weeklyRecords = recordStore.records(
+            equalTo: referenceDate,
+            toGranularity: .weekOfYear,
+            calendar: calendar
+        )
+        let monthlyRecords = recordStore.records(
+            equalTo: referenceDate,
+            toGranularity: .month,
+            calendar: calendar
+        )
         let weeklyTotalText = format(
             totalsCalculator.weeklyTotal(
-                records: records,
+                records: weeklyRecords,
                 referenceDate: referenceDate,
                 calendar: calendar
             )
         )
         let monthlyTotalText = format(
             totalsCalculator.monthlyTotal(
-                records: records,
+                records: monthlyRecords,
                 referenceDate: referenceDate,
                 calendar: calendar
             )

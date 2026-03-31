@@ -1,9 +1,15 @@
 import Foundation
 
-protocol AttendanceRecordStore {
-    func loadRecords() -> [AttendanceRecord]
+protocol AttendanceRecordQuerying {
+    func record(on date: Date, calendar: Calendar) -> AttendanceRecord?
+    func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord]
+}
+
+protocol AttendanceRecordWriting {
     func upsertRecord(_ record: AttendanceRecord)
 }
+
+protocol AttendanceRecordStore: AttendanceRecordQuerying, AttendanceRecordWriting {}
 
 struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
     private let userDefaults: UserDefaults
@@ -30,16 +36,20 @@ struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
         self.decoder = decoder
     }
 
-    func loadRecords() -> [AttendanceRecord] {
-        guard let data = userDefaults.data(forKey: key) else {
-            return []
+    func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
+        loadAllRecords().last {
+            calendar.isDate($0.date, inSameDayAs: date)
         }
+    }
 
-        return (try? decoder.decode([AttendanceRecord].self, from: data)) ?? []
+    func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord] {
+        loadAllRecords().filter {
+            calendar.isDate($0.date, equalTo: date, toGranularity: granularity)
+        }
     }
 
     func upsertRecord(_ record: AttendanceRecord) {
-        var records = loadRecords()
+        var records = loadAllRecords()
 
         if let index = records.lastIndex(where: { calendar.isDate($0.date, inSameDayAs: record.date) }) {
             records[index] = record
@@ -49,5 +59,17 @@ struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
 
         guard let data = try? encoder.encode(records) else { return }
         userDefaults.set(data, forKey: key)
+    }
+
+    func loadRecords() -> [AttendanceRecord] {
+        loadAllRecords()
+    }
+
+    private func loadAllRecords() -> [AttendanceRecord] {
+        guard let data = userDefaults.data(forKey: key) else {
+            return []
+        }
+
+        return (try? decoder.decode([AttendanceRecord].self, from: data)) ?? []
     }
 }
