@@ -55,11 +55,6 @@ struct MainPopoverViewState {
     )
 }
 
-private enum EditingTimeField {
-    case startTime
-    case endTime
-}
-
 final class MainPopoverViewController: NSViewController {
     private var state: MainPopoverViewState
     private let currentSessionCalculator: CurrentSessionCalculator
@@ -67,9 +62,7 @@ final class MainPopoverViewController: NSViewController {
     private let currentSessionScheduler: any CurrentSessionScheduling
     private let timeFormatter: DateFormatter
     private var currentSessionRefresh: (any CurrentSessionCancellable)?
-    private var todayStartTime: Date?
-    private var todayEndTime: Date?
-    private var editingField: EditingTimeField?
+    private var todayTimeEditModeState = TodayTimeEditModeState()
     var onApplyEditedTimes: ((Date?, Date?) -> Void)?
 
     let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
@@ -221,8 +214,7 @@ final class MainPopoverViewController: NSViewController {
     }
 
     func beginCurrentSessionUpdates(startTime: Date?, endTime: Date?) {
-        todayStartTime = startTime
-        todayEndTime = endTime
+        todayTimeEditModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
         currentSessionRefresh?.cancel()
         currentSessionRefresh = nil
 
@@ -239,36 +231,36 @@ final class MainPopoverViewController: NSViewController {
     }
 
     func beginEditingStartTime() {
-        editingField = .startTime
+        todayTimeEditModeState.beginEditing(.startTime)
         syncEditingUI()
     }
 
     func beginEditingEndTime() {
-        editingField = .endTime
+        todayTimeEditModeState.beginEditing(.endTime)
         syncEditingUI()
     }
 
     func cancelEditingTime() {
-        editingField = nil
+        todayTimeEditModeState.cancel()
+        syncEditorValues()
         syncEditingUI()
     }
 
     func applyEditingTime() {
-        switch editingField {
+        switch todayTimeEditModeState.editingField {
         case .startTime:
-            let startTime = startTimePicker.dateValue
-            todayStartTime = startTime
-            startTimeValueLabel.stringValue = timeFormatter.string(from: startTime)
+            todayTimeEditModeState.updateDraftStartTime(startTimePicker.dateValue)
         case .endTime:
-            let endTime = endTimePicker.dateValue
-            todayEndTime = endTime
-            endTimeValueLabel.stringValue = timeFormatter.string(from: endTime)
+            todayTimeEditModeState.updateDraftEndTime(endTimePicker.dateValue)
         case nil:
             return
         }
 
-        onApplyEditedTimes?(todayStartTime, todayEndTime)
-        editingField = nil
+        guard let appliedTimes = todayTimeEditModeState.apply() else { return }
+
+        startTimeValueLabel.stringValue = timeText(for: appliedTimes.startTime)
+        endTimeValueLabel.stringValue = timeText(for: appliedTimes.endTime)
+        onApplyEditedTimes?(appliedTimes.startTime, appliedTimes.endTime)
         syncEditingUI()
     }
 
@@ -372,18 +364,18 @@ final class MainPopoverViewController: NSViewController {
     }
 
     private func syncEditorValues() {
-        if let todayStartTime {
-            startTimePicker.dateValue = todayStartTime
+        if let startTime = todayTimeEditModeState.draftStartTime {
+            startTimePicker.dateValue = startTime
         }
 
-        if let todayEndTime {
-            endTimePicker.dateValue = todayEndTime
+        if let endTime = todayTimeEditModeState.draftEndTime {
+            endTimePicker.dateValue = endTime
         }
     }
 
     private func syncEditingUI() {
-        let isEditingStartTime = editingField == .startTime
-        let isEditingEndTime = editingField == .endTime
+        let isEditingStartTime = todayTimeEditModeState.isEditingStartTime
+        let isEditingEndTime = todayTimeEditModeState.isEditingEndTime
 
         startTimeValueLabel.isHidden = isEditingStartTime
         startTimeEditStack.isHidden = !isEditingStartTime
@@ -404,6 +396,14 @@ final class MainPopoverViewController: NSViewController {
         stack.alignment = .leading
         stack.spacing = 6
         return stack
+    }
+
+    private func timeText(for date: Date?) -> String {
+        guard let date else {
+            return MainPopoverViewState.placeholder.startTimeText
+        }
+
+        return timeFormatter.string(from: date)
     }
 
     private static func makeSectionTitleLabel() -> NSTextField {

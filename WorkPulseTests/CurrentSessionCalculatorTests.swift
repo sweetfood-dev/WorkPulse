@@ -313,6 +313,72 @@ struct AppDelegateTests {
     }
 }
 
+@Suite("TodayTimeEditModeState")
+struct TodayTimeEditModeStateTests {
+    @Test
+    func beginEditingStartTimeEntersStartEditModeWithSavedDrafts() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")
+        )
+        var state = TodayTimeEditModeState()
+        state.loadSavedTimes(startTime: startTime, endTime: endTime)
+
+        state.beginEditing(.startTime)
+
+        #expect(state.editingField == .startTime)
+        #expect(state.draftStartTime == startTime)
+        #expect(state.draftEndTime == endTime)
+        #expect(state.isEditingStartTime)
+        #expect(state.isEditingEndTime == false)
+    }
+
+    @Test
+    func applyPromotesDraftsToSavedTimesAndReturnsUpdatedValues() throws {
+        let savedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let editedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")
+        )
+        var state = TodayTimeEditModeState()
+        state.loadSavedTimes(startTime: savedStartTime, endTime: nil)
+        state.beginEditing(.startTime)
+        state.updateDraftStartTime(editedStartTime)
+
+        let appliedTimes = state.apply()
+
+        #expect(appliedTimes?.startTime == editedStartTime)
+        #expect(appliedTimes?.endTime == nil)
+        #expect(state.savedStartTime == editedStartTime)
+        #expect(state.savedEndTime == nil)
+        #expect(state.editingField == nil)
+    }
+
+    @Test
+    func cancelRestoresDraftsBackToSavedTimes() throws {
+        let savedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let editedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")
+        )
+        var state = TodayTimeEditModeState()
+        state.loadSavedTimes(startTime: savedStartTime, endTime: nil)
+        state.beginEditing(.startTime)
+        state.updateDraftStartTime(editedStartTime)
+
+        state.cancel()
+
+        #expect(state.savedStartTime == savedStartTime)
+        #expect(state.draftStartTime == savedStartTime)
+        #expect(state.editingField == nil)
+        #expect(state.isEditingStartTime == false)
+    }
+}
+
 private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
     private var records: [AttendanceRecord]
 
