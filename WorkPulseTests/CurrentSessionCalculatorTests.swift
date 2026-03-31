@@ -595,6 +595,65 @@ struct AppDelegateTests {
         )
     }
 
+    @Test
+    @MainActor
+    func openingPopoverOnNewDayCancelsEditingBeforeRefreshingReferenceDate() throws {
+        let displayedReferenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
+        )
+        let currentClockDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T00:05:00+09:00")
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let staleDraftEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: startTime,
+                endTime: nil
+            )
+        ])
+        var currentDate = displayedReferenceDate
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { currentDate }
+        )
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                currentDateProvider: { currentDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: store
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: displayedReferenceDate)
+        controller.beginEditingEndTime()
+        controller.endTimePicker.dateValue = staleDraftEndTime
+
+        currentDate = currentClockDate
+        appDelegate.handlePopoverWillOpen()
+
+        #expect(controller.endTimeApplyButton.isHidden)
+        #expect(controller.endTimeCancelButton.isHidden)
+        #expect(controller.dateLabel.stringValue == "Wednesday, Apr 1")
+        #expect(controller.endTimeValueLabel.stringValue == "--:--")
+
+        controller.applyEditingTime()
+
+        #expect(
+            store.loadRecords().contains(where: {
+                Self.seoulCalendar.isDate($0.date, inSameDayAs: currentClockDate)
+            }) == false
+        )
+    }
+
     private static var seoulCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "en_US_POSIX")

@@ -51,8 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             popoverViewController: popoverViewController
         )
         menuBarShellController.onWillOpenPopover = { [weak self] in
-            guard let self else { return }
-            self.refreshPopover(referenceDate: self.resolvedReferenceDate())
+            self?.handlePopoverWillOpen()
         }
         self.menuBarShellController = menuBarShellController
     }
@@ -78,6 +77,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 endTime: endTime
             )
         )
+        refreshPopover(referenceDate: referenceDate)
+    }
+
+    func handlePopoverWillOpen() {
+        let referenceDate = resolvedReferenceDate()
+
+        if shouldResetEditingForReferenceDate(referenceDate) {
+            popoverViewController?.cancelEditingTime()
+        }
+
         refreshPopover(referenceDate: referenceDate)
     }
 
@@ -112,5 +121,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             startTime: loadedState.todayRecord?.startTime,
             endTime: loadedState.todayRecord?.endTime
         )
+    }
+
+    private func shouldResetEditingForReferenceDate(_ referenceDate: Date) -> Bool {
+        guard let displayedReferenceDate else { return false }
+
+        return runtimeDependencies.calendar.isDate(
+            displayedReferenceDate,
+            inSameDayAs: referenceDate
+        ) == false
     }
 }
