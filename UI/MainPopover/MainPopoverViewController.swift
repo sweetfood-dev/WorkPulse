@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 
 protocol CurrentSessionCancellable {
     func cancel()
@@ -59,6 +60,7 @@ final class CurrentSessionProgressBarView: NSView {
     private let trackView = NSView()
     private let fillView = NSView()
     private var fillWidthConstraint: NSLayoutConstraint?
+    private let gradientLayer = CAGradientLayer()
 
     var progressFraction: CGFloat = 0 {
         didSet {
@@ -85,13 +87,37 @@ final class CurrentSessionProgressBarView: NSView {
         wantsLayer = true
 
         trackView.wantsLayer = true
-        trackView.layer?.backgroundColor = NSColor.quaternaryLabelColor.cgColor
+        trackView.layer?.backgroundColor = NSColor(
+            calibratedWhite: 0.86,
+            alpha: 1
+        ).cgColor
+        trackView.layer?.borderColor = NSColor(
+            calibratedWhite: 0.82,
+            alpha: 1
+        ).cgColor
+        trackView.layer?.borderWidth = 0.5
         trackView.layer?.cornerRadius = 5
         trackView.translatesAutoresizingMaskIntoConstraints = false
 
         fillView.wantsLayer = true
-        fillView.layer?.backgroundColor = NSColor.systemBlue.cgColor
-        fillView.layer?.cornerRadius = 5
+        fillView.layer = gradientLayer
+        gradientLayer.colors = [
+            NSColor(
+                calibratedRed: 0.15,
+                green: 0.55,
+                blue: 0.98,
+                alpha: 1
+            ).cgColor,
+            NSColor(
+                calibratedRed: 0.00,
+                green: 0.42,
+                blue: 0.95,
+                alpha: 1
+            ).cgColor,
+        ]
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0.5)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 0.5)
+        gradientLayer.cornerRadius = 5
         fillView.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(trackView)
@@ -180,6 +206,7 @@ final class MainPopoverViewController: NSViewController {
     private let timeFormatter: DateFormatter
     private var todayTimeEditModeState = TodayTimeEditModeState()
     private let currentSessionGoalDuration: TimeInterval = 8 * 60 * 60
+    private let maximumVisibleProgressFraction: CGFloat = 0.94
     private lazy var currentSessionRuntime = MainPopoverCurrentSessionRuntime(
         currentSessionCalculator: currentSessionCalculator,
         currentTimeProvider: currentTimeProvider,
@@ -221,6 +248,9 @@ final class MainPopoverViewController: NSViewController {
     private let endTimeEditStack = NSStackView()
     private let startTimeRow = NSStackView()
     private let endTimeRow = NSStackView()
+    private let editingActionRow = NSStackView()
+    let todayTimesSectionView = NSView()
+    let todayTimesBackgroundView = NSView()
 
     init(
         state: MainPopoverViewState = .placeholder,
@@ -244,18 +274,26 @@ final class MainPopoverViewController: NSViewController {
     }
 
     override func loadView() {
-        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 460))
+        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 392, height: 488))
         rootView.wantsLayer = true
         rootView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
 
         let contentStack = NSStackView()
         contentStack.orientation = .vertical
+        contentStack.alignment = .leading
         contentStack.spacing = 0
         contentStack.translatesAutoresizingMaskIntoConstraints = false
 
         let headerStack = makeHeaderSection()
 
-        currentSessionTitleLabel.stringValue = "Current Session"
+        currentSessionTitleLabel.attributedStringValue = NSAttributedString(
+            string: "CURRENT SESSION",
+            attributes: [
+                .kern: 1.4,
+                .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        )
         currentSessionProgressLeadingLabel.stringValue = "0H"
         currentSessionProgressTrailingLabel.stringValue = "Goal: 8h"
         let currentSessionStack = makeCurrentSessionSection()
@@ -296,11 +334,15 @@ final class MainPopoverViewController: NSViewController {
         rootView.addSubview(contentStack)
 
         NSLayoutConstraint.activate([
-            contentStack.topAnchor.constraint(equalTo: rootView.topAnchor, constant: 20),
-            contentStack.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 20),
-            contentStack.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -20),
-            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: rootView.bottomAnchor, constant: -20)
+            contentStack.topAnchor.constraint(equalTo: rootView.topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: rootView.bottomAnchor)
         ])
+
+        [headerStack, currentSessionStack, todayTimesStack, summaryStack].forEach { section in
+            section.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
+        }
 
         view = rootView
         apply(state: state)
@@ -398,15 +440,11 @@ final class MainPopoverViewController: NSViewController {
     private func configureEditControls() {
         configureEditStack(
             startTimeEditStack,
-            picker: startTimePicker,
-            applyButton: startTimeApplyButton,
-            cancelButton: startTimeCancelButton
+            picker: startTimePicker
         )
         configureEditStack(
             endTimeEditStack,
-            picker: endTimePicker,
-            applyButton: endTimeApplyButton,
-            cancelButton: endTimeCancelButton
+            picker: endTimePicker
         )
 
         startTimeCancelButton.target = self
@@ -419,25 +457,26 @@ final class MainPopoverViewController: NSViewController {
         endTimeApplyButton.action = #selector(handleApplyEditing)
         startTimeApplyButton.isEnabled = true
         endTimeApplyButton.isEnabled = true
+
+        editingActionRow.orientation = .horizontal
+        editingActionRow.alignment = .centerY
+        editingActionRow.spacing = 8
+        editingActionRow.addArrangedSubview(NSView())
+        editingActionRow.addArrangedSubview(startTimeCancelButton)
+        editingActionRow.addArrangedSubview(startTimeApplyButton)
+        editingActionRow.addArrangedSubview(endTimeCancelButton)
+        editingActionRow.addArrangedSubview(endTimeApplyButton)
+        editingActionRow.isHidden = true
     }
 
     private func configureEditStack(
         _ stack: NSStackView,
-        picker: NSDatePicker,
-        applyButton: NSButton,
-        cancelButton: NSButton
+        picker: NSDatePicker
     ) {
-        let buttonRow = NSStackView(views: [cancelButton, applyButton])
-        buttonRow.orientation = .horizontal
-        buttonRow.alignment = .centerY
-        buttonRow.spacing = 6
-        buttonRow.distribution = .fillEqually
-
-        stack.orientation = .vertical
-        stack.alignment = .trailing
-        stack.spacing = 6
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 0
         stack.addArrangedSubview(picker)
-        stack.addArrangedSubview(buttonRow)
         stack.isHidden = true
     }
 
@@ -482,8 +521,8 @@ final class MainPopoverViewController: NSViewController {
         row.addArrangedSubview(NSView())
         row.addArrangedSubview(trailingContainer)
         titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        trailingContainer.widthAnchor.constraint(equalToConstant: 122).isActive = true
-        valuePill.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        trailingContainer.widthAnchor.constraint(equalToConstant: 110).isActive = true
+        valuePill.heightAnchor.constraint(equalToConstant: 50).isActive = true
         valueLabel.alignment = .center
 
         let recognizer = NSClickGestureRecognizer(target: self, action: action)
@@ -519,12 +558,18 @@ final class MainPopoverViewController: NSViewController {
         endTimePicker.isHidden = !isEditingEndTime
         endTimeApplyButton.isHidden = !isEditingEndTime
         endTimeCancelButton.isHidden = !isEditingEndTime
+        editingActionRow.isHidden = !(isEditingStartTime || isEditingEndTime)
     }
 
     private func applyCurrentSessionProgress(duration: TimeInterval?) {
         let clampedFraction: CGFloat
         if let duration {
-            clampedFraction = max(0, min(CGFloat(duration / currentSessionGoalDuration), 1))
+            let rawFraction = CGFloat(duration / currentSessionGoalDuration)
+            if rawFraction >= 1 {
+                clampedFraction = maximumVisibleProgressFraction
+            } else {
+                clampedFraction = max(0, rawFraction)
+            }
         } else {
             clampedFraction = 0
         }
@@ -567,8 +612,6 @@ final class MainPopoverViewController: NSViewController {
         titleRow.alignment = .centerY
         titleRow.spacing = 8
 
-        currentSessionTitleLabel.font = .systemFont(ofSize: 12, weight: .semibold)
-        currentSessionTitleLabel.textColor = .secondaryLabelColor
         currentSessionValueLabel.textColor = .systemBlue
 
         let progressCaptionRow = NSStackView(views: [
@@ -580,46 +623,58 @@ final class MainPopoverViewController: NSViewController {
         progressCaptionRow.alignment = .centerY
         progressCaptionRow.spacing = 8
 
-        let stack = Self.makeSectionStack(edgeInsets: NSEdgeInsets(top: 24, left: 20, bottom: 24, right: 20))
+        let stack = Self.makeSectionStack(edgeInsets: NSEdgeInsets(top: 26, left: 26, bottom: 26, right: 26))
         stack.alignment = .centerX
-        stack.spacing = 14
+        stack.spacing = 16
         stack.addArrangedSubview(titleRow)
         stack.addArrangedSubview(currentSessionValueLabel)
         stack.addArrangedSubview(currentSessionProgressBar)
         stack.addArrangedSubview(progressCaptionRow)
 
         NSLayoutConstraint.activate([
-            currentSessionProgressBar.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            currentSessionProgressBar.widthAnchor.constraint(
+                equalTo: stack.widthAnchor,
+                constant: -(stack.edgeInsets.left + stack.edgeInsets.right)
+            ),
         ])
 
         return stack
     }
 
     private func makeTodayTimesSection() -> NSView {
-        let backgroundView = NSView()
-        backgroundView.wantsLayer = true
-        backgroundView.layer?.backgroundColor = NSColor(
+        todayTimesSectionView.translatesAutoresizingMaskIntoConstraints = false
+
+        todayTimesBackgroundView.wantsLayer = true
+        todayTimesBackgroundView.layer?.backgroundColor = NSColor(
             calibratedWhite: 0.97,
             alpha: 1
         ).cgColor
-        backgroundView.translatesAutoresizingMaskIntoConstraints = false
+        todayTimesBackgroundView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.16).cgColor
+        todayTimesBackgroundView.layer?.shadowOpacity = 0.08
+        todayTimesBackgroundView.layer?.shadowRadius = 10
+        todayTimesBackgroundView.layer?.shadowOffset = CGSize(width: 0, height: -1)
+        todayTimesBackgroundView.translatesAutoresizingMaskIntoConstraints = false
 
-        let stack = NSStackView(views: [startTimeRow, endTimeRow])
+        let stack = NSStackView(views: [startTimeRow, endTimeRow, editingActionRow])
         stack.orientation = .vertical
-        stack.spacing = 14
+        stack.alignment = .leading
+        stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
-        backgroundView.addSubview(stack)
+        todayTimesSectionView.addSubview(todayTimesBackgroundView)
+        todayTimesSectionView.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 16),
-            stack.leadingAnchor.constraint(equalTo: backgroundView.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: backgroundView.trailingAnchor, constant: -16),
-            stack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -16),
+            todayTimesBackgroundView.topAnchor.constraint(equalTo: todayTimesSectionView.topAnchor),
+            todayTimesBackgroundView.leadingAnchor.constraint(equalTo: todayTimesSectionView.leadingAnchor),
+            todayTimesBackgroundView.trailingAnchor.constraint(equalTo: todayTimesSectionView.trailingAnchor),
+            todayTimesBackgroundView.bottomAnchor.constraint(equalTo: todayTimesSectionView.bottomAnchor),
+            stack.topAnchor.constraint(equalTo: todayTimesBackgroundView.topAnchor, constant: 18),
+            stack.leadingAnchor.constraint(equalTo: todayTimesBackgroundView.leadingAnchor, constant: 18),
+            stack.trailingAnchor.constraint(equalTo: todayTimesBackgroundView.trailingAnchor, constant: -18),
+            stack.bottomAnchor.constraint(equalTo: todayTimesBackgroundView.bottomAnchor, constant: -18),
         ])
 
-        let section = Self.makeSectionStack(edgeInsets: NSEdgeInsets(top: 12, left: 20, bottom: 12, right: 20))
-        section.addArrangedSubview(backgroundView)
-        return section
+        return todayTimesSectionView
     }
 
     private func makeSummarySection() -> NSView {
@@ -695,7 +750,7 @@ final class MainPopoverViewController: NSViewController {
 
     private static func makeValueLabel() -> NSTextField {
         let label = NSTextField(labelWithString: "")
-        label.font = .monospacedDigitSystemFont(ofSize: 40, weight: .regular)
+        label.font = .monospacedDigitSystemFont(ofSize: 56, weight: .regular)
         label.textColor = .systemBlue
         label.alignment = .center
         return label
@@ -711,12 +766,16 @@ final class MainPopoverViewController: NSViewController {
     private static func makeTimePicker() -> NSDatePicker {
         let picker = NSDatePicker()
         picker.datePickerElements = [.hourMinute]
-        picker.datePickerStyle = .textFieldAndStepper
+        picker.datePickerStyle = .textField
         picker.datePickerMode = .single
         picker.translatesAutoresizingMaskIntoConstraints = false
         picker.isHidden = true
         picker.controlSize = .regular
         picker.alignment = .center
+        picker.isBordered = false
+        picker.isBezeled = false
+        picker.drawsBackground = false
+        picker.font = .monospacedDigitSystemFont(ofSize: 18, weight: .semibold)
         return picker
     }
 

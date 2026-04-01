@@ -10,10 +10,11 @@ struct MainPopoverViewControllerTests {
         let controller = MainPopoverViewController()
 
         controller.loadViewIfNeeded()
+        controller.view.layoutSubtreeIfNeeded()
 
         #expect(controller.dateLabel.stringValue == "Today")
         #expect(controller.checkedInSummaryLabel.stringValue == "Checked in at --:--")
-        #expect(controller.currentSessionTitleLabel.stringValue == "Current Session")
+        #expect(controller.currentSessionTitleLabel.stringValue == "CURRENT SESSION")
         #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
         #expect(controller.currentSessionProgressLeadingLabel.stringValue == "0H")
         #expect(controller.currentSessionProgressTrailingLabel.stringValue == "Goal: 8h")
@@ -26,6 +27,8 @@ struct MainPopoverViewControllerTests {
         #expect(controller.weeklyValueLabel.stringValue == "--")
         #expect(controller.monthlyTitleLabel.stringValue == "This Month")
         #expect(controller.monthlyValueLabel.stringValue == "--")
+        #expect(controller.todayTimesBackgroundView.frame.minX == controller.todayTimesSectionView.bounds.minX)
+        #expect(controller.todayTimesBackgroundView.frame.maxX == controller.todayTimesSectionView.bounds.maxX)
     }
 
     @Test
@@ -72,6 +75,26 @@ struct MainPopoverViewControllerTests {
 
         #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
         #expect(abs(controller.currentSessionProgressBar.progressFraction - 0.3448) < 0.001)
+    }
+
+    @Test
+    @MainActor
+    func refreshingCurrentSessionLeavesVisibleTrackWhenSessionExceedsGoal() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:00:00+09:00")
+        )
+        let now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T17:30:00+09:00")
+        )
+        let controller = MainPopoverViewController(
+            currentTimeProvider: { now }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: startTime, endTime: nil)
+
+        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
+        #expect(abs(controller.currentSessionProgressBar.progressFraction - 0.94) < 0.001)
     }
 
     @Test
