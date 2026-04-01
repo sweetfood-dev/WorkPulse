@@ -1,8 +1,8 @@
 version = 1
-profile = "starter-swift-clean-architecture"
+profile = "workpulse-macos-clean-architecture"
 
 [source]
-roots = ["App", "Sources", "Shared", "Feature", "Domain", "Repository", "Runtime", "UI", "Modules"]
+roots = ["App", "Feature", "UI"]
 extensions = [".swift"]
 
 [mode]
@@ -14,36 +14,36 @@ ownership = "error"
 expired_exemptions = "error"
 
 [layers.types]
-paths = ["Shared/Types/**", "Sources/**/Types/**", "Modules/**/Types/**"]
-forbidden_import_prefixes = ["UIKit", "SwiftUI", "Combine", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "RxSwift"]
+paths = ["Types/**"]
+forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Combine", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "RxSwift"]
 
 [layers.config]
-paths = ["Config/**", "Sources/**/Config/**", "Modules/**/Config/**"]
-forbidden_import_prefixes = ["UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
+paths = ["Config/**"]
+forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
 
 [layers.domain]
-paths = ["Domain/**", "Sources/**/Domain/**", "Modules/**/Domain/**"]
-forbidden_import_prefixes = ["UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "MapKit"]
+paths = ["Domain/**"]
+forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "MapKit"]
 
 [layers.repo]
-paths = ["Repository/**", "Feature/**/Repo/**", "Sources/**/Repository/**", "Sources/**/Data/**", "Modules/**/Repository/**", "Modules/**/Data/**"]
-forbidden_import_prefixes = ["UIKit", "SwiftUI"]
+paths = ["Repository/**", "Feature/**/Repo/**"]
+forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI"]
 
 [layers.service]
-paths = ["Feature/**/Service/**", "Sources/**/Service/**", "Sources/**/UseCase/**", "Modules/**/Service/**", "Modules/**/UseCase/**"]
-forbidden_import_prefixes = ["UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
+paths = ["Feature/**/Service/**", "UseCase/**"]
+forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
 
 [layers.runtime]
-paths = ["App/**", "Runtime/**", "Sources/**/Runtime/**", "Modules/**/Runtime/**"]
+paths = ["App/**", "Runtime/**"]
 forbidden_import_prefixes = []
 
 [layers.ui]
-paths = ["UI/**", "Feature/**/UI/**", "Feature/**/Presentation/**", "Sources/**/UI/**", "Modules/**/UI/**"]
+paths = ["UI/**", "Feature/**/UI/**", "Feature/**/Presentation/**"]
 forbidden_import_prefixes = ["Realm", "RealmSwift", "CoreData"]
 
 [[zones]]
 id = "generated"
-path_globs = ["Generated/**", "Sources/**/Generated/**", "Modules/**/Generated/**", "**/*.generated.swift"]
+path_globs = ["Generated/**", "**/*.generated.swift"]
 policy = "skip"
 
 [[zones]]
@@ -87,6 +87,18 @@ path_globs = ["**/AppDelegate.swift", "**/SceneDelegate.swift"]
 allowed_layers = ["runtime"]
 message = "Application entrypoints must live in the runtime layer."
 
+[[ownership_rules]]
+id = "main-entry-layer"
+path_globs = ["**/main.swift"]
+allowed_layers = ["runtime"]
+message = "Application main entrypoints must live in the runtime layer."
+
+[[ownership_rules]]
+id = "shell-controller-layer"
+path_globs = ["**/*ShellController.swift"]
+allowed_layers = ["runtime"]
+message = "Menu bar shell controllers must live in the runtime layer."
+
 [[content_rules]]
 id = "no-task-detached"
 layers = ["domain", "repo", "service", "runtime", "ui"]
@@ -96,5 +108,5 @@ message = "Task.detached is forbidden by default. Prefer structured concurrency 
 [[content_rules]]
 id = "ui-types-outside-ui"
 layers = ["types", "config", "domain", "repo", "service"]
-pattern = "\\bUIViewController\\b|\\b@IBOutlet\\b|\\b@IBAction\\b"
-message = "UIKit presentation types must stay in the ui layer."
+pattern = "\\bUIViewController\\b|\\bNSViewController\\b|\\bNSView\\b|\\bNSWindow\\b|\\bNSPopover\\b|\\bNSStatusItem\\b|\\bNSDatePicker\\b|\\b@IBOutlet\\b|\\b@IBAction\\b"
+message = "AppKit/UIKit presentation types must stay in the ui layer."
