@@ -57,6 +57,16 @@ struct TodayTimeEditModeState {
         return (savedStartTime, savedEndTime)
     }
 
+    mutating func deleteEndTime() -> (startTime: Date?, endTime: Date?)? {
+        guard editingField == .endTime else { return nil }
+
+        savedEndTime = nil
+        draftEndTime = nil
+        editingField = nil
+
+        return (savedStartTime, nil)
+    }
+
     mutating func cancel() {
         draftStartTime = savedStartTime
         draftEndTime = savedEndTime

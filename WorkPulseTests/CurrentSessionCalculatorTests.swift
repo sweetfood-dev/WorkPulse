@@ -637,7 +637,7 @@ struct AppDelegateTests {
         let snapshot = controller.snapshot
 
         let persistedTodayRecord = try #require(
-            store.loadRecords().last(where: { Calendar.current.isDate($0.date, inSameDayAs: referenceDate) })
+            store.loadRecords().last(where: { Self.seoulCalendar.isDate($0.date, inSameDayAs: referenceDate) })
         )
         #expect(persistedTodayRecord.startTime == startTime)
         #expect(persistedTodayRecord.endTime == endTime)
@@ -646,6 +646,67 @@ struct AppDelegateTests {
         #expect(abs(snapshot.currentSession.progressFraction - 0.94) < 0.001)
         #expect(snapshot.summary.weeklyValueText == "15:30")
         #expect(snapshot.summary.monthlyValueText == "15:30")
+    }
+
+    @Test
+    @MainActor
+    func deletingSavedEndTimeResumesCurrentSessionAndDropsTodayFromSummaries() throws {
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T17:00:00+09:00")
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let originalEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T16:00:00+09:00")
+        )
+        let mondayRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-30T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T17:00:00+09:00"))
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            mondayRecord,
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: startTime,
+                endTime: originalEndTime
+            )
+        ])
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+            ),
+            currentTimeProvider: { referenceDate }
+        )
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                currentDateProvider: { referenceDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: store
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
+        controller.beginEditing(.endTime)
+        controller.deleteEndTime()
+        let snapshot = controller.snapshot
+
+        let persistedTodayRecord = try #require(
+            store.loadRecords().last(where: { Self.seoulCalendar.isDate($0.date, inSameDayAs: referenceDate) })
+        )
+        #expect(persistedTodayRecord.startTime == startTime)
+        #expect(persistedTodayRecord.endTime == nil)
+        #expect(snapshot.todayTimes.endRow.valueText == "--:--")
+        #expect(snapshot.currentSession.valueText == "07:00:00")
+        #expect(abs(snapshot.currentSession.progressFraction - 0.875) < 0.001)
+        #expect(snapshot.summary.weeklyValueText == "07:00")
+        #expect(snapshot.summary.monthlyValueText == "07:00")
     }
 
     @Test

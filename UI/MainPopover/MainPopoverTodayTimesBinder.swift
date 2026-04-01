@@ -20,6 +20,7 @@ final class MainPopoverTodayTimesBinder {
     ) {
         self.sectionView = sectionView
         self.copy = copy
+        sectionView.setDeleteActionTitle(copy.deleteActionTitle)
         bindSectionEvents()
     }
 
@@ -64,6 +65,18 @@ final class MainPopoverTodayTimesBinder {
         onDidChange?()
     }
 
+    func deleteEndTime() {
+        guard let appliedTimes = editModeState.deleteEndTime() else { return }
+
+        onDidApplyTimes?(
+            MainPopoverAppliedTodayTimes(
+                startTime: appliedTimes.startTime,
+                endTime: appliedTimes.endTime
+            )
+        )
+        onDidChange?()
+    }
+
     func setEditingDraft(_ draft: MainPopoverTodayTimesDraft) {
         sectionView.setEditingDraft(draft)
     }
@@ -90,6 +103,7 @@ final class MainPopoverTodayTimesBinder {
             showsEditingActions: editModeState.editingField != nil,
             showsStartActions: editModeState.isEditingStartTime,
             showsEndActions: editModeState.isEditingEndTime,
+            showsEndDeleteAction: editModeState.isEditingEndTime && editModeState.savedEndTime != nil,
             isApplyEnabled: editModeState.hasValidDraftTimes
         )
     }
@@ -103,6 +117,8 @@ final class MainPopoverTodayTimesBinder {
                 self?.applyEditing()
             case .cancelEditing:
                 self?.cancelEditing()
+            case .deleteEndTime:
+                self?.deleteEndTime()
             case .draftChanged(let draft):
                 self?.updateDraft(draft)
             }

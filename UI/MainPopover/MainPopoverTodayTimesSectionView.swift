@@ -178,6 +178,7 @@ struct MainPopoverTodayTimesSectionSnapshot {
     let isStartCancelVisible: Bool
     let isEndApplyVisible: Bool
     let isEndCancelVisible: Bool
+    let isEndDeleteVisible: Bool
     let isApplyEnabled: Bool
     let isBackgroundFullWidth: Bool
     let areEditingActionsOutsideValuePills: Bool
@@ -187,6 +188,7 @@ enum MainPopoverTodayTimesSectionEvent {
     case beginEditing(TodayTimeField)
     case applyEditing
     case cancelEditing
+    case deleteEndTime
     case draftChanged(MainPopoverTodayTimesDraft)
 }
 
@@ -197,6 +199,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
     private let startTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let endTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
     private let endTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private let endTimeDeleteButton = NSButton(title: MainPopoverCopy.english.deleteActionTitle, target: nil, action: nil)
 
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.todayTimesInsets,
@@ -226,8 +229,13 @@ final class MainPopoverTodayTimesSectionView: NSView {
         startTimeCancelButton.isHidden = !renderModel.showsStartActions
         endTimeApplyButton.isHidden = !renderModel.showsEndActions
         endTimeCancelButton.isHidden = !renderModel.showsEndActions
+        endTimeDeleteButton.isHidden = !renderModel.showsEndDeleteAction
         startTimeApplyButton.isEnabled = renderModel.isApplyEnabled
         endTimeApplyButton.isEnabled = renderModel.isApplyEnabled
+    }
+
+    func setDeleteActionTitle(_ title: String) {
+        endTimeDeleteButton.title = title
     }
 
     func setEditingDraft(_ draft: MainPopoverTodayTimesDraft) {
@@ -251,6 +259,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
             isStartCancelVisible: startTimeCancelButton.isHidden == false,
             isEndApplyVisible: endTimeApplyButton.isHidden == false,
             isEndCancelVisible: endTimeCancelButton.isHidden == false,
+            isEndDeleteVisible: endTimeDeleteButton.isHidden == false,
             isApplyEnabled: (
                 startTimeApplyButton.isHidden == false && startTimeApplyButton.isEnabled
             ) || (
@@ -271,7 +280,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
         container.translatesAutoresizingMaskIntoConstraints = false
         container.contentStack.spacing = MainPopoverStyle.Metrics.todayTimesSpacing
 
-        [startTimeApplyButton, startTimeCancelButton, endTimeApplyButton, endTimeCancelButton].forEach { button in
+        [startTimeApplyButton, startTimeCancelButton, endTimeApplyButton, endTimeCancelButton, endTimeDeleteButton].forEach { button in
             button.bezelStyle = .rounded
             button.controlSize = .small
             button.target = self
@@ -280,11 +289,13 @@ final class MainPopoverTodayTimesSectionView: NSView {
         endTimeApplyButton.action = #selector(handleApplyEditing)
         startTimeCancelButton.action = #selector(handleCancelEditing)
         endTimeCancelButton.action = #selector(handleCancelEditing)
+        endTimeDeleteButton.action = #selector(handleDeleteEndTime)
 
         editingActionRow.orientation = .horizontal
         editingActionRow.alignment = .centerY
         editingActionRow.spacing = MainPopoverStyle.Metrics.actionRowSpacing
         editingActionRow.addArrangedSubview(NSView())
+        editingActionRow.addArrangedSubview(endTimeDeleteButton)
         editingActionRow.addArrangedSubview(startTimeCancelButton)
         editingActionRow.addArrangedSubview(startTimeApplyButton)
         editingActionRow.addArrangedSubview(endTimeCancelButton)
@@ -346,6 +357,11 @@ final class MainPopoverTodayTimesSectionView: NSView {
     @objc
     private func handleCancelEditing() {
         onEvent?(.cancelEditing)
+    }
+
+    @objc
+    private func handleDeleteEndTime() {
+        onEvent?(.deleteEndTime)
     }
 
 }

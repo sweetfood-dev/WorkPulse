@@ -36,6 +36,7 @@ struct MainPopoverSectionViewsTests {
             showsEditingActions: true,
             showsStartActions: true,
             showsEndActions: false,
+            showsEndDeleteAction: false,
             isApplyEnabled: true
         )
 
@@ -67,6 +68,7 @@ struct MainPopoverSectionViewsTests {
             showsEditingActions: false,
             showsStartActions: false,
             showsEndActions: false,
+            showsEndDeleteAction: false,
             isApplyEnabled: false
         )
 
@@ -113,6 +115,7 @@ struct MainPopoverSectionViewsTests {
                 showsEditingActions: true,
                 showsStartActions: true,
                 showsEndActions: false,
+                showsEndDeleteAction: false,
                 isApplyEnabled: true
             )
         )
@@ -120,6 +123,37 @@ struct MainPopoverSectionViewsTests {
         section.simulatePickerChange(editedStartTime, for: .startTime)
 
         #expect(emittedDraft?.startTime == editedStartTime)
+    }
+
+    @Test
+    @MainActor
+    func deleteActionAppearsOnlyWhenEditingSavedEndTime() {
+        let section = MainPopoverTodayTimesSectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 146))
+        section.apply(
+            MainPopoverTodayTimesRenderModel(
+                startRow: MainPopoverTimeRowRenderModel(
+                    titleText: "Start Time",
+                    valueText: "08:45",
+                    isValueVisible: true,
+                    isPickerVisible: false,
+                    pickerDateValue: Date(timeIntervalSince1970: 0)
+                ),
+                endRow: MainPopoverTimeRowRenderModel(
+                    titleText: "End Time",
+                    valueText: "18:00",
+                    isValueVisible: false,
+                    isPickerVisible: true,
+                    pickerDateValue: Date(timeIntervalSince1970: 0)
+                ),
+                showsEditingActions: true,
+                showsStartActions: false,
+                showsEndActions: true,
+                showsEndDeleteAction: true,
+                isApplyEnabled: true
+            )
+        )
+
+        #expect(section.snapshot.isEndDeleteVisible)
     }
 
     @Test

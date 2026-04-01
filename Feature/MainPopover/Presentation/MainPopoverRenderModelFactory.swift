@@ -28,6 +28,7 @@ struct MainPopoverTodayTimesRenderModel {
     let showsEditingActions: Bool
     let showsStartActions: Bool
     let showsEndActions: Bool
+    let showsEndDeleteAction: Bool
     let isApplyEnabled: Bool
 }
 
