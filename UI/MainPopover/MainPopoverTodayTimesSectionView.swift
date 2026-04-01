@@ -18,6 +18,8 @@ final class MainPopoverTimeRowView: NSView {
     private let valuePillView = NSView()
     private let valueLabel = NSTextField(labelWithString: "")
     private let picker = NSDatePicker()
+    private var isPickerTextEditing = false
+    var onPickerDateChange: ((Date) -> Void)?
 
     init(iconSystemName: String) {
         super.init(frame: .zero)
@@ -34,6 +36,10 @@ final class MainPopoverTimeRowView: NSView {
         valueLabel.stringValue = renderModel.valueText
         valueLabel.isHidden = !renderModel.isValueVisible
         picker.isHidden = !renderModel.isPickerVisible
+        if renderModel.isPickerVisible == false {
+            isPickerTextEditing = false
+        }
+        guard isPickerTextEditing == false else { return }
         picker.dateValue = renderModel.pickerDateValue
     }
 
@@ -84,6 +90,8 @@ final class MainPopoverTimeRowView: NSView {
         picker.isBezeled = false
         picker.drawsBackground = false
         picker.font = MainPopoverStyle.Typography.rowValue
+        picker.target = self
+        picker.action = #selector(handlePickerDateChange)
 
         valuePillView.wantsLayer = true
         valuePillView.layer?.backgroundColor = MainPopoverStyle.Colors.valuePillBackground.cgColor
@@ -100,6 +108,25 @@ final class MainPopoverTimeRowView: NSView {
         row.alignment = .centerY
         row.spacing = MainPopoverStyle.Metrics.timeRowSpacing
         addSubview(row)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePickerTextDidBeginEditing),
+            name: NSControl.textDidBeginEditingNotification,
+            object: picker
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePickerTextDidEndEditing),
+            name: NSControl.textDidEndEditingNotification,
+            object: picker
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePickerTextDidChange),
+            name: NSControl.textDidChangeNotification,
+            object: picker
+        )
 
         NSLayoutConstraint.activate([
             row.topAnchor.constraint(equalTo: topAnchor),
@@ -121,6 +148,27 @@ final class MainPopoverTimeRowView: NSView {
             picker.bottomAnchor.constraint(equalTo: trailingContainer.bottomAnchor),
         ])
     }
+
+    @objc
+    private func handlePickerDateChange() {
+        onPickerDateChange?(picker.dateValue)
+    }
+
+    @objc
+    private func handlePickerTextDidBeginEditing() {
+        isPickerTextEditing = true
+    }
+
+    @objc
+    private func handlePickerTextDidEndEditing() {
+        isPickerTextEditing = false
+        onPickerDateChange?(picker.dateValue)
+    }
+
+    @objc
+    private func handlePickerTextDidChange() {
+        onPickerDateChange?(picker.dateValue)
+    }
 }
 
 struct MainPopoverTodayTimesSectionSnapshot {
@@ -139,6 +187,7 @@ enum MainPopoverTodayTimesSectionEvent {
     case beginEditing(TodayTimeField)
     case applyEditing
     case cancelEditing
+    case draftChanged(MainPopoverTodayTimesDraft)
 }
 
 final class MainPopoverTodayTimesSectionView: NSView {
@@ -252,12 +301,31 @@ final class MainPopoverTodayTimesSectionView: NSView {
         let endTapRecognizer = NSClickGestureRecognizer(target: self, action: #selector(handleEndRowTap))
         endRowView.addGestureRecognizer(endTapRecognizer)
 
+        startRowView.onPickerDateChange = { [weak self] _ in
+            guard let self else { return }
+            self.onEvent?(.draftChanged(self.currentDraft()))
+        }
+        endRowView.onPickerDateChange = { [weak self] _ in
+            guard let self else { return }
+            self.onEvent?(.draftChanged(self.currentDraft()))
+        }
+
         NSLayoutConstraint.activate([
             container.topAnchor.constraint(equalTo: topAnchor),
             container.leadingAnchor.constraint(equalTo: leadingAnchor),
             container.trailingAnchor.constraint(equalTo: trailingAnchor),
             container.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+    }
+
+    func simulatePickerChange(_ date: Date, for field: TodayTimeField) {
+        switch field {
+        case .startTime:
+            startRowView.setPickerDate(date)
+        case .endTime:
+            endRowView.setPickerDate(date)
+        }
+        onEvent?(.draftChanged(currentDraft()))
     }
 
     @objc

@@ -103,8 +103,23 @@ final class MainPopoverTodayTimesBinder {
                 self?.applyEditing()
             case .cancelEditing:
                 self?.cancelEditing()
+            case .draftChanged(let draft):
+                self?.updateDraft(draft)
             }
         }
+    }
+
+    private func updateDraft(_ draft: MainPopoverTodayTimesDraft) {
+        switch editModeState.editingField {
+        case .startTime:
+            editModeState.updateDraftStartTime(draft.startTime)
+        case .endTime:
+            editModeState.updateDraftEndTime(draft.endTime)
+        case nil:
+            return
+        }
+
+        onDidChange?()
     }
 
     private func makeTimeRow(

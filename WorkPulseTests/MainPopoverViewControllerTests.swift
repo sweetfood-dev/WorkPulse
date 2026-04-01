@@ -393,6 +393,38 @@ struct MainPopoverTodayTimesBinderTests {
         #expect(section.snapshot.endRow.pickerDateValue == currentTime)
     }
 
+    @Test
+    @MainActor
+    func pickerChangesWhileEditingArePreservedAcrossRerender() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let editedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:24:00+09:00")
+        )
+        let (binder, section) = makeBinderAndSection()
+
+        binder.loadSavedTimes(startTime: startTime, endTime: nil)
+        binder.beginEditing(.startTime)
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: startTime
+            )
+        )
+
+        section.sectionView.simulatePickerChange(editedStartTime, for: .startTime)
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: startTime
+            )
+        )
+
+        #expect(section.snapshot.startRow.pickerDateValue == editedStartTime)
+        #expect(section.snapshot.isApplyEnabled)
+    }
+
     @MainActor
     private func makeBinderAndSection() -> (MainPopoverTodayTimesBinder, MainPopoverViewSnapshottingSection) {
         let section = MainPopoverViewSnapshottingSection()

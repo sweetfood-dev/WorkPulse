@@ -83,6 +83,47 @@ struct MainPopoverSectionViewsTests {
 
     @Test
     @MainActor
+    func todayTimesSectionEmitsStructuredDraftWhenPickerChanges() throws {
+        let section = MainPopoverTodayTimesSectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 146))
+        let editedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T08:15:00+09:00")
+        )
+        var emittedDraft: MainPopoverTodayTimesDraft?
+
+        section.onEvent = { event in
+            guard case .draftChanged(let draft) = event else { return }
+            emittedDraft = draft
+        }
+        section.apply(
+            MainPopoverTodayTimesRenderModel(
+                startRow: MainPopoverTimeRowRenderModel(
+                    titleText: "Start Time",
+                    valueText: "08:45",
+                    isValueVisible: false,
+                    isPickerVisible: true,
+                    pickerDateValue: Date(timeIntervalSince1970: 0)
+                ),
+                endRow: MainPopoverTimeRowRenderModel(
+                    titleText: "End Time",
+                    valueText: "--:--",
+                    isValueVisible: true,
+                    isPickerVisible: false,
+                    pickerDateValue: Date(timeIntervalSince1970: 0)
+                ),
+                showsEditingActions: true,
+                showsStartActions: true,
+                showsEndActions: false,
+                isApplyEnabled: true
+            )
+        )
+
+        section.simulatePickerChange(editedStartTime, for: .startTime)
+
+        #expect(emittedDraft?.startTime == editedStartTime)
+    }
+
+    @Test
+    @MainActor
     func summarySectionPreservesTwoColumnStructureAndTrailingAlignment() {
         let section = MainPopoverSummarySectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 90))
         let renderModel = MainPopoverSummaryRenderModel(
