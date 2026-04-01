@@ -643,6 +643,7 @@ struct AppDelegateTests {
         #expect(persistedTodayRecord.endTime == endTime)
         #expect(snapshot.todayTimes.endRow.valueText == "18:30")
         #expect(snapshot.currentSession.valueText == "08:30:00")
+        #expect(abs(snapshot.currentSession.progressFraction - 0.94) < 0.001)
         #expect(snapshot.summary.weeklyValueText == "15:30")
         #expect(snapshot.summary.monthlyValueText == "15:30")
     }
