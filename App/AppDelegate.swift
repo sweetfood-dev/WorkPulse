@@ -24,12 +24,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var displayedReferenceDate: Date?
     private let recordStore: any AttendanceRecordStore
     private let runtimeDependencies: MainPopoverRuntimeDependencies
+    private let workedDurationCalculator: WorkedDurationCalculator
 
     init(
         runtimeDependencies: MainPopoverRuntimeDependencies = .live,
         recordStore: (any AttendanceRecordStore)? = nil
     ) {
         self.runtimeDependencies = runtimeDependencies
+        self.workedDurationCalculator = WorkedDurationCalculator(
+            calendar: runtimeDependencies.calendar
+        )
         self.recordStore = recordStore ?? UserDefaultsAttendanceRecordStore(
             calendar: runtimeDependencies.calendar
         )
@@ -39,9 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let popoverViewController = MainPopoverViewController(
             currentSessionCalculator: CurrentSessionCalculator(
-                workedDurationCalculator: WorkedDurationCalculator(
-                    calendar: runtimeDependencies.calendar
-                )
+                workedDurationCalculator: workedDurationCalculator
             ),
             currentTimeProvider: runtimeDependencies.currentDateProvider,
             currentSessionScheduler: runtimeDependencies.currentSessionScheduler
@@ -123,9 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 timeZone: runtimeDependencies.timeZone
             ),
             totalsCalculator: AttendanceRecordTotalsCalculator(
-                workedDurationCalculator: WorkedDurationCalculator(
-                    calendar: runtimeDependencies.calendar
-                )
+                workedDurationCalculator: workedDurationCalculator
             ),
             calendar: runtimeDependencies.calendar
         ).load(referenceDate: referenceDate)

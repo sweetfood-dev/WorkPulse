@@ -7,6 +7,7 @@ struct WorkedDurationCalculator {
         self.calendar = calendar
     }
 
+    // Current policy: deduct the overlap with the fixed lunch window (12:00~13:00).
     func workedDuration(
         startTime: Date?,
         endTime: Date?
