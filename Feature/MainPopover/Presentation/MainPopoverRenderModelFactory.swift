@@ -49,15 +49,15 @@ struct MainPopoverRenderModel {
 }
 
 struct MainPopoverRenderModelFactory {
-    private let currentSessionGoalDuration: TimeInterval
-    private let maximumVisibleProgressFraction: CGFloat
+    private let copy: MainPopoverCopy
+    private let progressPolicy: MainPopoverCurrentSessionProgressPolicy
 
     init(
-        currentSessionGoalDuration: TimeInterval,
-        maximumVisibleProgressFraction: CGFloat
+        copy: MainPopoverCopy = .english,
+        progressPolicy: MainPopoverCurrentSessionProgressPolicy
     ) {
-        self.currentSessionGoalDuration = currentSessionGoalDuration
-        self.maximumVisibleProgressFraction = maximumVisibleProgressFraction
+        self.copy = copy
+        self.progressPolicy = progressPolicy
     }
 
     func make(
@@ -73,22 +73,24 @@ struct MainPopoverRenderModelFactory {
                 checkedInSummaryText: viewState.checkedInSummaryText
             ),
             currentSession: MainPopoverCurrentSessionRenderModel(
-                titleText: "CURRENT SESSION",
+                titleText: copy.currentSessionTitle,
                 valueText: currentSessionText,
-                leadingCaptionText: "0H",
-                trailingCaptionText: "Goal: 8h",
-                progressFraction: progressFraction(for: currentSessionDuration)
+                leadingCaptionText: copy.currentSessionLeadingCaption,
+                trailingCaptionText: copy.currentSessionTrailingCaption(
+                    goalDuration: progressPolicy.goalDuration
+                ),
+                progressFraction: progressPolicy.fraction(for: currentSessionDuration)
             ),
             todayTimes: MainPopoverTodayTimesRenderModel(
                 startRow: makeTimeRow(
-                    titleText: "Start Time",
+                    titleText: copy.startTimeTitle,
                     valueText: viewState.startTimeText,
                     isEditing: editModeState.isEditingStartTime,
                     draftTime: editModeState.draftStartTime,
                     fallbackTime: fallbackTime
                 ),
                 endRow: makeTimeRow(
-                    titleText: "End Time",
+                    titleText: copy.endTimeTitle,
                     valueText: viewState.endTimeText,
                     isEditing: editModeState.isEditingEndTime,
                     draftTime: editModeState.draftEndTime,
@@ -101,11 +103,11 @@ struct MainPopoverRenderModelFactory {
             ),
             summary: MainPopoverSummaryRenderModel(
                 weekly: MainPopoverSummaryItemRenderModel(
-                    titleText: "This Week",
+                    titleText: copy.weeklyTitle,
                     valueText: viewState.weeklyTotalText
                 ),
                 monthly: MainPopoverSummaryItemRenderModel(
-                    titleText: "This Month",
+                    titleText: copy.monthlyTitle,
                     valueText: viewState.monthlyTotalText
                 )
             )
@@ -126,16 +128,5 @@ struct MainPopoverRenderModelFactory {
             isPickerVisible: isEditing,
             pickerDateValue: draftTime ?? fallbackTime
         )
-    }
-
-    private func progressFraction(for duration: TimeInterval?) -> CGFloat {
-        guard let duration else { return 0 }
-
-        let rawFraction = CGFloat(duration / currentSessionGoalDuration)
-        if rawFraction >= 1 {
-            return maximumVisibleProgressFraction
-        }
-
-        return max(0, rawFraction)
     }
 }

@@ -162,8 +162,6 @@ final class MainPopoverViewController: NSViewController {
     var weeklyValueLabel: NSTextField { summarySectionView.weeklyValueLabel }
     var monthlyTitleLabel: NSTextField { summarySectionView.monthlyTitleLabel }
     var monthlyValueLabel: NSTextField { summarySectionView.monthlyValueLabel }
-    var editingActionRow: NSStackView { todayTimesSectionView.editingActionRow }
-    var todayTimesBackgroundView: NSView { todayTimesSectionView.backgroundView }
 
     init(
         state: MainPopoverViewState = .placeholder,
@@ -177,9 +175,12 @@ final class MainPopoverViewController: NSViewController {
         self.currentSessionCalculator = currentSessionCalculator
         self.currentTimeProvider = currentTimeProvider
         self.currentSessionScheduler = currentSessionScheduler
+        let progressPolicy = MainPopoverCurrentSessionProgressPolicy(
+            goalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
+            maximumVisibleFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
+        )
         self.renderModelFactory = MainPopoverRenderModelFactory(
-            currentSessionGoalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
-            maximumVisibleProgressFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
+            progressPolicy: progressPolicy
         )
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"

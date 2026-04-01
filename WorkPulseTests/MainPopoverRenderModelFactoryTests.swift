@@ -4,9 +4,15 @@ import Testing
 
 @Suite("MainPopoverRenderModelFactory")
 struct MainPopoverRenderModelFactoryTests {
+    private let progressPolicy = MainPopoverCurrentSessionProgressPolicy(
+        goalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
+        maximumVisibleFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
+    )
     private let factory = MainPopoverRenderModelFactory(
-        currentSessionGoalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
-        maximumVisibleProgressFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
+        progressPolicy: MainPopoverCurrentSessionProgressPolicy(
+            goalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
+            maximumVisibleFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
+        )
     )
 
     @Test
@@ -80,5 +86,37 @@ struct MainPopoverRenderModelFactoryTests {
         )
 
         #expect(renderModel.todayTimes.isApplyEnabled == false)
+    }
+
+    @Test
+    func usesInjectedCopyValuesForLabelsAndCaptions() {
+        let factory = MainPopoverRenderModelFactory(
+            copy: MainPopoverCopy(
+                currentSessionTitle: "SESSION",
+                currentSessionLeadingCaption: "START",
+                startTimeTitle: "In",
+                endTimeTitle: "Out",
+                weeklyTitle: "Week",
+                monthlyTitle: "Month",
+                currentSessionGoalLabelPrefix: "Target"
+            ),
+            progressPolicy: progressPolicy
+        )
+
+        let renderModel = factory.make(
+            viewState: .placeholder,
+            currentSessionText: "00:00:00",
+            currentSessionDuration: 0,
+            editModeState: TodayTimeEditModeState(),
+            fallbackTime: Date(timeIntervalSince1970: 0)
+        )
+
+        #expect(renderModel.currentSession.titleText == "SESSION")
+        #expect(renderModel.currentSession.leadingCaptionText == "START")
+        #expect(renderModel.currentSession.trailingCaptionText == "Target 8h")
+        #expect(renderModel.todayTimes.startRow.titleText == "In")
+        #expect(renderModel.todayTimes.endRow.titleText == "Out")
+        #expect(renderModel.summary.weekly.titleText == "Week")
+        #expect(renderModel.summary.monthly.titleText == "Month")
     }
 }
