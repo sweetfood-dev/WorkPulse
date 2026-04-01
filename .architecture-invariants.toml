@@ -110,3 +110,15 @@ id = "ui-types-outside-ui"
 layers = ["types", "config", "domain", "repo", "service"]
 pattern = "\\bUIViewController\\b|\\bNSViewController\\b|\\bNSView\\b|\\bNSWindow\\b|\\bNSPopover\\b|\\bNSStatusItem\\b|\\bNSDatePicker\\b|\\b@IBOutlet\\b|\\b@IBAction\\b"
 message = "AppKit/UIKit presentation types must stay in the ui layer."
+
+[[content_rules]]
+id = "userdefaults-outside-repo-runtime"
+layers = ["types", "config", "domain", "service", "ui"]
+pattern = "\\bUserDefaults\\b"
+message = "UserDefaults must stay behind a repo adapter or runtime composition root."
+
+[[content_rules]]
+id = "direct-time-context-outside-runtime"
+layers = ["domain", "repo", "service", "ui"]
+pattern = "\\bDate\\(\\)|\\bCalendar\\.current\\b|\\bTimeZone\\.current\\b|\\bLocale\\.current\\b"
+message = "Use injected date/calendar/timezone/locale dependencies instead of direct current context access."
