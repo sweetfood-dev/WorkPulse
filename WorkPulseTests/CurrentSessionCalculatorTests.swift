@@ -47,6 +47,27 @@ struct CurrentSessionCalculatorTests {
     }
 
     @Test
+    func subtractsLunchBreakFromEachSpannedDayInProgressSession() throws {
+        let calculator = CurrentSessionCalculator(
+            workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let now = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T14:00:00+09:00")
+        )
+
+        let duration = calculator.sessionDuration(
+            startTime: startTime,
+            endTime: nil,
+            now: now
+        )
+
+        #expect(duration == 97_200)
+    }
+
+    @Test
     func returnsFixedDurationWhenEndTimeExists() throws {
         let calculator = CurrentSessionCalculator(
             workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
@@ -86,6 +107,24 @@ struct CurrentSessionCalculatorTests {
         )
 
         #expect(duration == 28_800)
+    }
+
+    @Test
+    func deductsLunchBreakAcrossEachSpannedDay() throws {
+        let calculator = WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T14:00:00+09:00")
+        )
+
+        let duration = calculator.workedDuration(
+            startTime: startTime,
+            endTime: endTime
+        )
+
+        #expect(duration == 97_200)
     }
 
 }
@@ -230,6 +269,29 @@ struct AttendanceRecordTotalsCalculatorTests {
         )
 
         #expect(total == 28_800)
+    }
+
+    @Test
+    func weeklyTotalDeductsLunchBreakForEachSpannedDay() throws {
+        let calculator = AttendanceRecordTotalsCalculator()
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let records = [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+                endTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T14:00:00+09:00"))
+            )
+        ]
+
+        let total = calculator.weeklyTotal(
+            records: records,
+            referenceDate: referenceDate,
+            calendar: Self.seoulCalendar
+        )
+
+        #expect(total == 97_200)
     }
 
     @Test

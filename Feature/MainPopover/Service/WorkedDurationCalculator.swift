@@ -26,11 +26,23 @@ struct WorkedDurationCalculator {
     }
 
     private func lunchBreakOverlap(startTime: Date, endTime: Date) -> TimeInterval {
-        let lunchInterval = lunchBreakInterval(for: startTime)
-        let overlapStart = max(startTime, lunchInterval.start)
-        let overlapEnd = min(endTime, lunchInterval.end)
-        let overlap = overlapEnd.timeIntervalSince(overlapStart)
-        return max(0, overlap)
+        var overlap: TimeInterval = 0
+        var currentDay = calendar.startOfDay(for: startTime)
+
+        while currentDay <= endTime {
+            let lunchInterval = lunchBreakInterval(for: currentDay)
+            let overlapStart = max(startTime, lunchInterval.start)
+            let overlapEnd = min(endTime, lunchInterval.end)
+            overlap += max(0, overlapEnd.timeIntervalSince(overlapStart))
+
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: currentDay) else {
+                break
+            }
+
+            currentDay = nextDay
+        }
+
+        return overlap
     }
 
     private func lunchBreakInterval(for date: Date) -> DateInterval {
