@@ -121,6 +121,14 @@ final class MainPopoverViewController: NSViewController {
         render()
     }
 
+    func display(_ intent: MainPopoverDisplayIntent) {
+        state = intent.viewState
+        todayTimesBinder.loadSavedTimes(startTime: intent.startTime, endTime: intent.endTime)
+        currentSessionBinder.load(viewState: intent.viewState)
+        currentSessionBinder.begin(startTime: intent.startTime, endTime: intent.endTime)
+        render()
+    }
+
     func applyCurrentSession(startTime: Date?, endTime: Date?) {
         currentSessionBinder.apply(startTime: startTime, endTime: endTime)
     }
@@ -153,7 +161,17 @@ final class MainPopoverViewController: NSViewController {
     }
 
     func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
-        todayTimesBinder.setPickerDate(date, for: field)
+        let currentDraft = todayTimesSectionView.currentDraft()
+        let updatedDraft: MainPopoverTodayTimesDraft
+
+        switch field {
+        case .startTime:
+            updatedDraft = MainPopoverTodayTimesDraft(startTime: date, endTime: currentDraft.endTime)
+        case .endTime:
+            updatedDraft = MainPopoverTodayTimesDraft(startTime: currentDraft.startTime, endTime: date)
+        }
+
+        todayTimesBinder.setEditingDraft(updatedDraft)
     }
 
     private func render() {

@@ -103,10 +103,12 @@ final class MainPopoverCoordinator {
         displayedReferenceDate = referenceDate
 
         let loadedState = stateLoader.load(referenceDate: referenceDate)
-        popoverViewController.apply(state: loadedState.viewState)
-        popoverViewController.beginCurrentSessionUpdates(
-            startTime: loadedState.todayRecord?.startTime,
-            endTime: loadedState.todayRecord?.endTime
+        popoverViewController.display(
+            MainPopoverDisplayIntent(
+                viewState: loadedState.viewState,
+                startTime: loadedState.todayRecord?.startTime,
+                endTime: loadedState.todayRecord?.endTime
+            )
         )
     }
 

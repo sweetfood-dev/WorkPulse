@@ -38,11 +38,13 @@ final class MainPopoverTodayTimesBinder {
     }
 
     func applyEditing() {
+        let draft = sectionView.currentDraft()
+
         switch editModeState.editingField {
         case .startTime:
-            editModeState.updateDraftStartTime(sectionView.pickerDate(for: .startTime))
+            editModeState.updateDraftStartTime(draft.startTime)
         case .endTime:
-            editModeState.updateDraftEndTime(sectionView.pickerDate(for: .endTime))
+            editModeState.updateDraftEndTime(draft.endTime)
         case nil:
             return
         }
@@ -62,8 +64,8 @@ final class MainPopoverTodayTimesBinder {
         onDidChange?()
     }
 
-    func setPickerDate(_ date: Date, for field: TodayTimeField) {
-        sectionView.setPickerDate(date, for: field)
+    func setEditingDraft(_ draft: MainPopoverTodayTimesDraft) {
+        sectionView.setEditingDraft(draft)
     }
 
     func makeRenderModel(

@@ -263,7 +263,12 @@ struct MainPopoverTodayTimesBinderTests {
         }
         binder.loadSavedTimes(startTime: originalStartTime, endTime: nil)
         binder.beginEditing(.startTime)
-        binder.setPickerDate(editedStartTime, for: .startTime)
+        binder.setEditingDraft(
+            MainPopoverTodayTimesDraft(
+                startTime: editedStartTime,
+                endTime: originalStartTime
+            )
+        )
         binder.applyEditing()
         section.sectionView.apply(
             binder.makeRenderModel(
@@ -300,7 +305,12 @@ struct MainPopoverTodayTimesBinderTests {
         }
         binder.loadSavedTimes(startTime: startTime, endTime: originalEndTime)
         binder.beginEditing(.endTime)
-        binder.setPickerDate(editedEndTime, for: .endTime)
+        binder.setEditingDraft(
+            MainPopoverTodayTimesDraft(
+                startTime: startTime,
+                endTime: editedEndTime
+            )
+        )
         binder.applyEditing()
         section.sectionView.apply(
             binder.makeRenderModel(
@@ -334,7 +344,12 @@ struct MainPopoverTodayTimesBinderTests {
         }
         binder.loadSavedTimes(startTime: startTime, endTime: nil)
         binder.beginEditing(.endTime)
-        binder.setPickerDate(invalidEndTime, for: .endTime)
+        binder.setEditingDraft(
+            MainPopoverTodayTimesDraft(
+                startTime: startTime,
+                endTime: invalidEndTime
+            )
+        )
         binder.applyEditing()
         section.sectionView.apply(
             binder.makeRenderModel(

@@ -8,6 +8,11 @@ struct MainPopoverTimeRowSnapshot {
     let pickerDateValue: Date
 }
 
+struct MainPopoverTodayTimesDraft {
+    let startTime: Date
+    let endTime: Date
+}
+
 final class MainPopoverTimeRowView: NSView {
     private let titleLabel = NSTextField(labelWithString: "")
     private let valuePillView = NSView()
@@ -176,12 +181,16 @@ final class MainPopoverTodayTimesSectionView: NSView {
         endTimeApplyButton.isEnabled = renderModel.isApplyEnabled
     }
 
-    func setPickerDate(_ date: Date, for field: TodayTimeField) {
-        rowView(for: field).setPickerDate(date)
+    func setEditingDraft(_ draft: MainPopoverTodayTimesDraft) {
+        startRowView.setPickerDate(draft.startTime)
+        endRowView.setPickerDate(draft.endTime)
     }
 
-    func pickerDate(for field: TodayTimeField) -> Date {
-        rowView(for: field).pickerDateValue
+    func currentDraft() -> MainPopoverTodayTimesDraft {
+        MainPopoverTodayTimesDraft(
+            startTime: startRowView.pickerDateValue,
+            endTime: endRowView.pickerDateValue
+        )
     }
 
     var snapshot: MainPopoverTodayTimesSectionSnapshot {
@@ -271,12 +280,4 @@ final class MainPopoverTodayTimesSectionView: NSView {
         onEvent?(.cancelEditing)
     }
 
-    private func rowView(for field: TodayTimeField) -> MainPopoverTimeRowView {
-        switch field {
-        case .startTime:
-            return startRowView
-        case .endTime:
-            return endRowView
-        }
-    }
 }
