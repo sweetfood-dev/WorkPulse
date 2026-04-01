@@ -5,6 +5,10 @@ final class MainPopoverSummarySectionView: NSView {
     let weeklyValueLabel = NSTextField(labelWithString: "")
     let monthlyTitleLabel = NSTextField(labelWithString: "")
     let monthlyValueLabel = NSTextField(labelWithString: "")
+    let weeklyIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar")
+    let monthlyIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "chart.bar")
+    let weeklyTitleRow = NSStackView()
+    let monthlyTitleRow = NSStackView()
     let weeklyColumn = NSStackView()
     let monthlyColumn = NSStackView()
     let columnsRow = NSStackView()
@@ -48,19 +52,15 @@ final class MainPopoverSummarySectionView: NSView {
         monthlyValueLabel.textColor = MainPopoverStyle.Colors.primaryText
         monthlyValueLabel.alignment = .right
 
-        let weeklyTitleRow = NSStackView(views: [
-            MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar"),
-            weeklyTitleLabel,
-        ])
+        weeklyTitleRow.addArrangedSubview(weeklyIconView)
+        weeklyTitleRow.addArrangedSubview(weeklyTitleLabel)
         weeklyTitleRow.orientation = .horizontal
         weeklyTitleRow.alignment = .centerY
         weeklyTitleRow.spacing = MainPopoverStyle.Metrics.summaryTitleRowSpacing
 
-        let monthlyTitleRow = NSStackView(views: [
-            NSView(),
-            monthlyTitleLabel,
-            MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "chart.bar"),
-        ])
+        monthlyTitleRow.addArrangedSubview(NSView())
+        monthlyTitleRow.addArrangedSubview(monthlyTitleLabel)
+        monthlyTitleRow.addArrangedSubview(monthlyIconView)
         monthlyTitleRow.orientation = .horizontal
         monthlyTitleRow.alignment = .centerY
         monthlyTitleRow.spacing = MainPopoverStyle.Metrics.summaryTitleRowSpacing

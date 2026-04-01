@@ -12,22 +12,22 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.view.layoutSubtreeIfNeeded()
 
-        #expect(controller.dateLabel.stringValue == "Today")
-        #expect(controller.checkedInSummaryLabel.stringValue == "Checked in at --:--")
-        #expect(controller.currentSessionTitleLabel.stringValue == "CURRENT SESSION")
-        #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
-        #expect(controller.currentSessionProgressLeadingLabel.stringValue == "0H")
-        #expect(controller.currentSessionProgressTrailingLabel.stringValue == "Goal: 8h")
-        #expect(controller.currentSessionProgressBar.progressFraction == 0)
-        #expect(controller.currentSessionProgressBar.trackBorderWidth > 0)
-        #expect(controller.startTimeTitleLabel.stringValue == "Start Time")
-        #expect(controller.startTimeValueLabel.stringValue == "--:--")
-        #expect(controller.endTimeTitleLabel.stringValue == "End Time")
-        #expect(controller.endTimeValueLabel.stringValue == "--:--")
-        #expect(controller.weeklyTitleLabel.stringValue == "This Week")
-        #expect(controller.weeklyValueLabel.stringValue == "--")
-        #expect(controller.monthlyTitleLabel.stringValue == "This Month")
-        #expect(controller.monthlyValueLabel.stringValue == "--")
+        #expect(controller.headerSectionView.dateLabel.stringValue == "Today")
+        #expect(controller.headerSectionView.checkedInSummaryLabel.stringValue == "Checked in at --:--")
+        #expect(controller.currentSessionSectionView.titleLabel.stringValue == "CURRENT SESSION")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "--:--:--")
+        #expect(controller.currentSessionSectionView.leadingCaptionLabel.stringValue == "0H")
+        #expect(controller.currentSessionSectionView.trailingCaptionLabel.stringValue == "Goal: 8h")
+        #expect(controller.currentSessionSectionView.progressBar.progressFraction == 0)
+        #expect(controller.currentSessionSectionView.progressBar.trackBorderWidth > 0)
+        #expect(controller.todayTimesSectionView.startRowView.titleLabel.stringValue == "Start Time")
+        #expect(controller.todayTimesSectionView.startRowView.valueLabel.stringValue == "--:--")
+        #expect(controller.todayTimesSectionView.endRowView.titleLabel.stringValue == "End Time")
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.stringValue == "--:--")
+        #expect(controller.summarySectionView.weeklyTitleLabel.stringValue == "This Week")
+        #expect(controller.summarySectionView.weeklyValueLabel.stringValue == "--")
+        #expect(controller.summarySectionView.monthlyTitleLabel.stringValue == "This Month")
+        #expect(controller.summarySectionView.monthlyValueLabel.stringValue == "--")
     }
 
     @Test
@@ -47,13 +47,13 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.apply(state: state)
 
-        #expect(controller.dateLabel.stringValue == "Thursday, Mar 31")
-        #expect(controller.checkedInSummaryLabel.stringValue == "Checked in at 09:00")
-        #expect(controller.currentSessionValueLabel.stringValue == "02:15:30")
-        #expect(controller.startTimeValueLabel.stringValue == "09:00")
-        #expect(controller.endTimeValueLabel.stringValue == "--:--")
-        #expect(controller.weeklyValueLabel.stringValue == "08:30")
-        #expect(controller.monthlyValueLabel.stringValue == "42:10")
+        #expect(controller.headerSectionView.dateLabel.stringValue == "Thursday, Mar 31")
+        #expect(controller.headerSectionView.checkedInSummaryLabel.stringValue == "Checked in at 09:00")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "02:15:30")
+        #expect(controller.todayTimesSectionView.startRowView.valueLabel.stringValue == "09:00")
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.stringValue == "--:--")
+        #expect(controller.summarySectionView.weeklyValueLabel.stringValue == "08:30")
+        #expect(controller.summarySectionView.monthlyValueLabel.stringValue == "42:10")
     }
 
     @Test
@@ -72,8 +72,8 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: startTime, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
-        #expect(abs(controller.currentSessionProgressBar.progressFraction - 0.3448) < 0.001)
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "02:45:30")
+        #expect(abs(controller.currentSessionSectionView.progressBar.progressFraction - 0.3448) < 0.001)
     }
 
     @Test
@@ -92,8 +92,8 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: startTime, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
-        #expect(abs(controller.currentSessionProgressBar.progressFraction - 0.94) < 0.001)
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "09:30:00")
+        #expect(abs(controller.currentSessionSectionView.progressBar.progressFraction - 0.94) < 0.001)
     }
 
     @Test
@@ -106,7 +106,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: nil, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "--:--:--")
     }
 
     @Test
@@ -127,7 +127,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "02:45:30")
         #expect(scheduler.scheduleCallCount == 1)
 
         now = try #require(
@@ -135,7 +135,7 @@ struct MainPopoverViewControllerTests {
         )
         scheduler.fire()
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:31")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "02:45:31")
     }
 
     @Test
@@ -164,7 +164,7 @@ struct MainPopoverViewControllerTests {
         )
         scheduler.fire()
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "02:45:30")
     }
 
     @Test
@@ -179,7 +179,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: nil, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "--:--:--")
         #expect(scheduler.scheduleCallCount == 0)
     }
 
@@ -204,7 +204,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
+        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "09:30:00")
         #expect(scheduler.scheduleCallCount == 0)
     }
 
@@ -220,14 +220,14 @@ struct MainPopoverViewControllerTests {
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
         controller.beginEditingStartTime()
 
-        #expect(controller.startTimeValueLabel.isHidden)
-        #expect(controller.startTimePicker.isHidden == false)
-        #expect(controller.startTimePicker.dateValue == startTime)
-        #expect(controller.startTimeApplyButton.isHidden == false)
-        #expect(controller.startTimeApplyButton.isEnabled)
-        #expect(controller.startTimeCancelButton.isHidden == false)
-        #expect(controller.endTimeValueLabel.isHidden == false)
-        #expect(controller.currentSessionValueLabel.isHidden == false)
+        #expect(controller.todayTimesSectionView.startRowView.valueLabel.isHidden)
+        #expect(controller.todayTimesSectionView.startRowView.picker.isHidden == false)
+        #expect(controller.todayTimesSectionView.startRowView.picker.dateValue == startTime)
+        #expect(controller.todayTimesSectionView.startTimeApplyButton.isHidden == false)
+        #expect(controller.todayTimesSectionView.startTimeApplyButton.isEnabled)
+        #expect(controller.todayTimesSectionView.startTimeCancelButton.isHidden == false)
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.isHidden == false)
+        #expect(controller.currentSessionSectionView.valueLabel.isHidden == false)
     }
 
     @Test
@@ -243,10 +243,10 @@ struct MainPopoverViewControllerTests {
         controller.beginEditingStartTime()
         controller.cancelEditingTime()
 
-        #expect(controller.startTimeValueLabel.isHidden == false)
-        #expect(controller.startTimePicker.isHidden)
-        #expect(controller.startTimeApplyButton.isHidden)
-        #expect(controller.startTimeCancelButton.isHidden)
+        #expect(controller.todayTimesSectionView.startRowView.valueLabel.isHidden == false)
+        #expect(controller.todayTimesSectionView.startRowView.picker.isHidden)
+        #expect(controller.todayTimesSectionView.startTimeApplyButton.isHidden)
+        #expect(controller.todayTimesSectionView.startTimeCancelButton.isHidden)
     }
 
     @Test
@@ -264,13 +264,13 @@ struct MainPopoverViewControllerTests {
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
         controller.beginEditingEndTime()
 
-        #expect(controller.endTimeValueLabel.isHidden)
-        #expect(controller.endTimePicker.isHidden == false)
-        #expect(controller.endTimePicker.dateValue == endTime)
-        #expect(controller.endTimeApplyButton.isHidden == false)
-        #expect(controller.endTimeApplyButton.isEnabled)
-        #expect(controller.endTimeCancelButton.isHidden == false)
-        #expect(controller.startTimeValueLabel.isHidden == false)
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.isHidden)
+        #expect(controller.todayTimesSectionView.endRowView.picker.isHidden == false)
+        #expect(controller.todayTimesSectionView.endRowView.picker.dateValue == endTime)
+        #expect(controller.todayTimesSectionView.endTimeApplyButton.isHidden == false)
+        #expect(controller.todayTimesSectionView.endTimeApplyButton.isEnabled)
+        #expect(controller.todayTimesSectionView.endTimeCancelButton.isHidden == false)
+        #expect(controller.todayTimesSectionView.startRowView.valueLabel.isHidden == false)
     }
 
     @Test
@@ -293,14 +293,14 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: originalStartTime, endTime: nil)
         controller.beginEditingStartTime()
-        controller.startTimePicker.dateValue = editedStartTime
+        controller.todayTimesSectionView.startRowView.picker.dateValue = editedStartTime
         controller.applyEditingTime()
 
         #expect(appliedStartTime == editedStartTime)
         #expect(appliedEndTime == nil)
-        #expect(controller.startTimeValueLabel.stringValue == "08:30")
-        #expect(controller.startTimeValueLabel.isHidden == false)
-        #expect(controller.startTimePicker.isHidden)
+        #expect(controller.todayTimesSectionView.startRowView.valueLabel.stringValue == "08:30")
+        #expect(controller.todayTimesSectionView.startRowView.valueLabel.isHidden == false)
+        #expect(controller.todayTimesSectionView.startRowView.picker.isHidden)
     }
 
     @Test
@@ -326,14 +326,14 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: originalEndTime)
         controller.beginEditingEndTime()
-        controller.endTimePicker.dateValue = editedEndTime
+        controller.todayTimesSectionView.endRowView.picker.dateValue = editedEndTime
         controller.applyEditingTime()
 
         #expect(appliedStartTime == startTime)
         #expect(appliedEndTime == editedEndTime)
-        #expect(controller.endTimeValueLabel.stringValue == "17:45")
-        #expect(controller.endTimeValueLabel.isHidden == false)
-        #expect(controller.endTimePicker.isHidden)
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.stringValue == "17:45")
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.isHidden == false)
+        #expect(controller.todayTimesSectionView.endRowView.picker.isHidden)
     }
 
     @Test
@@ -354,14 +354,14 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
         controller.beginEditingEndTime()
-        controller.endTimePicker.dateValue = invalidEndTime
+        controller.todayTimesSectionView.endRowView.picker.dateValue = invalidEndTime
         controller.applyEditingTime()
 
         #expect(applyCallCount == 0)
-        #expect(controller.endTimeValueLabel.stringValue == "--:--")
-        #expect(controller.endTimeValueLabel.isHidden)
-        #expect(controller.endTimePicker.isHidden == false)
-        #expect(controller.endTimeApplyButton.isHidden == false)
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.stringValue == "--:--")
+        #expect(controller.todayTimesSectionView.endRowView.valueLabel.isHidden)
+        #expect(controller.todayTimesSectionView.endRowView.picker.isHidden == false)
+        #expect(controller.todayTimesSectionView.endTimeApplyButton.isHidden == false)
     }
 
     @Test
@@ -385,7 +385,7 @@ struct MainPopoverViewControllerTests {
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
         controller.beginEditingEndTime()
 
-        #expect(controller.endTimePicker.dateValue == currentTime)
+        #expect(controller.todayTimesSectionView.endRowView.picker.dateValue == currentTime)
     }
 
 }

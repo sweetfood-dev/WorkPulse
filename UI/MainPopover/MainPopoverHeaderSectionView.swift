@@ -3,6 +3,14 @@ import AppKit
 final class MainPopoverHeaderSectionView: NSView {
     let dateLabel = NSTextField(labelWithString: "")
     let checkedInSummaryLabel = NSTextField(labelWithString: "")
+    let dateIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar")
+    let settingsIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "gearshape")
+    let checkInIconView = MainPopoverSectionIconFactory.makeTintedSymbolImageView(
+        systemName: "arrow.right.to.line",
+        color: MainPopoverStyle.Colors.checkInAccent
+    )
+    let dateRow = NSStackView()
+    let checkInRow = NSStackView()
 
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.headerInsets
@@ -33,24 +41,17 @@ final class MainPopoverHeaderSectionView: NSView {
         checkedInSummaryLabel.font = MainPopoverStyle.Typography.secondary
         checkedInSummaryLabel.textColor = MainPopoverStyle.Colors.secondaryText
 
-        let dateRow = NSStackView(views: [
-            MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar"),
-            dateLabel,
-            NSView(),
-            MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "gearshape")
-        ])
+        dateRow.addArrangedSubview(dateIconView)
+        dateRow.addArrangedSubview(dateLabel)
+        dateRow.addArrangedSubview(NSView())
+        dateRow.addArrangedSubview(settingsIconView)
         dateRow.orientation = .horizontal
         dateRow.alignment = .centerY
         dateRow.spacing = MainPopoverStyle.Metrics.headerSpacing
 
-        let checkInRow = NSStackView(views: [
-            MainPopoverSectionIconFactory.makeTintedSymbolImageView(
-                systemName: "arrow.right.to.line",
-                color: MainPopoverStyle.Colors.checkInAccent
-            ),
-            checkedInSummaryLabel,
-            NSView(),
-        ])
+        checkInRow.addArrangedSubview(checkInIconView)
+        checkInRow.addArrangedSubview(checkedInSummaryLabel)
+        checkInRow.addArrangedSubview(NSView())
         checkInRow.orientation = .horizontal
         checkInRow.alignment = .centerY
         checkInRow.spacing = 8

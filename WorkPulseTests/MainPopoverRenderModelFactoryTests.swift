@@ -4,22 +4,16 @@ import Testing
 
 @Suite("MainPopoverRenderModelFactory")
 struct MainPopoverRenderModelFactoryTests {
-    private let progressPolicy = MainPopoverCurrentSessionProgressPolicy(
-        goalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
-        maximumVisibleFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
-    )
+    private let progressPolicy = MainPopoverCurrentSessionProgressPolicy()
     private let factory = MainPopoverRenderModelFactory(
-        progressPolicy: MainPopoverCurrentSessionProgressPolicy(
-            goalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
-            maximumVisibleFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
-        )
+        progressPolicy: MainPopoverCurrentSessionProgressPolicy()
     )
 
     @Test
     func usesZeroProgressForPlaceholderSession() {
         let renderModel = factory.make(
             viewState: .placeholder,
-            currentSessionText: MainPopoverViewState.placeholder.currentSessionText,
+            currentSessionText: MainPopoverCopy.english.currentSessionPlaceholderText,
             currentSessionDuration: nil,
             editModeState: TodayTimeEditModeState(),
             fallbackTime: Date(timeIntervalSince1970: 0)
@@ -92,6 +86,11 @@ struct MainPopoverRenderModelFactoryTests {
     func usesInjectedCopyValuesForLabelsAndCaptions() {
         let factory = MainPopoverRenderModelFactory(
             copy: MainPopoverCopy(
+                placeholderDateText: "Today",
+                checkedInSummaryPrefix: "Checked in at",
+                currentSessionPlaceholderText: "--:--:--",
+                timePlaceholderText: "--:--",
+                totalPlaceholderText: "--",
                 currentSessionTitle: "SESSION",
                 currentSessionLeadingCaption: "START",
                 startTimeTitle: "In",
@@ -118,5 +117,32 @@ struct MainPopoverRenderModelFactoryTests {
         #expect(renderModel.todayTimes.endRow.titleText == "Out")
         #expect(renderModel.summary.weekly.titleText == "Week")
         #expect(renderModel.summary.monthly.titleText == "Month")
+    }
+
+    @Test
+    func placeholderCopyCentralizesDefaultText() {
+        let copy = MainPopoverCopy(
+            placeholderDateText: "Placeholder Day",
+            checkedInSummaryPrefix: "Arrived",
+            currentSessionPlaceholderText: "00:00:00",
+            timePlaceholderText: "--.--",
+            totalPlaceholderText: "n/a",
+            currentSessionTitle: "SESSION",
+            currentSessionLeadingCaption: "0H",
+            startTimeTitle: "In",
+            endTimeTitle: "Out",
+            weeklyTitle: "Week",
+            monthlyTitle: "Month",
+            currentSessionGoalLabelPrefix: "Goal:"
+        )
+        let state = MainPopoverViewState.placeholder(copy: copy)
+
+        #expect(state.dateText == "Placeholder Day")
+        #expect(state.checkedInSummaryText == "Arrived --.--")
+        #expect(state.currentSessionText == "00:00:00")
+        #expect(state.startTimeText == "--.--")
+        #expect(state.endTimeText == "--.--")
+        #expect(state.weeklyTotalText == "n/a")
+        #expect(state.monthlyTotalText == "n/a")
     }
 }

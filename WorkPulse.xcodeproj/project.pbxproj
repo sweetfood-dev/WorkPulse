@@ -25,6 +25,11 @@
 		A1B2C3D4E5F600000000001B /* MainPopoverCurrentSessionSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000099 /* MainPopoverCurrentSessionSectionView.swift */; };
 		A1B2C3D4E5F600000000001C /* MainPopoverTodayTimesSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000009A /* MainPopoverTodayTimesSectionView.swift */; };
 		A1B2C3D4E5F600000000001D /* MainPopoverSummarySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000009B /* MainPopoverSummarySectionView.swift */; };
+		A1B2C3D4E5F600000000001E /* MainPopoverViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000009C /* MainPopoverViewState.swift */; };
+		A1B2C3D4E5F600000000001F /* MainPopoverCurrentSessionRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000009D /* MainPopoverCurrentSessionRuntime.swift */; };
+		A1B2C3D4E5F6000000000020 /* MainPopoverDividerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000009E /* MainPopoverDividerView.swift */; };
+		A1B2C3D4E5F6000000000025 /* MainPopoverCurrentSessionScheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000009F /* MainPopoverCurrentSessionScheduling.swift */; };
+		A1B2C3D4E5F6000000000024 /* MainPopoverCurrentSessionProgressBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000A0 /* MainPopoverCurrentSessionProgressBarView.swift */; };
 		B1C2D3E4F5A6000000000001 /* MenuBarShellControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */; };
 		B1C2D3E4F5A6000000000002 /* MainPopoverViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */; };
 		B1C2D3E4F5A6000000000003 /* CurrentSessionCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000014 /* CurrentSessionCalculatorTests.swift */; };
@@ -64,6 +69,11 @@
 		A1B2C3D4E5F6000000000099 /* MainPopoverCurrentSessionSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverCurrentSessionSectionView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F600000000009A /* MainPopoverTodayTimesSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverTodayTimesSectionView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F600000000009B /* MainPopoverSummarySectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverSummarySectionView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F600000000009C /* MainPopoverViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverViewState.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F600000000009D /* MainPopoverCurrentSessionRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverCurrentSessionRuntime.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F600000000009E /* MainPopoverDividerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverDividerView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F600000000009F /* MainPopoverCurrentSessionScheduling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverCurrentSessionScheduling.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60000000000A0 /* MainPopoverCurrentSessionProgressBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverCurrentSessionProgressBarView.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarShellControllerTests.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000012 /* WorkPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WorkPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverViewControllerTests.swift; sourceTree = "<group>"; };
@@ -135,12 +145,17 @@
 			path = MainPopover;
 			sourceTree = "<group>";
 			children = (
+				A1B2C3D4E5F600000000009F /* MainPopoverCurrentSessionScheduling.swift */,
+				A1B2C3D4E5F60000000000A0 /* MainPopoverCurrentSessionProgressBarView.swift */,
+				A1B2C3D4E5F600000000009D /* MainPopoverCurrentSessionRuntime.swift */,
 				A1B2C3D4E5F6000000000099 /* MainPopoverCurrentSessionSectionView.swift */,
+				A1B2C3D4E5F600000000009E /* MainPopoverDividerView.swift */,
 				A1B2C3D4E5F6000000000098 /* MainPopoverHeaderSectionView.swift */,
 				A1B2C3D4E5F6000000000097 /* MainPopoverSectionSupport.swift */,
 				A1B2C3D4E5F600000000009B /* MainPopoverSummarySectionView.swift */,
 				A1B2C3D4E5F6000000000092 /* MainPopoverStyle.swift */,
 				A1B2C3D4E5F600000000009A /* MainPopoverTodayTimesSectionView.swift */,
+				A1B2C3D4E5F600000000009C /* MainPopoverViewState.swift */,
 				A1B2C3D4E5F6000000000014 /* MainPopoverViewController.swift */,
 			);
 		};
@@ -307,15 +322,20 @@
 				A1B2C3D4E5F6000000000008 /* AttendanceRecordStore.swift in Sources */,
 				A1B2C3D4E5F6000000000005 /* CurrentSessionCalculator.swift in Sources */,
 				A1B2C3D4E5F600000000000D /* MainPopoverCopy.swift in Sources */,
+				A1B2C3D4E5F6000000000025 /* MainPopoverCurrentSessionScheduling.swift in Sources */,
 				A1B2C3D4E5F600000000000E /* MainPopoverCurrentSessionProgressPolicy.swift in Sources */,
+				A1B2C3D4E5F6000000000024 /* MainPopoverCurrentSessionProgressBarView.swift in Sources */,
+				A1B2C3D4E5F600000000001F /* MainPopoverCurrentSessionRuntime.swift in Sources */,
 				A1B2C3D4E5F600000000000C /* MainPopoverRenderModelFactory.swift in Sources */,
 				A1B2C3D4E5F600000000001B /* MainPopoverCurrentSessionSectionView.swift in Sources */,
+				A1B2C3D4E5F6000000000020 /* MainPopoverDividerView.swift in Sources */,
 				A1B2C3D4E5F600000000001A /* MainPopoverHeaderSectionView.swift in Sources */,
 				A1B2C3D4E5F600000000000F /* MainPopoverSectionSupport.swift in Sources */,
 				A1B2C3D4E5F6000000000009 /* MainPopoverStateLoader.swift in Sources */,
 				A1B2C3D4E5F600000000000A /* MainPopoverStyle.swift in Sources */,
 				A1B2C3D4E5F600000000001D /* MainPopoverSummarySectionView.swift in Sources */,
 				A1B2C3D4E5F600000000001C /* MainPopoverTodayTimesSectionView.swift in Sources */,
+				A1B2C3D4E5F600000000001E /* MainPopoverViewState.swift in Sources */,
 				A1B2C3D4E5F6000000000006 /* MainPopoverViewStateFactory.swift in Sources */,
 				A1B2C3D4E5F6000000000004 /* MainPopoverViewController.swift in Sources */,
 				A1B2C3D4E5F6000000000003 /* MenuBarShellController.swift in Sources */,

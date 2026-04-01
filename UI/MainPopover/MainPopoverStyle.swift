@@ -1,14 +1,26 @@
 import AppKit
 
 enum MainPopoverStyle {
+    enum Tokens {
+        enum Brand {
+            static var accentStart: NSColor { .systemBlue }
+            static var accentEnd: NSColor {
+                NSColor(calibratedRed: 0.00, green: 0.42, blue: 0.95, alpha: 1)
+            }
+        }
+
+        enum Effects {
+            static var cardShadow: NSColor { .black.withAlphaComponent(0.16) }
+        }
+    }
+
     enum Metrics {
         static let popoverSize = NSSize(width: 392, height: 488)
         static let contentSpacing: CGFloat = 0
+        static let dividerHeight: CGFloat = 1
         static let progressBarHeight: CGFloat = 10
         static let valuePillWidth: CGFloat = 110
         static let valuePillHeight: CGFloat = 50
-        static let currentSessionGoalDuration: TimeInterval = 8 * 60 * 60
-        static let maximumVisibleProgressFraction: CGFloat = 0.94
         static let currentSessionTitleKern: CGFloat = 1.4
 
         static let headerInsets = NSEdgeInsets(top: 18, left: 20, bottom: 18, right: 20)
@@ -42,17 +54,15 @@ enum MainPopoverStyle {
         static var divider: NSColor { .separatorColor }
         static var iconTint: NSColor { .secondaryLabelColor }
         static var currentSessionValue: NSColor { .systemBlue }
-        static var currentSessionAccentStart: NSColor { .systemBlue }
-        static var currentSessionAccentEnd: NSColor {
-            NSColor(calibratedRed: 0.00, green: 0.42, blue: 0.95, alpha: 1)
-        }
+        static var currentSessionAccentStart: NSColor { Tokens.Brand.accentStart }
+        static var currentSessionAccentEnd: NSColor { Tokens.Brand.accentEnd }
         static var checkInAccent: NSColor { .systemGreen }
         static var progressTrackBackground: NSColor { .secondarySystemFill }
         static var progressTrackBorder: NSColor { .separatorColor }
-        static var todayTimesBackground: NSColor { .quinarySystemFill }
+        static var todayTimesBackground: NSColor { .quaternarySystemFill }
         static var valuePillBackground: NSColor { .controlBackgroundColor }
         static var valuePillBorder: NSColor { .separatorColor }
-        static var shadow: NSColor { .black.withAlphaComponent(0.16) }
+        static var shadow: NSColor { Tokens.Effects.cardShadow }
     }
 
     enum Typography {

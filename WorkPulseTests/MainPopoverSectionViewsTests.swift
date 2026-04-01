@@ -76,4 +76,49 @@ struct MainPopoverSectionViewsTests {
 
         #expect(progressBar.trackBorderWidth > 0)
     }
+
+    @Test
+    @MainActor
+    func headerSectionPreservesIconPlacementAndTypographyHierarchy() {
+        let section = MainPopoverHeaderSectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 90))
+        section.apply(
+            MainPopoverHeaderRenderModel(
+                dateText: "Wednesday, Apr 1",
+                checkedInSummaryText: "Checked in at 08:45"
+            )
+        )
+
+        #expect(section.dateRow.arrangedSubviews.first === section.dateIconView)
+        #expect(section.dateRow.arrangedSubviews.last === section.settingsIconView)
+        #expect(section.checkInRow.arrangedSubviews.first === section.checkInIconView)
+        #expect(section.dateLabel.font?.pointSize ?? 0 > section.checkedInSummaryLabel.font?.pointSize ?? 0)
+    }
+
+    @Test
+    @MainActor
+    func currentSessionSectionAppliesTitleHierarchyAndIconPlacement() {
+        let section = MainPopoverCurrentSessionSectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 180))
+        section.apply(
+            MainPopoverCurrentSessionRenderModel(
+                titleText: "CURRENT SESSION",
+                valueText: "01:26:18",
+                leadingCaptionText: "0H",
+                trailingCaptionText: "Goal: 8h",
+                progressFraction: 0.18
+            )
+        )
+
+        #expect(section.titleRow.arrangedSubviews.first === section.titleIconView)
+        #expect(section.titleRow.arrangedSubviews[1] === section.titleLabel)
+        #expect(section.valueLabel.font?.pointSize ?? 0 > section.leadingCaptionLabel.font?.pointSize ?? 0)
+        #expect(section.captionRow.arrangedSubviews.count == 3)
+    }
+
+    @Test
+    @MainActor
+    func dividerUsesConfiguredProminence() {
+        let divider = MainPopoverDividerView(frame: .zero)
+
+        #expect(divider.layer?.backgroundColor == MainPopoverStyle.Colors.divider.cgColor)
+    }
 }

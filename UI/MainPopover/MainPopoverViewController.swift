@@ -1,121 +1,8 @@
 import AppKit
 
-protocol CurrentSessionCancellable {
-    func cancel()
-}
-
-protocol CurrentSessionScheduling {
-    func scheduleRepeating(
-        every interval: TimeInterval,
-        action: @escaping () -> Void
-    ) -> any CurrentSessionCancellable
-}
-
-final class TimerCurrentSessionCancellable: CurrentSessionCancellable {
-    private weak var timer: Timer?
-
-    init(timer: Timer) {
-        self.timer = timer
-    }
-
-    func cancel() {
-        timer?.invalidate()
-    }
-}
-
-struct TimerCurrentSessionScheduler: CurrentSessionScheduling {
-    func scheduleRepeating(
-        every interval: TimeInterval,
-        action: @escaping () -> Void
-    ) -> any CurrentSessionCancellable {
-        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
-            action()
-        }
-        return TimerCurrentSessionCancellable(timer: timer)
-    }
-}
-
-struct MainPopoverViewState {
-    let dateText: String
-    let checkedInSummaryText: String
-    let currentSessionText: String
-    let startTimeText: String
-    let endTimeText: String
-    let weeklyTotalText: String
-    let monthlyTotalText: String
-
-    static let placeholder = MainPopoverViewState(
-        dateText: "Today",
-        checkedInSummaryText: "Checked in at --:--",
-        currentSessionText: "--:--:--",
-        startTimeText: "--:--",
-        endTimeText: "--:--",
-        weeklyTotalText: "--",
-        monthlyTotalText: "--"
-    )
-}
-
-@MainActor
-final class MainPopoverCurrentSessionRuntime {
-    private let currentSessionCalculator: CurrentSessionCalculator
-    private let currentTimeProvider: () -> Date
-    private let currentSessionScheduler: any CurrentSessionScheduling
-    private let onChange: (String, TimeInterval?) -> Void
-    private var currentSessionRefresh: (any CurrentSessionCancellable)?
-
-    init(
-        currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
-        currentTimeProvider: @escaping () -> Date = Date.init,
-        currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler(),
-        onChange: @escaping (String, TimeInterval?) -> Void
-    ) {
-        self.currentSessionCalculator = currentSessionCalculator
-        self.currentTimeProvider = currentTimeProvider
-        self.currentSessionScheduler = currentSessionScheduler
-        self.onChange = onChange
-    }
-
-    deinit {
-        currentSessionRefresh?.cancel()
-    }
-
-    func apply(startTime: Date?, endTime: Date?) {
-        let duration = currentSessionCalculator.sessionDuration(
-            startTime: startTime,
-            endTime: endTime,
-            now: currentTimeProvider()
-        )
-
-        onChange(
-            duration.map { MainPopoverViewController.format(duration: $0) }
-                ?? MainPopoverViewState.placeholder.currentSessionText,
-            duration
-        )
-    }
-
-    func begin(startTime: Date?, endTime: Date?) {
-        currentSessionRefresh?.cancel()
-        currentSessionRefresh = nil
-
-        apply(startTime: startTime, endTime: endTime)
-
-        guard let startTime, endTime == nil else { return }
-
-        currentSessionRefresh = currentSessionScheduler.scheduleRepeating(
-            every: 1
-        ) { [weak self] in
-            self?.apply(startTime: startTime, endTime: nil)
-        }
-    }
-
-    func stop() {
-        currentSessionRefresh?.cancel()
-        currentSessionRefresh = nil
-    }
-}
-
 final class MainPopoverViewController: NSViewController {
     private var state: MainPopoverViewState
+    private let copy: MainPopoverCopy
     private let timeFormatter: DateFormatter
     private var todayTimeEditModeState = TodayTimeEditModeState()
     private let currentSessionCalculator: CurrentSessionCalculator
@@ -128,6 +15,7 @@ final class MainPopoverViewController: NSViewController {
         currentSessionCalculator: currentSessionCalculator,
         currentTimeProvider: currentTimeProvider,
         currentSessionScheduler: currentSessionScheduler,
+        placeholderText: copy.currentSessionPlaceholderText,
         onChange: { [weak self] text, duration in
             self?.currentSessionText = text
             self?.currentSessionDuration = duration
@@ -141,45 +29,24 @@ final class MainPopoverViewController: NSViewController {
     let todayTimesSectionView = MainPopoverTodayTimesSectionView()
     let summarySectionView = MainPopoverSummarySectionView()
 
-    var dateLabel: NSTextField { headerSectionView.dateLabel }
-    var checkedInSummaryLabel: NSTextField { headerSectionView.checkedInSummaryLabel }
-    var currentSessionTitleLabel: NSTextField { currentSessionSectionView.titleLabel }
-    var currentSessionValueLabel: NSTextField { currentSessionSectionView.valueLabel }
-    var currentSessionProgressBar: CurrentSessionProgressBarView { currentSessionSectionView.progressBar }
-    var currentSessionProgressLeadingLabel: NSTextField { currentSessionSectionView.leadingCaptionLabel }
-    var currentSessionProgressTrailingLabel: NSTextField { currentSessionSectionView.trailingCaptionLabel }
-    var startTimeTitleLabel: NSTextField { todayTimesSectionView.startRowView.titleLabel }
-    var startTimeValueLabel: NSTextField { todayTimesSectionView.startRowView.valueLabel }
-    var startTimePicker: NSDatePicker { todayTimesSectionView.startRowView.picker }
-    var startTimeApplyButton: NSButton { todayTimesSectionView.startTimeApplyButton }
-    var startTimeCancelButton: NSButton { todayTimesSectionView.startTimeCancelButton }
-    var endTimeTitleLabel: NSTextField { todayTimesSectionView.endRowView.titleLabel }
-    var endTimeValueLabel: NSTextField { todayTimesSectionView.endRowView.valueLabel }
-    var endTimePicker: NSDatePicker { todayTimesSectionView.endRowView.picker }
-    var endTimeApplyButton: NSButton { todayTimesSectionView.endTimeApplyButton }
-    var endTimeCancelButton: NSButton { todayTimesSectionView.endTimeCancelButton }
-    var weeklyTitleLabel: NSTextField { summarySectionView.weeklyTitleLabel }
-    var weeklyValueLabel: NSTextField { summarySectionView.weeklyValueLabel }
-    var monthlyTitleLabel: NSTextField { summarySectionView.monthlyTitleLabel }
-    var monthlyValueLabel: NSTextField { summarySectionView.monthlyValueLabel }
-
     init(
-        state: MainPopoverViewState = .placeholder,
+        state: MainPopoverViewState? = nil,
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
+        copy: MainPopoverCopy = .english,
         currentTimeProvider: @escaping () -> Date = Date.init,
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler()
     ) {
-        self.state = state
-        self.currentSessionText = state.currentSessionText
+        let resolvedState = state ?? .placeholder(copy: copy)
+        self.state = resolvedState
+        self.copy = copy
+        self.currentSessionText = resolvedState.currentSessionText
         self.currentSessionDuration = nil
         self.currentSessionCalculator = currentSessionCalculator
         self.currentTimeProvider = currentTimeProvider
         self.currentSessionScheduler = currentSessionScheduler
-        let progressPolicy = MainPopoverCurrentSessionProgressPolicy(
-            goalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
-            maximumVisibleFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
-        )
+        let progressPolicy = MainPopoverCurrentSessionProgressPolicy()
         self.renderModelFactory = MainPopoverRenderModelFactory(
+            copy: copy,
             progressPolicy: progressPolicy
         )
         let formatter = DateFormatter()
@@ -213,11 +80,11 @@ final class MainPopoverViewController: NSViewController {
 
         [
             headerSectionView,
-            Self.makeSeparator(),
+            MainPopoverDividerView(),
             currentSessionSectionView,
-            Self.makeSeparator(),
+            MainPopoverDividerView(),
             todayTimesSectionView,
-            Self.makeSeparator(),
+            MainPopoverDividerView(),
             summarySectionView,
         ].forEach(contentStack.addArrangedSubview)
 
@@ -282,9 +149,9 @@ final class MainPopoverViewController: NSViewController {
     func applyEditingTime() {
         switch todayTimeEditModeState.editingField {
         case .startTime:
-            todayTimeEditModeState.updateDraftStartTime(startTimePicker.dateValue)
+            todayTimeEditModeState.updateDraftStartTime(todayTimesSectionView.startRowView.picker.dateValue)
         case .endTime:
-            todayTimeEditModeState.updateDraftEndTime(endTimePicker.dateValue)
+            todayTimeEditModeState.updateDraftEndTime(todayTimesSectionView.endRowView.picker.dateValue)
         case nil:
             return
         }
@@ -336,14 +203,14 @@ final class MainPopoverViewController: NSViewController {
         let endTapRecognizer = NSClickGestureRecognizer(target: self, action: #selector(handleEndTimeRowTap))
         todayTimesSectionView.endRowView.addGestureRecognizer(endTapRecognizer)
 
-        startTimeCancelButton.target = self
-        startTimeCancelButton.action = #selector(handleCancelEditing)
-        endTimeCancelButton.target = self
-        endTimeCancelButton.action = #selector(handleCancelEditing)
-        startTimeApplyButton.target = self
-        startTimeApplyButton.action = #selector(handleApplyEditing)
-        endTimeApplyButton.target = self
-        endTimeApplyButton.action = #selector(handleApplyEditing)
+        todayTimesSectionView.startTimeCancelButton.target = self
+        todayTimesSectionView.startTimeCancelButton.action = #selector(handleCancelEditing)
+        todayTimesSectionView.endTimeCancelButton.target = self
+        todayTimesSectionView.endTimeCancelButton.action = #selector(handleCancelEditing)
+        todayTimesSectionView.startTimeApplyButton.target = self
+        todayTimesSectionView.startTimeApplyButton.action = #selector(handleApplyEditing)
+        todayTimesSectionView.endTimeApplyButton.target = self
+        todayTimesSectionView.endTimeApplyButton.action = #selector(handleApplyEditing)
     }
 
     private func render() {
@@ -365,33 +232,17 @@ final class MainPopoverViewController: NSViewController {
 
     private func checkedInSummaryText(for startTime: Date?) -> String {
         guard let startTime else {
-            return MainPopoverViewState.placeholder.checkedInSummaryText
+            return copy.checkedInSummaryPlaceholder
         }
 
-        return "Checked in at \(timeText(for: startTime))"
+        return copy.checkedInSummaryText(for: timeText(for: startTime))
     }
 
     private func timeText(for date: Date?) -> String {
         guard let date else {
-            return MainPopoverViewState.placeholder.startTimeText
+            return copy.timePlaceholderText
         }
 
         return timeFormatter.string(from: date)
-    }
-
-    private static func makeSeparator() -> NSView {
-        let separator = NSBox()
-        separator.boxType = .separator
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
-        return separator
-    }
-
-    fileprivate static func format(duration: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(duration.rounded(.down)))
-        let hours = totalSeconds / 3_600
-        let minutes = (totalSeconds % 3_600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }

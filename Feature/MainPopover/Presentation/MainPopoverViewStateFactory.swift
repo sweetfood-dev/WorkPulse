@@ -76,14 +76,17 @@ struct TodayTimeEditModeState {
 }
 
 struct MainPopoverViewStateFactory {
+    private let copy: MainPopoverCopy
     private let dateFormatter: DateFormatter
     private let timeFormatter: DateFormatter
 
     init(
         calendar: Calendar = .current,
         locale: Locale = .current,
-        timeZone: TimeZone = .current
+        timeZone: TimeZone = .current,
+        copy: MainPopoverCopy = .english
     ) {
+        self.copy = copy
         var calendar = calendar
         calendar.locale = locale
         calendar.timeZone = timeZone
@@ -106,31 +109,31 @@ struct MainPopoverViewStateFactory {
     func make(
         referenceDate: Date,
         todayRecord: AttendanceRecord?,
-        weeklyTotalText: String = MainPopoverViewState.placeholder.weeklyTotalText,
-        monthlyTotalText: String = MainPopoverViewState.placeholder.monthlyTotalText
+        weeklyTotalText: String? = nil,
+        monthlyTotalText: String? = nil
     ) -> MainPopoverViewState {
         MainPopoverViewState(
             dateText: dateFormatter.string(from: referenceDate),
             checkedInSummaryText: checkedInSummaryText(for: todayRecord),
-            currentSessionText: MainPopoverViewState.placeholder.currentSessionText,
+            currentSessionText: copy.currentSessionPlaceholderText,
             startTimeText: timeText(for: todayRecord?.startTime),
             endTimeText: timeText(for: todayRecord?.endTime),
-            weeklyTotalText: weeklyTotalText,
-            monthlyTotalText: monthlyTotalText
+            weeklyTotalText: weeklyTotalText ?? copy.totalPlaceholderText,
+            monthlyTotalText: monthlyTotalText ?? copy.totalPlaceholderText
         )
     }
 
     private func checkedInSummaryText(for record: AttendanceRecord?) -> String {
         guard let startTime = record?.startTime else {
-            return MainPopoverViewState.placeholder.checkedInSummaryText
+            return copy.checkedInSummaryPlaceholder
         }
 
-        return "Checked in at \(timeFormatter.string(from: startTime))"
+        return copy.checkedInSummaryText(for: timeFormatter.string(from: startTime))
     }
 
     private func timeText(for date: Date?) -> String {
         guard let date else {
-            return MainPopoverViewState.placeholder.startTimeText
+            return copy.timePlaceholderText
         }
 
         return timeFormatter.string(from: date)

@@ -4,10 +4,7 @@ import Testing
 
 @Suite("MainPopoverCurrentSessionProgressPolicy")
 struct MainPopoverCurrentSessionProgressPolicyTests {
-    private let policy = MainPopoverCurrentSessionProgressPolicy(
-        goalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
-        maximumVisibleFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
-    )
+    private let policy = MainPopoverCurrentSessionProgressPolicy()
 
     @Test
     func returnsZeroForMissingDuration() {
@@ -16,6 +13,6 @@ struct MainPopoverCurrentSessionProgressPolicyTests {
 
     @Test
     func clampsOverGoalDurationToConfiguredVisibleFraction() {
-        #expect(policy.fraction(for: 9.5 * 60 * 60) == 0.94)
+        #expect(policy.fraction(for: 9.5 * 60 * 60) == MainPopoverCurrentSessionProgressPolicy.defaultMaximumVisibleFraction)
     }
 }
