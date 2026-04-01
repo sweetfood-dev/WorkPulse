@@ -120,5 +120,5 @@ message = "UserDefaults must stay behind a repo adapter or runtime composition r
 [[content_rules]]
 id = "direct-time-context-outside-runtime"
 layers = ["domain", "repo", "service", "ui"]
-pattern = "\\bDate\\(\\)|\\bCalendar\\.current\\b|\\bTimeZone\\.current\\b|\\bLocale\\.current\\b"
+pattern = "\\bDate\\(\\)|\\bDate\\.init\\b|\\bCalendar\\.current\\b|\\bTimeZone\\.current\\b|\\bLocale\\.current\\b"
 message = "Use injected date/calendar/timezone/locale dependencies instead of direct current context access."
