@@ -168,6 +168,7 @@ struct MainPopoverViewControllerTests {
         )
         let scheduler = FakeRepeatingScheduler()
         let controller = MainPopoverViewController(
+            currentSessionCalculator: makeSeoulCurrentSessionCalculator(),
             currentTimeProvider: {
                 ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
                 ?? Date(timeIntervalSince1970: 0)
@@ -178,7 +179,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
+        #expect(controller.currentSessionValueLabel.stringValue == "08:30:00")
         #expect(scheduler.scheduleCallCount == 0)
     }
 
@@ -454,4 +455,17 @@ struct MainPopoverViewStateFactoryTests {
         calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
         return calendar
     }
+}
+
+private func makeSeoulCurrentSessionCalculator() -> CurrentSessionCalculator {
+    CurrentSessionCalculator(
+        workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+    )
+}
+
+private func makeSeoulCalendar() -> Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.locale = Locale(identifier: "en_US_POSIX")
+    calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+    return calendar
 }

@@ -38,6 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let popoverViewController = MainPopoverViewController(
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(
+                    calendar: runtimeDependencies.calendar
+                )
+            ),
             currentTimeProvider: runtimeDependencies.currentDateProvider,
             currentSessionScheduler: runtimeDependencies.currentSessionScheduler
         )
@@ -116,6 +121,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 calendar: runtimeDependencies.calendar,
                 locale: runtimeDependencies.locale,
                 timeZone: runtimeDependencies.timeZone
+            ),
+            totalsCalculator: AttendanceRecordTotalsCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(
+                    calendar: runtimeDependencies.calendar
+                )
             ),
             calendar: runtimeDependencies.calendar
         ).load(referenceDate: referenceDate)

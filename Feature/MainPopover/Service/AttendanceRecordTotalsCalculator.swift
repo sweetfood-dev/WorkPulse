@@ -1,6 +1,12 @@
 import Foundation
 
 struct AttendanceRecordTotalsCalculator {
+    private let workedDurationCalculator: WorkedDurationCalculator
+
+    init(workedDurationCalculator: WorkedDurationCalculator = WorkedDurationCalculator()) {
+        self.workedDurationCalculator = workedDurationCalculator
+    }
+
     func weeklyTotal(
         records: [AttendanceRecord],
         referenceDate: Date,
@@ -38,12 +44,10 @@ struct AttendanceRecordTotalsCalculator {
                 return partialResult
             }
 
-            guard let startTime = record.startTime, let endTime = record.endTime else {
-                return partialResult
-            }
-
-            let duration = endTime.timeIntervalSince(startTime)
-            guard duration >= 0 else {
+            guard let duration = workedDurationCalculator.workedDuration(
+                startTime: record.startTime,
+                endTime: record.endTime
+            ) else {
                 return partialResult
             }
 
