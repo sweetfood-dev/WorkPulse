@@ -10,19 +10,19 @@ struct MenuBarShellControllerTests {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let popover = FakePopoverController()
         let contentViewController = NSViewController()
-        var controller: MenuBarShellController? = MenuBarShellController(
-            statusItem: statusItem,
-            popover: popover,
-            popoverViewController: contentViewController
-        )
-
-        defer { controller = nil }
-
-        let button = try #require(statusItem.button)
-        #expect(button.title == "WP")
-        #expect(popover.contentViewController === contentViewController)
-        #expect(popover.behavior == .transient)
-        #expect(popover.animates)
+        withExtendedLifetime(
+            MenuBarShellController(
+                statusItem: statusItem,
+                popover: popover,
+                popoverViewController: contentViewController
+            )
+        ) {
+            let button = try! #require(statusItem.button)
+            #expect(button.title == "WP")
+            #expect(popover.contentViewController === contentViewController)
+            #expect(popover.behavior == .transient)
+            #expect(popover.animates)
+        }
     }
 
     @Test
@@ -30,28 +30,28 @@ struct MenuBarShellControllerTests {
     func clickingStatusItemTogglesPopoverOpenAndClosed() throws {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let popover = FakePopoverController()
-        var controller: MenuBarShellController? = MenuBarShellController(
-            statusItem: statusItem,
-            popover: popover,
-            popoverViewController: NSViewController()
-        )
+        withExtendedLifetime(
+            MenuBarShellController(
+                statusItem: statusItem,
+                popover: popover,
+                popoverViewController: NSViewController()
+            )
+        ) {
+            let button = try! #require(statusItem.button)
 
-        defer { controller = nil }
+            button.performClick(nil)
 
-        let button = try #require(statusItem.button)
+            #expect(popover.showCallCount == 1)
+            #expect(popover.isShown)
+            #expect(popover.lastShownView === button)
+            #expect(popover.lastShownRect == button.bounds)
+            #expect(popover.lastPreferredEdge == .minY)
 
-        button.performClick(nil)
+            button.performClick(nil)
 
-        #expect(popover.showCallCount == 1)
-        #expect(popover.isShown)
-        #expect(popover.lastShownView === button)
-        #expect(popover.lastShownRect == button.bounds)
-        #expect(popover.lastPreferredEdge == .minY)
-
-        button.performClick(nil)
-
-        #expect(popover.closeCallCount == 1)
-        #expect(!popover.isShown)
+            #expect(popover.closeCallCount == 1)
+            #expect(!popover.isShown)
+        }
     }
 
     @Test

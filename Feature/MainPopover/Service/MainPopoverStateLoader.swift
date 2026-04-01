@@ -10,17 +10,20 @@ struct MainPopoverStateLoader {
     private let viewStateFactory: MainPopoverViewStateFactory
     private let totalsCalculator: AttendanceRecordTotalsCalculator
     private let calendar: Calendar
+    private let copy: MainPopoverCopy
 
     init(
         recordStore: any AttendanceRecordQuerying,
-        viewStateFactory: MainPopoverViewStateFactory = MainPopoverViewStateFactory(),
+        viewStateFactory: MainPopoverViewStateFactory? = nil,
         totalsCalculator: AttendanceRecordTotalsCalculator = AttendanceRecordTotalsCalculator(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        copy: MainPopoverCopy = .english
     ) {
         self.recordStore = recordStore
-        self.viewStateFactory = viewStateFactory
         self.totalsCalculator = totalsCalculator
         self.calendar = calendar
+        self.copy = copy
+        self.viewStateFactory = viewStateFactory ?? MainPopoverViewStateFactory(copy: copy)
     }
 
     func load(referenceDate: Date) -> LoadedMainPopoverState {
@@ -63,7 +66,7 @@ struct MainPopoverStateLoader {
 
     private func format(_ duration: TimeInterval) -> String {
         guard duration > 0 else {
-            return MainPopoverViewState.placeholder.weeklyTotalText
+            return copy.totalPlaceholderText
         }
 
         let totalMinutes = Int(duration) / 60
