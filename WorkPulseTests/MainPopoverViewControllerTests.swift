@@ -332,6 +332,40 @@ struct MainPopoverTodayTimesBinderTests {
 
     @Test
     @MainActor
+    func deletingSavedEndTimeEmitsNilEndTimeAndReturnsToReadOnlyMode() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let originalEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let (binder, section) = makeBinderAndSection()
+        var appliedTimes: MainPopoverAppliedTodayTimes?
+
+        binder.onDidApplyTimes = { applied in
+            appliedTimes = applied
+        }
+        binder.loadSavedTimes(startTime: startTime, endTime: originalEndTime)
+        binder.beginEditing(.endTime)
+        binder.deleteEndTime()
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: startTime
+            )
+        )
+        let snapshot = section.snapshot
+
+        #expect(appliedTimes?.startTime == startTime)
+        #expect(appliedTimes?.endTime == nil)
+        #expect(snapshot.endRow.valueText == "--:--")
+        #expect(snapshot.endRow.isValueVisible)
+        #expect(snapshot.endRow.isPickerVisible == false)
+        #expect(snapshot.isEndDeleteVisible == false)
+    }
+
+    @Test
+    @MainActor
     func applyingEndTimeEarlierThanStartTimeDoesNotEmitInvalidTimes() throws {
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
@@ -501,6 +535,7 @@ struct MainPopoverViewStateFactoryTests {
             currentSessionLeadingCaption: "0H",
             startTimeTitle: "In",
             endTimeTitle: "Out",
+            deleteActionTitle: "Delete",
             weeklyTitle: "Week",
             monthlyTitle: "Month",
             currentSessionGoalLabelPrefix: "Goal:"

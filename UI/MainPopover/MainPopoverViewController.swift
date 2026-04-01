@@ -160,6 +160,10 @@ final class MainPopoverViewController: NSViewController {
         todayTimesBinder.applyEditing()
     }
 
+    func deleteEndTime() {
+        todayTimesBinder.deleteEndTime()
+    }
+
     func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
         let currentDraft = todayTimesSectionView.currentDraft()
         let updatedDraft: MainPopoverTodayTimesDraft

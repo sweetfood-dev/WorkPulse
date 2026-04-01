@@ -34,6 +34,7 @@ struct MainPopoverRenderModelFactoryTests {
             showsEditingActions: false,
             showsStartActions: false,
             showsEndActions: false,
+            showsEndDeleteAction: false,
             isApplyEnabled: false
         )
 
@@ -62,6 +63,7 @@ struct MainPopoverRenderModelFactoryTests {
                 currentSessionLeadingCaption: "START",
                 startTimeTitle: "In",
                 endTimeTitle: "Out",
+                deleteActionTitle: "Delete",
                 weeklyTitle: "Week",
                 monthlyTitle: "Month",
                 currentSessionGoalLabelPrefix: "Target"
@@ -95,6 +97,7 @@ struct MainPopoverRenderModelFactoryTests {
                 showsEditingActions: false,
                 showsStartActions: false,
                 showsEndActions: false,
+                showsEndDeleteAction: false,
                 isApplyEnabled: false
             )
         )

@@ -10,6 +10,7 @@ struct MainPopoverCopy {
     let currentSessionLeadingCaption: String
     let startTimeTitle: String
     let endTimeTitle: String
+    let deleteActionTitle: String
     let weeklyTitle: String
     let monthlyTitle: String
     let currentSessionGoalLabelPrefix: String
@@ -24,6 +25,7 @@ struct MainPopoverCopy {
         currentSessionLeadingCaption: "0H",
         startTimeTitle: "Start Time",
         endTimeTitle: "End Time",
+        deleteActionTitle: "Delete",
         weeklyTitle: "This Week",
         monthlyTitle: "This Month",
         currentSessionGoalLabelPrefix: "Goal:"
