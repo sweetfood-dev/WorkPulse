@@ -1,17 +1,30 @@
 import AppKit
 
+struct MainPopoverCurrentSessionSectionSnapshot {
+    let titleText: String
+    let valueText: String
+    let leadingCaptionText: String
+    let trailingCaptionText: String
+    let progressFraction: CGFloat
+    let trackBorderWidth: CGFloat
+    let isTitleIconLeading: Bool
+    let valueFontPointSize: CGFloat
+    let captionFontPointSize: CGFloat
+    let captionRowItemCount: Int
+}
+
 final class MainPopoverCurrentSessionSectionView: NSView {
-    let titleLabel = NSTextField(labelWithString: "")
-    let valueLabel = NSTextField(labelWithString: "")
-    let progressBar = CurrentSessionProgressBarView()
-    let leadingCaptionLabel = NSTextField(labelWithString: "")
-    let trailingCaptionLabel = NSTextField(labelWithString: "")
-    let titleIconView = MainPopoverSectionIconFactory.makeTintedSymbolImageView(
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let valueLabel = NSTextField(labelWithString: "")
+    private let progressBar = CurrentSessionProgressBarView()
+    private let leadingCaptionLabel = NSTextField(labelWithString: "")
+    private let trailingCaptionLabel = NSTextField(labelWithString: "")
+    private let titleIconView = MainPopoverSectionIconFactory.makeTintedSymbolImageView(
         systemName: "hourglass",
         color: MainPopoverStyle.Colors.currentSessionValue
     )
-    let titleRow = NSStackView()
-    let captionRow = NSStackView()
+    private let titleRow = NSStackView()
+    private let captionRow = NSStackView()
 
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.currentSessionInsets
@@ -36,6 +49,21 @@ final class MainPopoverCurrentSessionSectionView: NSView {
         leadingCaptionLabel.stringValue = renderModel.leadingCaptionText
         trailingCaptionLabel.stringValue = renderModel.trailingCaptionText
         progressBar.progressFraction = renderModel.progressFraction
+    }
+
+    var snapshot: MainPopoverCurrentSessionSectionSnapshot {
+        MainPopoverCurrentSessionSectionSnapshot(
+            titleText: titleLabel.stringValue,
+            valueText: valueLabel.stringValue,
+            leadingCaptionText: leadingCaptionLabel.stringValue,
+            trailingCaptionText: trailingCaptionLabel.stringValue,
+            progressFraction: progressBar.progressFraction,
+            trackBorderWidth: progressBar.trackBorderWidth,
+            isTitleIconLeading: titleRow.arrangedSubviews.first === titleIconView,
+            valueFontPointSize: valueLabel.font?.pointSize ?? 0,
+            captionFontPointSize: leadingCaptionLabel.font?.pointSize ?? 0,
+            captionRowItemCount: captionRow.arrangedSubviews.count
+        )
     }
 
     private func configure() {

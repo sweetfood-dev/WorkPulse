@@ -106,6 +106,18 @@ struct MainPopoverViewStateFactory {
         self.timeFormatter = timeFormatter
     }
 
+    func makePlaceholder() -> MainPopoverViewState {
+        MainPopoverViewState(
+            dateText: copy.placeholderDateText,
+            checkedInSummaryText: copy.checkedInSummaryPlaceholder,
+            currentSessionText: copy.currentSessionPlaceholderText,
+            startTimeText: copy.timePlaceholderText,
+            endTimeText: copy.timePlaceholderText,
+            weeklyTotalText: copy.totalPlaceholderText,
+            monthlyTotalText: copy.totalPlaceholderText
+        )
+    }
+
     func make(
         referenceDate: Date,
         todayRecord: AttendanceRecord?,

@@ -494,18 +494,19 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
         controller.beginEditingEndTime()
-        controller.todayTimesSectionView.endRowView.picker.dateValue = endTime
+        controller.setPickerDate(endTime, for: .endTime)
         controller.applyEditingTime()
+        let snapshot = controller.snapshot
 
         let persistedTodayRecord = try #require(
             store.loadRecords().last(where: { Calendar.current.isDate($0.date, inSameDayAs: referenceDate) })
         )
         #expect(persistedTodayRecord.startTime == startTime)
         #expect(persistedTodayRecord.endTime == endTime)
-        #expect(controller.todayTimesSectionView.endRowView.valueLabel.stringValue == "18:30")
-        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "09:30:00")
-        #expect(controller.summarySectionView.weeklyValueLabel.stringValue == "17:30")
-        #expect(controller.summarySectionView.monthlyValueLabel.stringValue == "17:30")
+        #expect(snapshot.todayTimes.endRow.valueText == "18:30")
+        #expect(snapshot.currentSession.valueText == "09:30:00")
+        #expect(snapshot.summary.weeklyValueText == "17:30")
+        #expect(snapshot.summary.monthlyValueText == "17:30")
     }
 
     @Test
@@ -532,7 +533,7 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
 
-        #expect(controller.headerSectionView.dateLabel.stringValue == "Wednesday, Apr 1")
+        #expect(controller.snapshot.header.dateText == "Wednesday, Apr 1")
     }
 
     @Test
@@ -576,7 +577,7 @@ struct AppDelegateTests {
         appDelegate.configurePopoverViewController(controller, referenceDate: displayedReferenceDate)
         currentDate = currentClockDate
         controller.beginEditingEndTime()
-        controller.todayTimesSectionView.endRowView.picker.dateValue = endTime
+        controller.setPickerDate(endTime, for: .endTime)
         controller.applyEditingTime()
 
         let currentDayRecord = try #require(
@@ -586,7 +587,7 @@ struct AppDelegateTests {
         )
         #expect(currentDayRecord.startTime == startTime)
         #expect(currentDayRecord.endTime == endTime)
-        #expect(controller.headerSectionView.dateLabel.stringValue == "Wednesday, Apr 1")
+        #expect(controller.snapshot.header.dateText == "Wednesday, Apr 1")
         #expect(
             store.loadRecords().contains(where: {
                 Self.seoulCalendar.isDate($0.date, inSameDayAs: displayedReferenceDate) &&
@@ -635,15 +636,16 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: displayedReferenceDate)
         controller.beginEditingEndTime()
-        controller.todayTimesSectionView.endRowView.picker.dateValue = staleDraftEndTime
+        controller.setPickerDate(staleDraftEndTime, for: .endTime)
 
         currentDate = currentClockDate
         appDelegate.handlePopoverWillOpen()
+        let snapshot = controller.snapshot
 
-        #expect(controller.todayTimesSectionView.endTimeApplyButton.isHidden)
-        #expect(controller.todayTimesSectionView.endTimeCancelButton.isHidden)
-        #expect(controller.headerSectionView.dateLabel.stringValue == "Wednesday, Apr 1")
-        #expect(controller.todayTimesSectionView.endRowView.valueLabel.stringValue == "--:--")
+        #expect(snapshot.todayTimes.isEndApplyVisible == false)
+        #expect(snapshot.todayTimes.isEndCancelVisible == false)
+        #expect(snapshot.header.dateText == "Wednesday, Apr 1")
+        #expect(snapshot.todayTimes.endRow.valueText == "--:--")
 
         controller.applyEditingTime()
 
@@ -691,13 +693,13 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
 
-        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "01:00:00")
+        #expect(controller.snapshot.currentSession.valueText == "01:00:00")
 
         controller.stopCurrentSessionUpdates()
         currentDate = laterDate
         appDelegate.handlePopoverWillOpen()
 
-        #expect(controller.currentSessionSectionView.valueLabel.stringValue == "01:05:00")
+        #expect(controller.snapshot.currentSession.valueText == "01:05:00")
     }
 
     private static var seoulCalendar: Calendar {

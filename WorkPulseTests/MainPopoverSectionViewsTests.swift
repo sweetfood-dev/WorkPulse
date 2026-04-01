@@ -11,8 +11,7 @@ struct MainPopoverSectionViewsTests {
 
         section.layoutSubtreeIfNeeded()
 
-        #expect(section.backgroundView.frame.minX == section.bounds.minX)
-        #expect(section.backgroundView.frame.maxX == section.bounds.maxX)
+        #expect(section.snapshot.isBackgroundFullWidth)
     }
 
     @Test
@@ -41,9 +40,45 @@ struct MainPopoverSectionViewsTests {
         )
 
         section.apply(renderModel)
+        let snapshot = section.snapshot
 
-        #expect(section.editingActionRow.isDescendant(of: section.startRowView.valuePillView) == false)
-        #expect(section.editingActionRow.isDescendant(of: section.endRowView.valuePillView) == false)
+        #expect(snapshot.areEditingActionsOutsideValuePills)
+    }
+
+    @Test
+    @MainActor
+    func todayTimesSectionAppliesReadOnlyValueTexts() {
+        let section = MainPopoverTodayTimesSectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 146))
+        let renderModel = MainPopoverTodayTimesRenderModel(
+            startRow: MainPopoverTimeRowRenderModel(
+                titleText: "Start Time",
+                valueText: "08:45",
+                isValueVisible: true,
+                isPickerVisible: false,
+                pickerDateValue: Date(timeIntervalSince1970: 0)
+            ),
+            endRow: MainPopoverTimeRowRenderModel(
+                titleText: "End Time",
+                valueText: "--:--",
+                isValueVisible: true,
+                isPickerVisible: false,
+                pickerDateValue: Date(timeIntervalSince1970: 0)
+            ),
+            showsEditingActions: false,
+            showsStartActions: false,
+            showsEndActions: false,
+            isApplyEnabled: false
+        )
+
+        section.apply(renderModel)
+        let snapshot = section.snapshot
+
+        #expect(snapshot.startRow.titleText == "Start Time")
+        #expect(snapshot.startRow.valueText == "08:45")
+        #expect(snapshot.startRow.isValueVisible)
+        #expect(snapshot.endRow.titleText == "End Time")
+        #expect(snapshot.endRow.valueText == "--:--")
+        #expect(snapshot.endRow.isValueVisible)
     }
 
     @Test
@@ -57,14 +92,16 @@ struct MainPopoverSectionViewsTests {
 
         section.apply(renderModel)
         section.layoutSubtreeIfNeeded()
+        let snapshot = section.snapshot
 
-        #expect(section.columnsRow.arrangedSubviews.count == 3)
-        #expect(section.columnsRow.arrangedSubviews[0] === section.weeklyColumn)
-        #expect(section.columnsRow.arrangedSubviews[2] === section.monthlyColumn)
-        #expect(section.weeklyColumn.alignment == .leading)
-        #expect(section.monthlyColumn.alignment == .trailing)
-        #expect(section.monthlyTitleLabel.alignment == .right)
-        #expect(section.monthlyValueLabel.alignment == .right)
+        #expect(snapshot.arrangedSubviewCount == 3)
+        #expect(snapshot.isWeeklyColumnLeadingAligned)
+        #expect(snapshot.isMonthlyColumnTrailingAligned)
+        #expect(snapshot.isMonthlyTextRightAligned)
+        #expect(snapshot.weeklyTitleText == "This Week")
+        #expect(snapshot.weeklyValueText == "132:59")
+        #expect(snapshot.monthlyTitleText == "This Month")
+        #expect(snapshot.monthlyValueText == "9:05")
     }
 
     @Test
@@ -87,11 +124,14 @@ struct MainPopoverSectionViewsTests {
                 checkedInSummaryText: "Checked in at 08:45"
             )
         )
+        let snapshot = section.snapshot
 
-        #expect(section.dateRow.arrangedSubviews.first === section.dateIconView)
-        #expect(section.dateRow.arrangedSubviews.last === section.settingsIconView)
-        #expect(section.checkInRow.arrangedSubviews.first === section.checkInIconView)
-        #expect(section.dateLabel.font?.pointSize ?? 0 > section.checkedInSummaryLabel.font?.pointSize ?? 0)
+        #expect(snapshot.dateText == "Wednesday, Apr 1")
+        #expect(snapshot.checkedInSummaryText == "Checked in at 08:45")
+        #expect(snapshot.isDateIconLeading)
+        #expect(snapshot.isSettingsIconTrailing)
+        #expect(snapshot.isCheckInIconLeading)
+        #expect(snapshot.dateFontPointSize > snapshot.checkedInSummaryFontPointSize)
     }
 
     @Test
@@ -107,11 +147,15 @@ struct MainPopoverSectionViewsTests {
                 progressFraction: 0.18
             )
         )
+        let snapshot = section.snapshot
 
-        #expect(section.titleRow.arrangedSubviews.first === section.titleIconView)
-        #expect(section.titleRow.arrangedSubviews[1] === section.titleLabel)
-        #expect(section.valueLabel.font?.pointSize ?? 0 > section.leadingCaptionLabel.font?.pointSize ?? 0)
-        #expect(section.captionRow.arrangedSubviews.count == 3)
+        #expect(snapshot.titleText == "CURRENT SESSION")
+        #expect(snapshot.valueText == "01:26:18")
+        #expect(snapshot.leadingCaptionText == "0H")
+        #expect(snapshot.trailingCaptionText == "Goal: 8h")
+        #expect(snapshot.isTitleIconLeading)
+        #expect(snapshot.valueFontPointSize > snapshot.captionFontPointSize)
+        #expect(snapshot.captionRowItemCount == 3)
     }
 
     @Test

@@ -8,11 +8,12 @@ struct MainPopoverRenderModelFactoryTests {
     private let factory = MainPopoverRenderModelFactory(
         progressPolicy: MainPopoverCurrentSessionProgressPolicy()
     )
+    private let placeholderState = MainPopoverViewStateFactory(copy: .english).makePlaceholder()
 
     @Test
     func usesZeroProgressForPlaceholderSession() {
         let renderModel = factory.make(
-            viewState: .placeholder,
+            viewState: placeholderState,
             currentSessionText: MainPopoverCopy.english.currentSessionPlaceholderText,
             currentSessionDuration: nil,
             editModeState: TodayTimeEditModeState(),
@@ -27,7 +28,7 @@ struct MainPopoverRenderModelFactoryTests {
     @Test
     func clampsOverGoalProgressToVisibleTrackMaximum() {
         let renderModel = factory.make(
-            viewState: .placeholder,
+            viewState: placeholderState,
             currentSessionText: "09:30:00",
             currentSessionDuration: 9.5 * 60 * 60,
             editModeState: TodayTimeEditModeState(),
@@ -46,7 +47,7 @@ struct MainPopoverRenderModelFactoryTests {
         editModeState.beginEditing(.startTime)
 
         let renderModel = factory.make(
-            viewState: .placeholder,
+            viewState: placeholderState,
             currentSessionText: "00:00:00",
             currentSessionDuration: 0,
             editModeState: editModeState,
@@ -72,7 +73,7 @@ struct MainPopoverRenderModelFactoryTests {
         editModeState.updateDraftEndTime(Date(timeIntervalSince1970: 100))
 
         let renderModel = factory.make(
-            viewState: .placeholder,
+            viewState: placeholderState,
             currentSessionText: "00:00:00",
             currentSessionDuration: 0,
             editModeState: editModeState,
@@ -103,7 +104,7 @@ struct MainPopoverRenderModelFactoryTests {
         )
 
         let renderModel = factory.make(
-            viewState: .placeholder,
+            viewState: placeholderState,
             currentSessionText: "00:00:00",
             currentSessionDuration: 0,
             editModeState: TodayTimeEditModeState(),
@@ -117,32 +118,5 @@ struct MainPopoverRenderModelFactoryTests {
         #expect(renderModel.todayTimes.endRow.titleText == "Out")
         #expect(renderModel.summary.weekly.titleText == "Week")
         #expect(renderModel.summary.monthly.titleText == "Month")
-    }
-
-    @Test
-    func placeholderCopyCentralizesDefaultText() {
-        let copy = MainPopoverCopy(
-            placeholderDateText: "Placeholder Day",
-            checkedInSummaryPrefix: "Arrived",
-            currentSessionPlaceholderText: "00:00:00",
-            timePlaceholderText: "--.--",
-            totalPlaceholderText: "n/a",
-            currentSessionTitle: "SESSION",
-            currentSessionLeadingCaption: "0H",
-            startTimeTitle: "In",
-            endTimeTitle: "Out",
-            weeklyTitle: "Week",
-            monthlyTitle: "Month",
-            currentSessionGoalLabelPrefix: "Goal:"
-        )
-        let state = MainPopoverViewState.placeholder(copy: copy)
-
-        #expect(state.dateText == "Placeholder Day")
-        #expect(state.checkedInSummaryText == "Arrived --.--")
-        #expect(state.currentSessionText == "00:00:00")
-        #expect(state.startTimeText == "--.--")
-        #expect(state.endTimeText == "--.--")
-        #expect(state.weeklyTotalText == "n/a")
-        #expect(state.monthlyTotalText == "n/a")
     }
 }

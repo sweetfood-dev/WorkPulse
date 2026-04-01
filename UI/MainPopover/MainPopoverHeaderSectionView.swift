@@ -1,16 +1,26 @@
 import AppKit
 
+struct MainPopoverHeaderSectionSnapshot {
+    let dateText: String
+    let checkedInSummaryText: String
+    let isDateIconLeading: Bool
+    let isSettingsIconTrailing: Bool
+    let isCheckInIconLeading: Bool
+    let dateFontPointSize: CGFloat
+    let checkedInSummaryFontPointSize: CGFloat
+}
+
 final class MainPopoverHeaderSectionView: NSView {
-    let dateLabel = NSTextField(labelWithString: "")
-    let checkedInSummaryLabel = NSTextField(labelWithString: "")
-    let dateIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar")
-    let settingsIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "gearshape")
-    let checkInIconView = MainPopoverSectionIconFactory.makeTintedSymbolImageView(
+    private let dateLabel = NSTextField(labelWithString: "")
+    private let checkedInSummaryLabel = NSTextField(labelWithString: "")
+    private let dateIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar")
+    private let settingsIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "gearshape")
+    private let checkInIconView = MainPopoverSectionIconFactory.makeTintedSymbolImageView(
         systemName: "arrow.right.to.line",
         color: MainPopoverStyle.Colors.checkInAccent
     )
-    let dateRow = NSStackView()
-    let checkInRow = NSStackView()
+    private let dateRow = NSStackView()
+    private let checkInRow = NSStackView()
 
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.headerInsets
@@ -29,6 +39,18 @@ final class MainPopoverHeaderSectionView: NSView {
     func apply(_ renderModel: MainPopoverHeaderRenderModel) {
         dateLabel.stringValue = renderModel.dateText
         checkedInSummaryLabel.stringValue = renderModel.checkedInSummaryText
+    }
+
+    var snapshot: MainPopoverHeaderSectionSnapshot {
+        MainPopoverHeaderSectionSnapshot(
+            dateText: dateLabel.stringValue,
+            checkedInSummaryText: checkedInSummaryLabel.stringValue,
+            isDateIconLeading: dateRow.arrangedSubviews.first === dateIconView,
+            isSettingsIconTrailing: dateRow.arrangedSubviews.last === settingsIconView,
+            isCheckInIconLeading: checkInRow.arrangedSubviews.first === checkInIconView,
+            dateFontPointSize: dateLabel.font?.pointSize ?? 0,
+            checkedInSummaryFontPointSize: checkedInSummaryLabel.font?.pointSize ?? 0
+        )
     }
 
     private func configure() {

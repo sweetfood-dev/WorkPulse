@@ -1,10 +1,18 @@
 import AppKit
 
+struct MainPopoverTimeRowSnapshot {
+    let titleText: String
+    let valueText: String
+    let isValueVisible: Bool
+    let isPickerVisible: Bool
+    let pickerDateValue: Date
+}
+
 final class MainPopoverTimeRowView: NSView {
-    let titleLabel = NSTextField(labelWithString: "")
-    let valuePillView = NSView()
-    let valueLabel = NSTextField(labelWithString: "")
-    let picker = NSDatePicker()
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let valuePillView = NSView()
+    private let valueLabel = NSTextField(labelWithString: "")
+    private let picker = NSDatePicker()
 
     init(iconSystemName: String) {
         super.init(frame: .zero)
@@ -22,6 +30,28 @@ final class MainPopoverTimeRowView: NSView {
         valueLabel.isHidden = !renderModel.isValueVisible
         picker.isHidden = !renderModel.isPickerVisible
         picker.dateValue = renderModel.pickerDateValue
+    }
+
+    func setPickerDate(_ date: Date) {
+        picker.dateValue = date
+    }
+
+    var pickerDateValue: Date {
+        picker.dateValue
+    }
+
+    var snapshot: MainPopoverTimeRowSnapshot {
+        MainPopoverTimeRowSnapshot(
+            titleText: titleLabel.stringValue,
+            valueText: valueLabel.stringValue,
+            isValueVisible: valueLabel.isHidden == false,
+            isPickerVisible: picker.isHidden == false,
+            pickerDateValue: picker.dateValue
+        )
+    }
+
+    func containsDescendant(_ view: NSView) -> Bool {
+        view.isDescendant(of: valuePillView)
     }
 
     private func configure(iconSystemName: String) {
@@ -88,27 +118,40 @@ final class MainPopoverTimeRowView: NSView {
     }
 }
 
+struct MainPopoverTodayTimesSectionSnapshot {
+    let startRow: MainPopoverTimeRowSnapshot
+    let endRow: MainPopoverTimeRowSnapshot
+    let isStartApplyVisible: Bool
+    let isStartCancelVisible: Bool
+    let isEndApplyVisible: Bool
+    let isEndCancelVisible: Bool
+    let isApplyEnabled: Bool
+    let isBackgroundFullWidth: Bool
+    let areEditingActionsOutsideValuePills: Bool
+}
+
+enum MainPopoverTodayTimesSectionEvent {
+    case beginEditing(TodayTimeField)
+    case applyEditing
+    case cancelEditing
+}
+
 final class MainPopoverTodayTimesSectionView: NSView {
-    let startRowView = MainPopoverTimeRowView(iconSystemName: "arrow.right.to.line")
-    let endRowView = MainPopoverTimeRowView(iconSystemName: "rectangle.portrait.and.arrow.right")
-    let startTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
-    let startTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
-    let endTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
-    let endTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private let startRowView = MainPopoverTimeRowView(iconSystemName: "arrow.right.to.line")
+    private let endRowView = MainPopoverTimeRowView(iconSystemName: "rectangle.portrait.and.arrow.right")
+    private let startTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
+    private let startTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private let endTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
+    private let endTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
 
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.todayTimesInsets,
         backgroundColor: MainPopoverStyle.Colors.todayTimesBackground,
         shadow: true
     )
-    let editingActionRow = NSStackView()
+    private let editingActionRow = NSStackView()
 
-    var backgroundView: NSView {
-        guard let backgroundView = container.backgroundView else {
-            fatalError("Today times section requires a background view")
-        }
-        return backgroundView
-    }
+    var onEvent: ((MainPopoverTodayTimesSectionEvent) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -133,6 +176,37 @@ final class MainPopoverTodayTimesSectionView: NSView {
         endTimeApplyButton.isEnabled = renderModel.isApplyEnabled
     }
 
+    func setPickerDate(_ date: Date, for field: TodayTimeField) {
+        rowView(for: field).setPickerDate(date)
+    }
+
+    func pickerDate(for field: TodayTimeField) -> Date {
+        rowView(for: field).pickerDateValue
+    }
+
+    var snapshot: MainPopoverTodayTimesSectionSnapshot {
+        let backgroundView = container.backgroundView
+        return MainPopoverTodayTimesSectionSnapshot(
+            startRow: startRowView.snapshot,
+            endRow: endRowView.snapshot,
+            isStartApplyVisible: startTimeApplyButton.isHidden == false,
+            isStartCancelVisible: startTimeCancelButton.isHidden == false,
+            isEndApplyVisible: endTimeApplyButton.isHidden == false,
+            isEndCancelVisible: endTimeCancelButton.isHidden == false,
+            isApplyEnabled: (
+                startTimeApplyButton.isHidden == false && startTimeApplyButton.isEnabled
+            ) || (
+                endTimeApplyButton.isHidden == false && endTimeApplyButton.isEnabled
+            ),
+            isBackgroundFullWidth: backgroundView.map {
+                $0.frame.minX == bounds.minX && $0.frame.maxX == bounds.maxX
+            } ?? false,
+            areEditingActionsOutsideValuePills:
+                startRowView.containsDescendant(editingActionRow) == false &&
+                endRowView.containsDescendant(editingActionRow) == false
+        )
+    }
+
     private func configure() {
         translatesAutoresizingMaskIntoConstraints = false
         addSubview(container)
@@ -142,7 +216,12 @@ final class MainPopoverTodayTimesSectionView: NSView {
         [startTimeApplyButton, startTimeCancelButton, endTimeApplyButton, endTimeCancelButton].forEach { button in
             button.bezelStyle = .rounded
             button.controlSize = .small
+            button.target = self
         }
+        startTimeApplyButton.action = #selector(handleApplyEditing)
+        endTimeApplyButton.action = #selector(handleApplyEditing)
+        startTimeCancelButton.action = #selector(handleCancelEditing)
+        endTimeCancelButton.action = #selector(handleCancelEditing)
 
         editingActionRow.orientation = .horizontal
         editingActionRow.alignment = .centerY
@@ -158,11 +237,46 @@ final class MainPopoverTodayTimesSectionView: NSView {
         container.contentStack.addArrangedSubview(endRowView)
         container.contentStack.addArrangedSubview(editingActionRow)
 
+        let startTapRecognizer = NSClickGestureRecognizer(target: self, action: #selector(handleStartRowTap))
+        startRowView.addGestureRecognizer(startTapRecognizer)
+
+        let endTapRecognizer = NSClickGestureRecognizer(target: self, action: #selector(handleEndRowTap))
+        endRowView.addGestureRecognizer(endTapRecognizer)
+
         NSLayoutConstraint.activate([
             container.topAnchor.constraint(equalTo: topAnchor),
             container.leadingAnchor.constraint(equalTo: leadingAnchor),
             container.trailingAnchor.constraint(equalTo: trailingAnchor),
             container.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+    }
+
+    @objc
+    private func handleStartRowTap() {
+        onEvent?(.beginEditing(.startTime))
+    }
+
+    @objc
+    private func handleEndRowTap() {
+        onEvent?(.beginEditing(.endTime))
+    }
+
+    @objc
+    private func handleApplyEditing() {
+        onEvent?(.applyEditing)
+    }
+
+    @objc
+    private func handleCancelEditing() {
+        onEvent?(.cancelEditing)
+    }
+
+    private func rowView(for field: TodayTimeField) -> MainPopoverTimeRowView {
+        switch field {
+        case .startTime:
+            return startRowView
+        case .endTime:
+            return endRowView
+        }
     }
 }

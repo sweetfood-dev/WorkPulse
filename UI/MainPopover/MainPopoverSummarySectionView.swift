@@ -1,17 +1,28 @@
 import AppKit
 
+struct MainPopoverSummarySectionSnapshot {
+    let weeklyTitleText: String
+    let weeklyValueText: String
+    let monthlyTitleText: String
+    let monthlyValueText: String
+    let arrangedSubviewCount: Int
+    let isWeeklyColumnLeadingAligned: Bool
+    let isMonthlyColumnTrailingAligned: Bool
+    let isMonthlyTextRightAligned: Bool
+}
+
 final class MainPopoverSummarySectionView: NSView {
-    let weeklyTitleLabel = NSTextField(labelWithString: "")
-    let weeklyValueLabel = NSTextField(labelWithString: "")
-    let monthlyTitleLabel = NSTextField(labelWithString: "")
-    let monthlyValueLabel = NSTextField(labelWithString: "")
-    let weeklyIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar")
-    let monthlyIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "chart.bar")
-    let weeklyTitleRow = NSStackView()
-    let monthlyTitleRow = NSStackView()
-    let weeklyColumn = NSStackView()
-    let monthlyColumn = NSStackView()
-    let columnsRow = NSStackView()
+    private let weeklyTitleLabel = NSTextField(labelWithString: "")
+    private let weeklyValueLabel = NSTextField(labelWithString: "")
+    private let monthlyTitleLabel = NSTextField(labelWithString: "")
+    private let monthlyValueLabel = NSTextField(labelWithString: "")
+    private let weeklyIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar")
+    private let monthlyIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "chart.bar")
+    private let weeklyTitleRow = NSStackView()
+    private let monthlyTitleRow = NSStackView()
+    private let weeklyColumn = NSStackView()
+    private let monthlyColumn = NSStackView()
+    private let columnsRow = NSStackView()
 
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.summaryInsets
@@ -32,6 +43,19 @@ final class MainPopoverSummarySectionView: NSView {
         weeklyValueLabel.stringValue = renderModel.weekly.valueText
         monthlyTitleLabel.stringValue = renderModel.monthly.titleText
         monthlyValueLabel.stringValue = renderModel.monthly.valueText
+    }
+
+    var snapshot: MainPopoverSummarySectionSnapshot {
+        MainPopoverSummarySectionSnapshot(
+            weeklyTitleText: weeklyTitleLabel.stringValue,
+            weeklyValueText: weeklyValueLabel.stringValue,
+            monthlyTitleText: monthlyTitleLabel.stringValue,
+            monthlyValueText: monthlyValueLabel.stringValue,
+            arrangedSubviewCount: columnsRow.arrangedSubviews.count,
+            isWeeklyColumnLeadingAligned: weeklyColumn.alignment == .leading,
+            isMonthlyColumnTrailingAligned: monthlyColumn.alignment == .trailing,
+            isMonthlyTextRightAligned: monthlyTitleLabel.alignment == .right && monthlyValueLabel.alignment == .right
+        )
     }
 
     private func configure() {
