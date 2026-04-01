@@ -8,6 +8,7 @@ final class MainPopoverCoordinator {
     private let recordStore: any AttendanceRecordStore
     private let viewStateFactory: MainPopoverViewStateFactory
     private let stateLoader: MainPopoverStateLoader
+    private let workedDurationCalculator: WorkedDurationCalculator
 
     init(
         runtimeDependencies: MainPopoverRuntimeDependencies,
@@ -15,6 +16,9 @@ final class MainPopoverCoordinator {
     ) {
         self.runtimeDependencies = runtimeDependencies
         self.recordStore = recordStore
+        self.workedDurationCalculator = WorkedDurationCalculator(
+            calendar: runtimeDependencies.calendar
+        )
         self.viewStateFactory = MainPopoverViewStateFactory(
             calendar: runtimeDependencies.calendar,
             locale: runtimeDependencies.locale,
@@ -32,6 +36,9 @@ final class MainPopoverCoordinator {
     ) -> MainPopoverViewController {
         let popoverViewController = MainPopoverViewController(
             state: viewStateFactory.makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: workedDurationCalculator
+            ),
             currentTimeProvider: runtimeDependencies.currentDateProvider,
             currentSessionScheduler: runtimeDependencies.currentSessionScheduler
         )

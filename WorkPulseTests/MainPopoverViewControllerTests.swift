@@ -38,7 +38,7 @@ struct MainPopoverViewControllerTests {
         controller.applyCurrentSession(startTime: startTime, endTime: nil)
         let snapshot = controller.snapshot
 
-        #expect(snapshot.currentSession.valueText == "09:30:00")
+        #expect(snapshot.currentSession.valueText == "08:30:00")
         #expect(abs(snapshot.currentSession.progressFraction - 0.94) < 0.001)
     }
 
@@ -144,13 +144,14 @@ struct MainPopoverViewControllerTests {
                 ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
                 ?? Date(timeIntervalSince1970: 0)
             },
-            currentSessionScheduler: scheduler
+            currentSessionScheduler: scheduler,
+            currentSessionCalculator: makeSeoulCurrentSessionCalculator()
         )
 
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
 
-        #expect(controller.snapshot.currentSession.valueText == "09:30:00")
+        #expect(controller.snapshot.currentSession.valueText == "08:30:00")
         #expect(scheduler.scheduleCallCount == 0)
     }
 
@@ -182,10 +183,12 @@ struct MainPopoverViewControllerTests {
     private func makeController(
         state: MainPopoverViewState = MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
         currentTimeProvider: @escaping () -> Date = Date.init,
-        currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler()
+        currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler(),
+        currentSessionCalculator: CurrentSessionCalculator = makeSeoulCurrentSessionCalculator()
     ) -> MainPopoverViewController {
         MainPopoverViewController(
             state: state,
+            currentSessionCalculator: currentSessionCalculator,
             currentTimeProvider: currentTimeProvider,
             currentSessionScheduler: currentSessionScheduler
         )
@@ -577,4 +580,17 @@ struct MainPopoverViewStateFactoryTests {
         calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
         return calendar
     }
+}
+
+private func makeSeoulCurrentSessionCalculator() -> CurrentSessionCalculator {
+    CurrentSessionCalculator(
+        workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+    )
+}
+
+private func makeSeoulCalendar() -> Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.locale = Locale(identifier: "en_US_POSIX")
+    calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+    return calendar
 }

@@ -33,17 +33,17 @@ struct AttendanceRecordTotalsCalculator {
         calendar: Calendar,
         granularity: Calendar.Component
     ) -> TimeInterval {
-        records.reduce(0) { partialResult, record in
+        let workedDurationCalculator = WorkedDurationCalculator(calendar: calendar)
+
+        return records.reduce(0) { partialResult, record in
             guard calendar.isDate(record.date, equalTo: referenceDate, toGranularity: granularity) else {
                 return partialResult
             }
 
-            guard let startTime = record.startTime, let endTime = record.endTime else {
-                return partialResult
-            }
-
-            let duration = endTime.timeIntervalSince(startTime)
-            guard duration >= 0 else {
+            guard let duration = workedDurationCalculator.workedDuration(
+                startTime: record.startTime,
+                endTime: record.endTime
+            ) else {
                 return partialResult
             }
 
