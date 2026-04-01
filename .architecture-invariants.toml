@@ -14,27 +14,27 @@ ownership = "error"
 expired_exemptions = "error"
 
 [layers.types]
-paths = ["Types/**"]
+paths = ["App/**/Types/**", "Feature/**/Types/**", "UI/**/Types/**"]
 forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Combine", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "RxSwift"]
 
 [layers.config]
-paths = ["Config/**"]
+paths = ["App/**/Config/**", "Feature/**/Config/**", "UI/**/Config/**"]
 forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
 
 [layers.domain]
-paths = ["Domain/**"]
+paths = ["Feature/**/Domain/**"]
 forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase", "MapKit"]
 
 [layers.repo]
-paths = ["Repository/**", "Feature/**/Repo/**"]
+paths = ["Feature/**/Repo/**"]
 forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI"]
 
 [layers.service]
-paths = ["Feature/**/Service/**", "UseCase/**"]
+paths = ["Feature/**/Service/**", "Feature/**/UseCase/**"]
 forbidden_import_prefixes = ["AppKit", "UIKit", "SwiftUI", "Realm", "RealmSwift", "CoreData", "Alamofire", "Moya", "Firebase"]
 
 [layers.runtime]
-paths = ["App/**", "Runtime/**"]
+paths = ["App/**"]
 forbidden_import_prefixes = []
 
 [layers.ui]
@@ -43,7 +43,7 @@ forbidden_import_prefixes = ["Realm", "RealmSwift", "CoreData"]
 
 [[zones]]
 id = "generated"
-path_globs = ["Generated/**", "**/*.generated.swift"]
+path_globs = ["App/**/Generated/**", "Feature/**/Generated/**", "UI/**/Generated/**", "**/*.generated.swift"]
 policy = "skip"
 
 [[zones]]
