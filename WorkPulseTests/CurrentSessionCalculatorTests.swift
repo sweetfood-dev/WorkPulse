@@ -205,6 +205,34 @@ struct AttendanceRecordTotalsCalculatorTests {
     }
 
     @Test
+    func weeklyTotalDerivesLunchDeductionFromPassedCalendar() throws {
+        let originalTimeZone = NSTimeZone.default
+        let utc = try #require(TimeZone(secondsFromGMT: 0))
+        NSTimeZone.default = utc
+        defer { NSTimeZone.default = originalTimeZone }
+
+        let calculator = AttendanceRecordTotalsCalculator()
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let records = [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+                endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+            )
+        ]
+
+        let total = calculator.weeklyTotal(
+            records: records,
+            referenceDate: referenceDate,
+            calendar: Self.seoulCalendar
+        )
+
+        #expect(total == 28_800)
+    }
+
+    @Test
     func monthlyTotalIncludesOnlyCompletedRecordsInSameMonth() throws {
         let calculator = AttendanceRecordTotalsCalculator()
         let referenceDate = try #require(
@@ -282,9 +310,6 @@ struct MainPopoverStateLoaderTests {
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
             ),
-            totalsCalculator: AttendanceRecordTotalsCalculator(
-                workedDurationCalculator: WorkedDurationCalculator(calendar: Self.seoulCalendar)
-            ),
             calendar: Self.seoulCalendar
         )
 
@@ -310,9 +335,6 @@ struct MainPopoverStateLoaderTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
-            ),
-            totalsCalculator: AttendanceRecordTotalsCalculator(
-                workedDurationCalculator: WorkedDurationCalculator(calendar: Self.seoulCalendar)
             ),
             calendar: Self.seoulCalendar
         )
@@ -354,9 +376,6 @@ struct MainPopoverStateLoaderTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
-            ),
-            totalsCalculator: AttendanceRecordTotalsCalculator(
-                workedDurationCalculator: WorkedDurationCalculator(calendar: Self.seoulCalendar)
             ),
             calendar: Self.seoulCalendar
         )

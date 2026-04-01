@@ -27,9 +27,6 @@ final class MainPopoverCoordinator {
         self.stateLoader = MainPopoverStateLoader(
             recordStore: recordStore,
             viewStateFactory: viewStateFactory,
-            totalsCalculator: AttendanceRecordTotalsCalculator(
-                workedDurationCalculator: workedDurationCalculator
-            ),
             calendar: runtimeDependencies.calendar
         )
     }

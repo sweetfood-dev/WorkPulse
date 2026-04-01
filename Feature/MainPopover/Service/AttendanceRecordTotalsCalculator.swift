@@ -1,12 +1,6 @@
 import Foundation
 
 struct AttendanceRecordTotalsCalculator {
-    private let workedDurationCalculator: WorkedDurationCalculator
-
-    init(workedDurationCalculator: WorkedDurationCalculator = WorkedDurationCalculator()) {
-        self.workedDurationCalculator = workedDurationCalculator
-    }
-
     func weeklyTotal(
         records: [AttendanceRecord],
         referenceDate: Date,
@@ -39,7 +33,9 @@ struct AttendanceRecordTotalsCalculator {
         calendar: Calendar,
         granularity: Calendar.Component
     ) -> TimeInterval {
-        records.reduce(0) { partialResult, record in
+        let workedDurationCalculator = WorkedDurationCalculator(calendar: calendar)
+
+        return records.reduce(0) { partialResult, record in
             guard calendar.isDate(record.date, equalTo: referenceDate, toGranularity: granularity) else {
                 return partialResult
             }
