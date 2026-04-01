@@ -6,53 +6,6 @@ import Testing
 struct MainPopoverViewControllerTests {
     @Test
     @MainActor
-    func loadsReadOnlyDashboardPlaceholderState() {
-        let controller = MainPopoverViewController()
-
-        controller.loadViewIfNeeded()
-
-        #expect(controller.dateLabel.stringValue == "Today")
-        #expect(controller.checkedInSummaryLabel.stringValue == "Checked in at --:--")
-        #expect(controller.currentSessionTitleLabel.stringValue == "Current Session")
-        #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
-        #expect(controller.startTimeTitleLabel.stringValue == "Start Time")
-        #expect(controller.startTimeValueLabel.stringValue == "--:--")
-        #expect(controller.endTimeTitleLabel.stringValue == "End Time")
-        #expect(controller.endTimeValueLabel.stringValue == "--:--")
-        #expect(controller.weeklyTitleLabel.stringValue == "This Week")
-        #expect(controller.weeklyValueLabel.stringValue == "--")
-        #expect(controller.monthlyTitleLabel.stringValue == "This Month")
-        #expect(controller.monthlyValueLabel.stringValue == "--")
-    }
-
-    @Test
-    @MainActor
-    func applyingReadOnlyDashboardStateUpdatesDisplayedValues() {
-        let controller = MainPopoverViewController()
-        let state = MainPopoverViewState(
-            dateText: "Thursday, Mar 31",
-            checkedInSummaryText: "Checked in at 09:00",
-            currentSessionText: "02:15:30",
-            startTimeText: "09:00",
-            endTimeText: "--:--",
-            weeklyTotalText: "08:30",
-            monthlyTotalText: "42:10"
-        )
-
-        controller.loadViewIfNeeded()
-        controller.apply(state: state)
-
-        #expect(controller.dateLabel.stringValue == "Thursday, Mar 31")
-        #expect(controller.checkedInSummaryLabel.stringValue == "Checked in at 09:00")
-        #expect(controller.currentSessionValueLabel.stringValue == "02:15:30")
-        #expect(controller.startTimeValueLabel.stringValue == "09:00")
-        #expect(controller.endTimeValueLabel.stringValue == "--:--")
-        #expect(controller.weeklyValueLabel.stringValue == "08:30")
-        #expect(controller.monthlyValueLabel.stringValue == "42:10")
-    }
-
-    @Test
-    @MainActor
     func refreshingCurrentSessionUsesStartTimeAndClockProvider() throws {
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
@@ -60,27 +13,46 @@ struct MainPopoverViewControllerTests {
         let now = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T11:45:30+09:00")
         )
-        let controller = MainPopoverViewController(
-            currentTimeProvider: { now }
-        )
+        let controller = makeController(currentTimeProvider: { now })
 
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: startTime, endTime: nil)
+        let snapshot = controller.snapshot
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+        #expect(snapshot.currentSession.valueText == "02:45:30")
+        #expect(abs(snapshot.currentSession.progressFraction - 0.3448) < 0.001)
+    }
+
+    @Test
+    @MainActor
+    func refreshingCurrentSessionLeavesVisibleTrackWhenSessionExceedsGoal() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:00:00+09:00")
+        )
+        let now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T17:30:00+09:00")
+        )
+        let controller = makeController(currentTimeProvider: { now })
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: startTime, endTime: nil)
+        let snapshot = controller.snapshot
+
+        #expect(snapshot.currentSession.valueText == "08:30:00")
+        #expect(abs(snapshot.currentSession.progressFraction - 0.94) < 0.001)
     }
 
     @Test
     @MainActor
     func refreshingCurrentSessionKeepsPlaceholderWhenStartTimeIsMissing() {
-        let controller = MainPopoverViewController(
+        let controller = makeController(
             currentTimeProvider: { Date(timeIntervalSince1970: 0) }
         )
 
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: nil, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
+        #expect(controller.snapshot.currentSession.valueText == "--:--:--")
     }
 
     @Test
@@ -93,7 +65,7 @@ struct MainPopoverViewControllerTests {
             ISO8601DateFormatter().date(from: "2026-03-31T11:45:30+09:00")
         )
         let scheduler = FakeRepeatingScheduler()
-        let controller = MainPopoverViewController(
+        let controller = makeController(
             currentTimeProvider: { now },
             currentSessionScheduler: scheduler
         )
@@ -101,7 +73,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+        #expect(controller.snapshot.currentSession.valueText == "02:45:30")
         #expect(scheduler.scheduleCallCount == 1)
 
         now = try #require(
@@ -109,7 +81,7 @@ struct MainPopoverViewControllerTests {
         )
         scheduler.fire()
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:31")
+        #expect(controller.snapshot.currentSession.valueText == "02:45:31")
     }
 
     @Test
@@ -122,7 +94,7 @@ struct MainPopoverViewControllerTests {
             ISO8601DateFormatter().date(from: "2026-03-31T11:45:30+09:00")
         )
         let scheduler = FakeRepeatingScheduler()
-        let controller = MainPopoverViewController(
+        let controller = makeController(
             currentTimeProvider: { now },
             currentSessionScheduler: scheduler
         )
@@ -138,14 +110,14 @@ struct MainPopoverViewControllerTests {
         )
         scheduler.fire()
 
-        #expect(controller.currentSessionValueLabel.stringValue == "02:45:30")
+        #expect(controller.snapshot.currentSession.valueText == "02:45:30")
     }
 
     @Test
     @MainActor
     func beginningCurrentSessionUpdatesDoesNotScheduleWithoutStartTime() {
         let scheduler = FakeRepeatingScheduler()
-        let controller = MainPopoverViewController(
+        let controller = makeController(
             currentTimeProvider: { Date(timeIntervalSince1970: 0) },
             currentSessionScheduler: scheduler
         )
@@ -153,7 +125,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: nil, endTime: nil)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "--:--:--")
+        #expect(controller.snapshot.currentSession.valueText == "--:--:--")
         #expect(scheduler.scheduleCallCount == 0)
     }
 
@@ -167,41 +139,89 @@ struct MainPopoverViewControllerTests {
             ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
         )
         let scheduler = FakeRepeatingScheduler()
-        let controller = MainPopoverViewController(
+        let controller = makeController(
             currentTimeProvider: {
                 ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
                 ?? Date(timeIntervalSince1970: 0)
             },
-            currentSessionScheduler: scheduler
+            currentSessionScheduler: scheduler,
+            currentSessionCalculator: makeSeoulCurrentSessionCalculator()
         )
 
         controller.loadViewIfNeeded()
         controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
+        #expect(controller.snapshot.currentSession.valueText == "08:30:00")
         #expect(scheduler.scheduleCallCount == 0)
     }
 
+    @Test
+    @MainActor
+    func applyingStateRefreshesHeaderAndSummarySections() {
+        let controller = makeController()
+        let state = MainPopoverViewState(
+            dateText: "Wednesday, Apr 1",
+            checkedInSummaryText: "Checked in at 08:45",
+            currentSessionText: "--:--:--",
+            startTimeText: "08:45",
+            endTimeText: "--:--",
+            weeklyTotalText: "09:05",
+            monthlyTotalText: "--"
+        )
+
+        controller.loadViewIfNeeded()
+        controller.apply(state: state)
+        let snapshot = controller.snapshot
+
+        #expect(snapshot.header.dateText == "Wednesday, Apr 1")
+        #expect(snapshot.header.checkedInSummaryText == "Checked in at 08:45")
+        #expect(snapshot.summary.weeklyValueText == "09:05")
+        #expect(snapshot.summary.monthlyValueText == "--")
+    }
+
+    @MainActor
+    private func makeController(
+        state: MainPopoverViewState = MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+        currentTimeProvider: @escaping () -> Date = Date.init,
+        currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler(),
+        currentSessionCalculator: CurrentSessionCalculator = makeSeoulCurrentSessionCalculator()
+    ) -> MainPopoverViewController {
+        MainPopoverViewController(
+            state: state,
+            currentSessionCalculator: currentSessionCalculator,
+            currentTimeProvider: currentTimeProvider,
+            currentSessionScheduler: currentSessionScheduler
+        )
+    }
+}
+
+@Suite("MainPopoverTodayTimesBinder")
+struct MainPopoverTodayTimesBinderTests {
     @Test
     @MainActor
     func beginningStartTimeEditingShowsPickerInTheSameRow() throws {
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
         )
-        let controller = MainPopoverViewController()
+        let (binder, section) = makeBinderAndSection()
 
-        controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
-        controller.beginEditingStartTime()
+        binder.loadSavedTimes(startTime: startTime, endTime: nil)
+        binder.beginEditing(.startTime)
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: Date(timeIntervalSince1970: 0)
+            )
+        )
+        let snapshot = section.snapshot
 
-        #expect(controller.startTimeValueLabel.isHidden)
-        #expect(controller.startTimePicker.isHidden == false)
-        #expect(controller.startTimePicker.dateValue == startTime)
-        #expect(controller.startTimeApplyButton.isHidden == false)
-        #expect(controller.startTimeApplyButton.isEnabled)
-        #expect(controller.startTimeCancelButton.isHidden == false)
-        #expect(controller.endTimeValueLabel.isHidden == false)
-        #expect(controller.currentSessionValueLabel.isHidden == false)
+        #expect(snapshot.startRow.isValueVisible == false)
+        #expect(snapshot.startRow.isPickerVisible)
+        #expect(snapshot.startRow.pickerDateValue == startTime)
+        #expect(snapshot.isStartApplyVisible)
+        #expect(snapshot.isApplyEnabled)
+        #expect(snapshot.isStartCancelVisible)
+        #expect(snapshot.endRow.isValueVisible)
     }
 
     @Test
@@ -210,41 +230,23 @@ struct MainPopoverViewControllerTests {
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
         )
-        let controller = MainPopoverViewController()
+        let (binder, section) = makeBinderAndSection()
 
-        controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
-        controller.beginEditingStartTime()
-        controller.cancelEditingTime()
-
-        #expect(controller.startTimeValueLabel.isHidden == false)
-        #expect(controller.startTimePicker.isHidden)
-        #expect(controller.startTimeApplyButton.isHidden)
-        #expect(controller.startTimeCancelButton.isHidden)
-    }
-
-    @Test
-    @MainActor
-    func beginningEndTimeEditingShowsEndPickerInTheSameRow() throws {
-        let startTime = try #require(
-            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        binder.loadSavedTimes(startTime: startTime, endTime: nil)
+        binder.beginEditing(.startTime)
+        binder.cancelEditing()
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: Date(timeIntervalSince1970: 0)
+            )
         )
-        let endTime = try #require(
-            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
-        )
-        let controller = MainPopoverViewController()
+        let snapshot = section.snapshot
 
-        controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: endTime)
-        controller.beginEditingEndTime()
-
-        #expect(controller.endTimeValueLabel.isHidden)
-        #expect(controller.endTimePicker.isHidden == false)
-        #expect(controller.endTimePicker.dateValue == endTime)
-        #expect(controller.endTimeApplyButton.isHidden == false)
-        #expect(controller.endTimeApplyButton.isEnabled)
-        #expect(controller.endTimeCancelButton.isHidden == false)
-        #expect(controller.startTimeValueLabel.isHidden == false)
+        #expect(snapshot.startRow.isValueVisible)
+        #expect(snapshot.startRow.isPickerVisible == false)
+        #expect(snapshot.isStartApplyVisible == false)
+        #expect(snapshot.isStartCancelVisible == false)
     }
 
     @Test
@@ -256,25 +258,34 @@ struct MainPopoverViewControllerTests {
         let editedStartTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")
         )
-        let controller = MainPopoverViewController()
-        var appliedStartTime: Date?
-        var appliedEndTime: Date?
-        controller.onApplyEditedTimes = { startTime, endTime in
-            appliedStartTime = startTime
-            appliedEndTime = endTime
+        let (binder, section) = makeBinderAndSection()
+        var appliedTimes: MainPopoverAppliedTodayTimes?
+
+        binder.onDidApplyTimes = { applied in
+            appliedTimes = applied
         }
+        binder.loadSavedTimes(startTime: originalStartTime, endTime: nil)
+        binder.beginEditing(.startTime)
+        binder.setEditingDraft(
+            MainPopoverTodayTimesDraft(
+                startTime: editedStartTime,
+                endTime: originalStartTime
+            )
+        )
+        binder.applyEditing()
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "08:30", endTimeText: "--:--"),
+                fallbackTime: editedStartTime
+            )
+        )
+        let snapshot = section.snapshot
 
-        controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: originalStartTime, endTime: nil)
-        controller.beginEditingStartTime()
-        controller.startTimePicker.dateValue = editedStartTime
-        controller.applyEditingTime()
-
-        #expect(appliedStartTime == editedStartTime)
-        #expect(appliedEndTime == nil)
-        #expect(controller.startTimeValueLabel.stringValue == "08:30")
-        #expect(controller.startTimeValueLabel.isHidden == false)
-        #expect(controller.startTimePicker.isHidden)
+        #expect(appliedTimes?.startTime == editedStartTime)
+        #expect(appliedTimes?.endTime == nil)
+        #expect(snapshot.startRow.valueText == "08:30")
+        #expect(snapshot.startRow.isValueVisible)
+        #expect(snapshot.startRow.isPickerVisible == false)
     }
 
     @Test
@@ -289,25 +300,34 @@ struct MainPopoverViewControllerTests {
         let editedEndTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T17:45:00+09:00")
         )
-        let controller = MainPopoverViewController()
-        var appliedStartTime: Date?
-        var appliedEndTime: Date?
-        controller.onApplyEditedTimes = { startTime, endTime in
-            appliedStartTime = startTime
-            appliedEndTime = endTime
+        let (binder, section) = makeBinderAndSection()
+        var appliedTimes: MainPopoverAppliedTodayTimes?
+
+        binder.onDidApplyTimes = { applied in
+            appliedTimes = applied
         }
+        binder.loadSavedTimes(startTime: startTime, endTime: originalEndTime)
+        binder.beginEditing(.endTime)
+        binder.setEditingDraft(
+            MainPopoverTodayTimesDraft(
+                startTime: startTime,
+                endTime: editedEndTime
+            )
+        )
+        binder.applyEditing()
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "17:45"),
+                fallbackTime: editedEndTime
+            )
+        )
+        let snapshot = section.snapshot
 
-        controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: originalEndTime)
-        controller.beginEditingEndTime()
-        controller.endTimePicker.dateValue = editedEndTime
-        controller.applyEditingTime()
-
-        #expect(appliedStartTime == startTime)
-        #expect(appliedEndTime == editedEndTime)
-        #expect(controller.endTimeValueLabel.stringValue == "17:45")
-        #expect(controller.endTimeValueLabel.isHidden == false)
-        #expect(controller.endTimePicker.isHidden)
+        #expect(appliedTimes?.startTime == startTime)
+        #expect(appliedTimes?.endTime == editedEndTime)
+        #expect(snapshot.endRow.valueText == "17:45")
+        #expect(snapshot.endRow.isValueVisible)
+        #expect(snapshot.endRow.isPickerVisible == false)
     }
 
     @Test
@@ -319,23 +339,34 @@ struct MainPopoverViewControllerTests {
         let invalidEndTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")
         )
-        let controller = MainPopoverViewController()
+        let (binder, section) = makeBinderAndSection()
         var applyCallCount = 0
-        controller.onApplyEditedTimes = { _, _ in
+
+        binder.onDidApplyTimes = { _ in
             applyCallCount += 1
         }
-
-        controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
-        controller.beginEditingEndTime()
-        controller.endTimePicker.dateValue = invalidEndTime
-        controller.applyEditingTime()
+        binder.loadSavedTimes(startTime: startTime, endTime: nil)
+        binder.beginEditing(.endTime)
+        binder.setEditingDraft(
+            MainPopoverTodayTimesDraft(
+                startTime: startTime,
+                endTime: invalidEndTime
+            )
+        )
+        binder.applyEditing()
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: invalidEndTime
+            )
+        )
+        let snapshot = section.snapshot
 
         #expect(applyCallCount == 0)
-        #expect(controller.endTimeValueLabel.stringValue == "--:--")
-        #expect(controller.endTimeValueLabel.isHidden)
-        #expect(controller.endTimePicker.isHidden == false)
-        #expect(controller.endTimeApplyButton.isHidden == false)
+        #expect(snapshot.endRow.valueText == "--:--")
+        #expect(snapshot.endRow.isValueVisible == false)
+        #expect(snapshot.endRow.isPickerVisible)
+        #expect(snapshot.isEndApplyVisible)
     }
 
     @Test
@@ -350,16 +381,84 @@ struct MainPopoverViewControllerTests {
         let currentTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T14:15:00+09:00")
         )
-        let controller = MainPopoverViewController(
-            currentTimeProvider: { currentTime }
+        let (binder, section) = makeBinderAndSection()
+
+        binder.loadSavedTimes(startTime: startTime, endTime: previousEndTime)
+        binder.loadSavedTimes(startTime: startTime, endTime: nil)
+        binder.beginEditing(.endTime)
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: currentTime
+            )
         )
 
-        controller.loadViewIfNeeded()
-        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: previousEndTime)
-        controller.beginCurrentSessionUpdates(startTime: startTime, endTime: nil)
-        controller.beginEditingEndTime()
+        #expect(section.snapshot.endRow.pickerDateValue == currentTime)
+    }
 
-        #expect(controller.endTimePicker.dateValue == currentTime)
+    @Test
+    @MainActor
+    func pickerChangesWhileEditingArePreservedAcrossRerender() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let editedStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T08:24:00+09:00")
+        )
+        let (binder, section) = makeBinderAndSection()
+
+        binder.loadSavedTimes(startTime: startTime, endTime: nil)
+        binder.beginEditing(.startTime)
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: startTime
+            )
+        )
+
+        section.sectionView.simulatePickerChange(editedStartTime, for: .startTime)
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackTime: startTime
+            )
+        )
+
+        #expect(section.snapshot.startRow.pickerDateValue == editedStartTime)
+        #expect(section.snapshot.isApplyEnabled)
+    }
+
+    @MainActor
+    private func makeBinderAndSection() -> (MainPopoverTodayTimesBinder, MainPopoverViewSnapshottingSection) {
+        let section = MainPopoverViewSnapshottingSection()
+        let binder = MainPopoverTodayTimesBinder(
+            sectionView: section.sectionView,
+            copy: .english
+        )
+        return (binder, section)
+    }
+
+    private func makeViewState(
+        startTimeText: String,
+        endTimeText: String
+    ) -> MainPopoverViewState {
+        MainPopoverViewState(
+            dateText: "Wednesday, Apr 1",
+            checkedInSummaryText: "Checked in at 08:45",
+            currentSessionText: "--:--:--",
+            startTimeText: startTimeText,
+            endTimeText: endTimeText,
+            weeklyTotalText: "09:05",
+            monthlyTotalText: "--"
+        )
+    }
+}
+
+private struct MainPopoverViewSnapshottingSection {
+    let sectionView = MainPopoverTodayTimesSectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 146))
+
+    var snapshot: MainPopoverTodayTimesSectionSnapshot {
+        sectionView.snapshot
     }
 }
 
@@ -390,6 +489,33 @@ final class FakeCurrentSessionCancellable: CurrentSessionCancellable {
 
 @Suite("MainPopoverViewStateFactory")
 struct MainPopoverViewStateFactoryTests {
+    @Test
+    func makesPlaceholderStateFromCopy() {
+        let copy = MainPopoverCopy(
+            placeholderDateText: "Placeholder Day",
+            checkedInSummaryPrefix: "Arrived",
+            currentSessionPlaceholderText: "00:00:00",
+            timePlaceholderText: "--.--",
+            totalPlaceholderText: "n/a",
+            currentSessionTitle: "SESSION",
+            currentSessionLeadingCaption: "0H",
+            startTimeTitle: "In",
+            endTimeTitle: "Out",
+            weeklyTitle: "Week",
+            monthlyTitle: "Month",
+            currentSessionGoalLabelPrefix: "Goal:"
+        )
+        let state = MainPopoverViewStateFactory(copy: copy).makePlaceholder()
+
+        #expect(state.dateText == "Placeholder Day")
+        #expect(state.checkedInSummaryText == "Arrived --.--")
+        #expect(state.currentSessionText == "00:00:00")
+        #expect(state.startTimeText == "--.--")
+        #expect(state.endTimeText == "--.--")
+        #expect(state.weeklyTotalText == "n/a")
+        #expect(state.monthlyTotalText == "n/a")
+    }
+
     @Test
     func makesPlaceholderStateWhenTodayRecordIsMissing() throws {
         let factory = MainPopoverViewStateFactory(
@@ -454,4 +580,17 @@ struct MainPopoverViewStateFactoryTests {
         calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
         return calendar
     }
+}
+
+private func makeSeoulCurrentSessionCalculator() -> CurrentSessionCalculator {
+    CurrentSessionCalculator(
+        workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+    )
+}
+
+private func makeSeoulCalendar() -> Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.locale = Locale(identifier: "en_US_POSIX")
+    calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+    return calendar
 }

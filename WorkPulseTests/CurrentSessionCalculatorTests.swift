@@ -6,7 +6,9 @@ import Testing
 struct CurrentSessionCalculatorTests {
     @Test
     func returnsElapsedDurationWhenStartTimeExistsAndSessionIsInProgress() throws {
-        let calculator = CurrentSessionCalculator()
+        let calculator = CurrentSessionCalculator(
+            workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        )
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
         )
@@ -24,8 +26,52 @@ struct CurrentSessionCalculatorTests {
     }
 
     @Test
+    func subtractsLunchBreakFromInProgressSessionAfterLunchWindow() throws {
+        let calculator = CurrentSessionCalculator(
+            workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let now = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T14:00:00+09:00")
+        )
+
+        let duration = calculator.sessionDuration(
+            startTime: startTime,
+            endTime: nil,
+            now: now
+        )
+
+        #expect(duration == 14_400)
+    }
+
+    @Test
+    func subtractsLunchBreakFromEachSpannedDayInProgressSession() throws {
+        let calculator = CurrentSessionCalculator(
+            workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let now = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T14:00:00+09:00")
+        )
+
+        let duration = calculator.sessionDuration(
+            startTime: startTime,
+            endTime: nil,
+            now: now
+        )
+
+        #expect(duration == 97_200)
+    }
+
+    @Test
     func returnsFixedDurationWhenEndTimeExists() throws {
-        let calculator = CurrentSessionCalculator()
+        let calculator = CurrentSessionCalculator(
+            workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        )
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
         )
@@ -42,8 +88,45 @@ struct CurrentSessionCalculatorTests {
             now: laterNow
         )
 
-        #expect(duration == 34_200)
+        #expect(duration == 30_600)
     }
+
+    @Test
+    func deductsLunchBreakOverlapFromCompletedWorkday() throws {
+        let calculator = WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")
+        )
+
+        let duration = calculator.workedDuration(
+            startTime: startTime,
+            endTime: endTime
+        )
+
+        #expect(duration == 28_800)
+    }
+
+    @Test
+    func deductsLunchBreakAcrossEachSpannedDay() throws {
+        let calculator = WorkedDurationCalculator(calendar: makeSeoulCalendar())
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T14:00:00+09:00")
+        )
+
+        let duration = calculator.workedDuration(
+            startTime: startTime,
+            endTime: endTime
+        )
+
+        #expect(duration == 97_200)
+    }
+
 }
 
 @Suite("MainPopoverCurrentSessionRuntime")
@@ -56,7 +139,7 @@ struct MainPopoverCurrentSessionRuntimeTests {
         let runtime = MainPopoverCurrentSessionRuntime(
             currentTimeProvider: { Date(timeIntervalSince1970: 0) },
             currentSessionScheduler: scheduler,
-            onTextChange: { receivedTexts.append($0) }
+            onChange: { text, _ in receivedTexts.append(text) }
         )
 
         runtime.begin(startTime: nil, endTime: nil)
@@ -79,7 +162,7 @@ struct MainPopoverCurrentSessionRuntimeTests {
         let runtime = MainPopoverCurrentSessionRuntime(
             currentTimeProvider: { now },
             currentSessionScheduler: scheduler,
-            onTextChange: { receivedTexts.append($0) }
+            onChange: { text, _ in receivedTexts.append(text) }
         )
 
         runtime.begin(startTime: startTime, endTime: nil)
@@ -107,17 +190,20 @@ struct MainPopoverCurrentSessionRuntimeTests {
         let scheduler = RuntimeFakeRepeatingScheduler()
         var receivedTexts: [String] = []
         let runtime = MainPopoverCurrentSessionRuntime(
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+            ),
             currentTimeProvider: {
                 ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
                 ?? Date(timeIntervalSince1970: 0)
             },
             currentSessionScheduler: scheduler,
-            onTextChange: { receivedTexts.append($0) }
+            onChange: { text, _ in receivedTexts.append(text) }
         )
 
         runtime.begin(startTime: startTime, endTime: endTime)
 
-        #expect(receivedTexts == ["09:30:00"])
+        #expect(receivedTexts == ["08:30:00"])
         #expect(scheduler.scheduleCallCount == 0)
     }
 }
@@ -154,7 +240,58 @@ struct AttendanceRecordTotalsCalculatorTests {
             calendar: Self.seoulCalendar
         )
 
-        #expect(total == 32_400)
+        #expect(total == 28_800)
+    }
+
+    @Test
+    func weeklyTotalDerivesLunchDeductionFromPassedCalendar() throws {
+        let originalTimeZone = NSTimeZone.default
+        let utc = try #require(TimeZone(secondsFromGMT: 0))
+        NSTimeZone.default = utc
+        defer { NSTimeZone.default = originalTimeZone }
+
+        let calculator = AttendanceRecordTotalsCalculator()
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let records = [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+                endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+            )
+        ]
+
+        let total = calculator.weeklyTotal(
+            records: records,
+            referenceDate: referenceDate,
+            calendar: Self.seoulCalendar
+        )
+
+        #expect(total == 28_800)
+    }
+
+    @Test
+    func weeklyTotalDeductsLunchBreakForEachSpannedDay() throws {
+        let calculator = AttendanceRecordTotalsCalculator()
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let records = [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+                endTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T14:00:00+09:00"))
+            )
+        ]
+
+        let total = calculator.weeklyTotal(
+            records: records,
+            referenceDate: referenceDate,
+            calendar: Self.seoulCalendar
+        )
+
+        #expect(total == 97_200)
     }
 
     @Test
@@ -187,7 +324,7 @@ struct AttendanceRecordTotalsCalculatorTests {
             calendar: Self.seoulCalendar
         )
 
-        #expect(total == 63_000)
+        #expect(total == 55_800)
     }
 
     private static var seoulCalendar: Calendar {
@@ -235,7 +372,6 @@ struct MainPopoverStateLoaderTests {
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
             ),
-            totalsCalculator: AttendanceRecordTotalsCalculator(),
             calendar: Self.seoulCalendar
         )
 
@@ -246,8 +382,8 @@ struct MainPopoverStateLoaderTests {
         #expect(loadedState.viewState.checkedInSummaryText == "Checked in at 09:00")
         #expect(loadedState.viewState.startTimeText == "09:00")
         #expect(loadedState.viewState.endTimeText == "--:--")
-        #expect(loadedState.viewState.weeklyTotalText == "17:00")
-        #expect(loadedState.viewState.monthlyTotalText == "17:30")
+        #expect(loadedState.viewState.weeklyTotalText == "15:00")
+        #expect(loadedState.viewState.monthlyTotalText == "15:30")
     }
 
     @Test
@@ -262,7 +398,6 @@ struct MainPopoverStateLoaderTests {
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
             ),
-            totalsCalculator: AttendanceRecordTotalsCalculator(),
             calendar: Self.seoulCalendar
         )
 
@@ -304,14 +439,13 @@ struct MainPopoverStateLoaderTests {
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
             ),
-            totalsCalculator: AttendanceRecordTotalsCalculator(),
             calendar: Self.seoulCalendar
         )
 
         let loadedState = loader.load(referenceDate: referenceDate)
 
-        #expect(loadedState.viewState.weeklyTotalText == "09:00")
-        #expect(loadedState.viewState.monthlyTotalText == "17:30")
+        #expect(loadedState.viewState.weeklyTotalText == "08:00")
+        #expect(loadedState.viewState.monthlyTotalText == "15:30")
     }
 
     private static var seoulCalendar: Calendar {
@@ -478,6 +612,10 @@ struct AppDelegateTests {
             )
         ])
         let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+            ),
             currentTimeProvider: { referenceDate }
         )
         let appDelegate = AppDelegate(
@@ -493,19 +631,20 @@ struct AppDelegateTests {
 
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
-        controller.beginEditingEndTime()
-        controller.endTimePicker.dateValue = endTime
-        controller.applyEditingTime()
+        controller.beginEditing(.endTime)
+        controller.setEditingPickerDate(endTime, for: .endTime)
+        controller.applyEditing()
+        let snapshot = controller.snapshot
 
         let persistedTodayRecord = try #require(
             store.loadRecords().last(where: { Calendar.current.isDate($0.date, inSameDayAs: referenceDate) })
         )
         #expect(persistedTodayRecord.startTime == startTime)
         #expect(persistedTodayRecord.endTime == endTime)
-        #expect(controller.endTimeValueLabel.stringValue == "18:30")
-        #expect(controller.currentSessionValueLabel.stringValue == "09:30:00")
-        #expect(controller.weeklyValueLabel.stringValue == "17:30")
-        #expect(controller.monthlyValueLabel.stringValue == "17:30")
+        #expect(snapshot.todayTimes.endRow.valueText == "18:30")
+        #expect(snapshot.currentSession.valueText == "08:30:00")
+        #expect(snapshot.summary.weeklyValueText == "15:30")
+        #expect(snapshot.summary.monthlyValueText == "15:30")
     }
 
     @Test
@@ -516,6 +655,7 @@ struct AppDelegateTests {
             ISO8601DateFormatter().date(from: "2026-03-31T15:30:00Z")
         )
         let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
             currentTimeProvider: { referenceDate }
         )
         let appDelegate = AppDelegate(
@@ -532,7 +672,7 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
 
-        #expect(controller.dateLabel.stringValue == "Wednesday, Apr 1")
+        #expect(controller.snapshot.header.dateText == "Wednesday, Apr 1")
     }
 
     @Test
@@ -559,6 +699,10 @@ struct AppDelegateTests {
         ])
         var currentDate = displayedReferenceDate
         let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+            ),
             currentTimeProvider: { currentDate }
         )
         let appDelegate = AppDelegate(
@@ -575,9 +719,9 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: displayedReferenceDate)
         currentDate = currentClockDate
-        controller.beginEditingEndTime()
-        controller.endTimePicker.dateValue = endTime
-        controller.applyEditingTime()
+        controller.beginEditing(.endTime)
+        controller.setEditingPickerDate(endTime, for: .endTime)
+        controller.applyEditing()
 
         let currentDayRecord = try #require(
             store.loadRecords().last(where: {
@@ -586,7 +730,7 @@ struct AppDelegateTests {
         )
         #expect(currentDayRecord.startTime == startTime)
         #expect(currentDayRecord.endTime == endTime)
-        #expect(controller.dateLabel.stringValue == "Wednesday, Apr 1")
+        #expect(controller.snapshot.header.dateText == "Wednesday, Apr 1")
         #expect(
             store.loadRecords().contains(where: {
                 Self.seoulCalendar.isDate($0.date, inSameDayAs: displayedReferenceDate) &&
@@ -619,6 +763,10 @@ struct AppDelegateTests {
         ])
         var currentDate = displayedReferenceDate
         let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: Self.seoulCalendar)
+            ),
             currentTimeProvider: { currentDate }
         )
         let appDelegate = AppDelegate(
@@ -634,18 +782,19 @@ struct AppDelegateTests {
 
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: displayedReferenceDate)
-        controller.beginEditingEndTime()
-        controller.endTimePicker.dateValue = staleDraftEndTime
+        controller.beginEditing(.endTime)
+        controller.setEditingPickerDate(staleDraftEndTime, for: .endTime)
 
         currentDate = currentClockDate
         appDelegate.handlePopoverWillOpen()
+        let snapshot = controller.snapshot
 
-        #expect(controller.endTimeApplyButton.isHidden)
-        #expect(controller.endTimeCancelButton.isHidden)
-        #expect(controller.dateLabel.stringValue == "Wednesday, Apr 1")
-        #expect(controller.endTimeValueLabel.stringValue == "--:--")
+        #expect(snapshot.todayTimes.isEndApplyVisible == false)
+        #expect(snapshot.todayTimes.isEndCancelVisible == false)
+        #expect(snapshot.header.dateText == "Wednesday, Apr 1")
+        #expect(snapshot.todayTimes.endRow.valueText == "--:--")
 
-        controller.applyEditingTime()
+        controller.applyEditing()
 
         #expect(
             store.loadRecords().contains(where: {
@@ -675,6 +824,7 @@ struct AppDelegateTests {
         ])
         var currentDate = referenceDate
         let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
             currentTimeProvider: { currentDate }
         )
         let appDelegate = AppDelegate(
@@ -691,13 +841,13 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
 
-        #expect(controller.currentSessionValueLabel.stringValue == "01:00:00")
+        #expect(controller.snapshot.currentSession.valueText == "01:00:00")
 
         controller.stopCurrentSessionUpdates()
         currentDate = laterDate
         appDelegate.handlePopoverWillOpen()
 
-        #expect(controller.currentSessionValueLabel.stringValue == "01:05:00")
+        #expect(controller.snapshot.currentSession.valueText == "01:05:00")
     }
 
     private static var seoulCalendar: Calendar {
@@ -706,6 +856,13 @@ struct AppDelegateTests {
         calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
         return calendar
     }
+}
+
+private func makeSeoulCalendar() -> Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.locale = Locale(identifier: "en_US_POSIX")
+    calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+    return calendar
 }
 
 @Suite("TodayTimeEditModeState")
