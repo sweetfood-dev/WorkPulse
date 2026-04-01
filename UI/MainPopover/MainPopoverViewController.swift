@@ -1,5 +1,4 @@
 import AppKit
-import QuartzCore
 
 protocol CurrentSessionCancellable {
     func cancel()
@@ -56,110 +55,24 @@ struct MainPopoverViewState {
     )
 }
 
-final class CurrentSessionProgressBarView: NSView {
-    private let trackView = NSView()
-    private let fillView = NSView()
-    private var fillWidthConstraint: NSLayoutConstraint?
-    private let gradientLayer = CAGradientLayer()
-
-    var progressFraction: CGFloat = 0 {
-        didSet {
-            needsLayout = true
-        }
-    }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        configure()
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func layout() {
-        super.layout()
-        fillWidthConstraint?.constant = bounds.width * max(0, min(progressFraction, 1))
-    }
-
-    private func configure() {
-        wantsLayer = true
-
-        trackView.wantsLayer = true
-        trackView.layer?.backgroundColor = NSColor(
-            calibratedWhite: 0.86,
-            alpha: 1
-        ).cgColor
-        trackView.layer?.borderColor = NSColor(
-            calibratedWhite: 0.82,
-            alpha: 1
-        ).cgColor
-        trackView.layer?.borderWidth = 0.5
-        trackView.layer?.cornerRadius = 5
-        trackView.translatesAutoresizingMaskIntoConstraints = false
-
-        fillView.wantsLayer = true
-        fillView.layer = gradientLayer
-        gradientLayer.colors = [
-            NSColor(
-                calibratedRed: 0.15,
-                green: 0.55,
-                blue: 0.98,
-                alpha: 1
-            ).cgColor,
-            NSColor(
-                calibratedRed: 0.00,
-                green: 0.42,
-                blue: 0.95,
-                alpha: 1
-            ).cgColor,
-        ]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0.5)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 0.5)
-        gradientLayer.cornerRadius = 5
-        fillView.translatesAutoresizingMaskIntoConstraints = false
-
-        addSubview(trackView)
-        addSubview(fillView)
-
-        fillWidthConstraint = fillView.widthAnchor.constraint(equalToConstant: 0)
-
-        NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: 10),
-            trackView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            trackView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            trackView.topAnchor.constraint(equalTo: topAnchor),
-            trackView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            fillView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            fillView.topAnchor.constraint(equalTo: topAnchor),
-            fillView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            fillWidthConstraint!,
-        ])
-    }
-}
-
 @MainActor
 final class MainPopoverCurrentSessionRuntime {
     private let currentSessionCalculator: CurrentSessionCalculator
     private let currentTimeProvider: () -> Date
     private let currentSessionScheduler: any CurrentSessionScheduling
-    private let onTextChange: (String) -> Void
-    private let onDurationChange: (TimeInterval?) -> Void
+    private let onChange: (String, TimeInterval?) -> Void
     private var currentSessionRefresh: (any CurrentSessionCancellable)?
 
     init(
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
         currentTimeProvider: @escaping () -> Date = Date.init,
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler(),
-        onTextChange: @escaping (String) -> Void,
-        onDurationChange: @escaping (TimeInterval?) -> Void = { _ in }
+        onChange: @escaping (String, TimeInterval?) -> Void
     ) {
         self.currentSessionCalculator = currentSessionCalculator
         self.currentTimeProvider = currentTimeProvider
         self.currentSessionScheduler = currentSessionScheduler
-        self.onTextChange = onTextChange
-        self.onDurationChange = onDurationChange
+        self.onChange = onChange
     }
 
     deinit {
@@ -173,11 +86,11 @@ final class MainPopoverCurrentSessionRuntime {
             now: currentTimeProvider()
         )
 
-        onTextChange(
+        onChange(
             duration.map { MainPopoverViewController.format(duration: $0) }
-                ?? MainPopoverViewState.placeholder.currentSessionText
+                ?? MainPopoverViewState.placeholder.currentSessionText,
+            duration
         )
-        onDurationChange(duration)
     }
 
     func begin(startTime: Date?, endTime: Date?) {
@@ -205,52 +118,52 @@ final class MainPopoverViewController: NSViewController {
     private var state: MainPopoverViewState
     private let timeFormatter: DateFormatter
     private var todayTimeEditModeState = TodayTimeEditModeState()
-    private let currentSessionGoalDuration: TimeInterval = 8 * 60 * 60
-    private let maximumVisibleProgressFraction: CGFloat = 0.94
+    private let currentSessionCalculator: CurrentSessionCalculator
+    private let currentTimeProvider: () -> Date
+    private let currentSessionScheduler: any CurrentSessionScheduling
+    private let renderModelFactory: MainPopoverRenderModelFactory
+    private var currentSessionText: String
+    private var currentSessionDuration: TimeInterval?
     private lazy var currentSessionRuntime = MainPopoverCurrentSessionRuntime(
         currentSessionCalculator: currentSessionCalculator,
         currentTimeProvider: currentTimeProvider,
         currentSessionScheduler: currentSessionScheduler,
-        onTextChange: { [weak self] text in
-            self?.currentSessionValueLabel.stringValue = text
-        },
-        onDurationChange: { [weak self] duration in
-            self?.applyCurrentSessionProgress(duration: duration)
+        onChange: { [weak self] text, duration in
+            self?.currentSessionText = text
+            self?.currentSessionDuration = duration
+            self?.render()
         }
     )
-    private let currentSessionCalculator: CurrentSessionCalculator
-    private let currentTimeProvider: () -> Date
-    private let currentSessionScheduler: any CurrentSessionScheduling
     var onApplyEditedTimes: ((Date?, Date?) -> Void)?
 
-    let dateLabel = MainPopoverViewController.makeSectionTitleLabel()
-    let checkedInSummaryLabel = MainPopoverViewController.makeSecondaryLabel()
-    let currentSessionTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
-    let currentSessionValueLabel = MainPopoverViewController.makeValueLabel()
-    let currentSessionProgressBar = CurrentSessionProgressBarView()
-    let currentSessionProgressLeadingLabel = MainPopoverViewController.makeProgressCaptionLabel(alignment: .left)
-    let currentSessionProgressTrailingLabel = MainPopoverViewController.makeProgressCaptionLabel(alignment: .right)
-    let startTimeTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
-    let startTimeValueLabel = MainPopoverViewController.makeRowValueLabel()
-    let startTimePicker = MainPopoverViewController.makeTimePicker()
-    let startTimeApplyButton = MainPopoverViewController.makeActionButton(title: "Apply")
-    let startTimeCancelButton = MainPopoverViewController.makeActionButton(title: "Cancel")
-    let endTimeTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
-    let endTimeValueLabel = MainPopoverViewController.makeRowValueLabel()
-    let endTimePicker = MainPopoverViewController.makeTimePicker()
-    let endTimeApplyButton = MainPopoverViewController.makeActionButton(title: "Apply")
-    let endTimeCancelButton = MainPopoverViewController.makeActionButton(title: "Cancel")
-    let weeklyTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
-    let weeklyValueLabel = MainPopoverViewController.makeSummaryValueLabel()
-    let monthlyTitleLabel = MainPopoverViewController.makeSectionTitleLabel()
-    let monthlyValueLabel = MainPopoverViewController.makeSummaryValueLabel()
-    private let startTimeEditStack = NSStackView()
-    private let endTimeEditStack = NSStackView()
-    private let startTimeRow = NSStackView()
-    private let endTimeRow = NSStackView()
-    private let editingActionRow = NSStackView()
-    let todayTimesSectionView = NSView()
-    let todayTimesBackgroundView = NSView()
+    let headerSectionView = MainPopoverHeaderSectionView()
+    let currentSessionSectionView = MainPopoverCurrentSessionSectionView()
+    let todayTimesSectionView = MainPopoverTodayTimesSectionView()
+    let summarySectionView = MainPopoverSummarySectionView()
+
+    var dateLabel: NSTextField { headerSectionView.dateLabel }
+    var checkedInSummaryLabel: NSTextField { headerSectionView.checkedInSummaryLabel }
+    var currentSessionTitleLabel: NSTextField { currentSessionSectionView.titleLabel }
+    var currentSessionValueLabel: NSTextField { currentSessionSectionView.valueLabel }
+    var currentSessionProgressBar: CurrentSessionProgressBarView { currentSessionSectionView.progressBar }
+    var currentSessionProgressLeadingLabel: NSTextField { currentSessionSectionView.leadingCaptionLabel }
+    var currentSessionProgressTrailingLabel: NSTextField { currentSessionSectionView.trailingCaptionLabel }
+    var startTimeTitleLabel: NSTextField { todayTimesSectionView.startRowView.titleLabel }
+    var startTimeValueLabel: NSTextField { todayTimesSectionView.startRowView.valueLabel }
+    var startTimePicker: NSDatePicker { todayTimesSectionView.startRowView.picker }
+    var startTimeApplyButton: NSButton { todayTimesSectionView.startTimeApplyButton }
+    var startTimeCancelButton: NSButton { todayTimesSectionView.startTimeCancelButton }
+    var endTimeTitleLabel: NSTextField { todayTimesSectionView.endRowView.titleLabel }
+    var endTimeValueLabel: NSTextField { todayTimesSectionView.endRowView.valueLabel }
+    var endTimePicker: NSDatePicker { todayTimesSectionView.endRowView.picker }
+    var endTimeApplyButton: NSButton { todayTimesSectionView.endTimeApplyButton }
+    var endTimeCancelButton: NSButton { todayTimesSectionView.endTimeCancelButton }
+    var weeklyTitleLabel: NSTextField { summarySectionView.weeklyTitleLabel }
+    var weeklyValueLabel: NSTextField { summarySectionView.weeklyValueLabel }
+    var monthlyTitleLabel: NSTextField { summarySectionView.monthlyTitleLabel }
+    var monthlyValueLabel: NSTextField { summarySectionView.monthlyValueLabel }
+    var editingActionRow: NSStackView { todayTimesSectionView.editingActionRow }
+    var todayTimesBackgroundView: NSView { todayTimesSectionView.backgroundView }
 
     init(
         state: MainPopoverViewState = .placeholder,
@@ -259,9 +172,15 @@ final class MainPopoverViewController: NSViewController {
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler()
     ) {
         self.state = state
+        self.currentSessionText = state.currentSessionText
+        self.currentSessionDuration = nil
         self.currentSessionCalculator = currentSessionCalculator
         self.currentTimeProvider = currentTimeProvider
         self.currentSessionScheduler = currentSessionScheduler
+        self.renderModelFactory = MainPopoverRenderModelFactory(
+            currentSessionGoalDuration: MainPopoverStyle.Metrics.currentSessionGoalDuration,
+            maximumVisibleProgressFraction: MainPopoverStyle.Metrics.maximumVisibleProgressFraction
+        )
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         self.timeFormatter = formatter
@@ -274,62 +193,32 @@ final class MainPopoverViewController: NSViewController {
     }
 
     override func loadView() {
-        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 392, height: 488))
+        let rootView = NSView(
+            frame: NSRect(
+                x: 0,
+                y: 0,
+                width: MainPopoverStyle.Metrics.popoverSize.width,
+                height: MainPopoverStyle.Metrics.popoverSize.height
+            )
+        )
         rootView.wantsLayer = true
-        rootView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        rootView.layer?.backgroundColor = MainPopoverStyle.Colors.popoverBackground.cgColor
 
         let contentStack = NSStackView()
         contentStack.orientation = .vertical
         contentStack.alignment = .leading
-        contentStack.spacing = 0
+        contentStack.spacing = MainPopoverStyle.Metrics.contentSpacing
         contentStack.translatesAutoresizingMaskIntoConstraints = false
 
-        let headerStack = makeHeaderSection()
-
-        currentSessionTitleLabel.attributedStringValue = NSAttributedString(
-            string: "CURRENT SESSION",
-            attributes: [
-                .kern: 1.4,
-                .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
-                .foregroundColor: NSColor.secondaryLabelColor,
-            ]
-        )
-        currentSessionProgressLeadingLabel.stringValue = "0H"
-        currentSessionProgressTrailingLabel.stringValue = "Goal: 8h"
-        let currentSessionStack = makeCurrentSessionSection()
-
-        startTimeTitleLabel.stringValue = "Start Time"
-        endTimeTitleLabel.stringValue = "End Time"
-        configureEditControls()
-        configureTimeRow(
-            startTimeRow,
-            titleLabel: startTimeTitleLabel,
-            valueLabel: startTimeValueLabel,
-            editStack: startTimeEditStack,
-            iconSystemName: "arrow.right.to.line",
-            action: #selector(handleStartTimeRowTap)
-        )
-        configureTimeRow(
-            endTimeRow,
-            titleLabel: endTimeTitleLabel,
-            valueLabel: endTimeValueLabel,
-            editStack: endTimeEditStack,
-            iconSystemName: "rectangle.portrait.and.arrow.right",
-            action: #selector(handleEndTimeRowTap)
-        )
-        let todayTimesStack = makeTodayTimesSection()
-
-        weeklyTitleLabel.stringValue = "This Week"
-        monthlyTitleLabel.stringValue = "This Month"
-        let summaryStack = makeSummarySection()
-
-        contentStack.addArrangedSubview(headerStack)
-        contentStack.addArrangedSubview(Self.makeSeparator())
-        contentStack.addArrangedSubview(currentSessionStack)
-        contentStack.addArrangedSubview(Self.makeSeparator())
-        contentStack.addArrangedSubview(todayTimesStack)
-        contentStack.addArrangedSubview(Self.makeSeparator())
-        contentStack.addArrangedSubview(summaryStack)
+        [
+            headerSectionView,
+            Self.makeSeparator(),
+            currentSessionSectionView,
+            Self.makeSeparator(),
+            todayTimesSectionView,
+            Self.makeSeparator(),
+            summarySectionView,
+        ].forEach(contentStack.addArrangedSubview)
 
         rootView.addSubview(contentStack)
 
@@ -337,30 +226,23 @@ final class MainPopoverViewController: NSViewController {
             contentStack.topAnchor.constraint(equalTo: rootView.topAnchor),
             contentStack.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             contentStack.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: rootView.bottomAnchor)
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: rootView.bottomAnchor),
+            headerSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            currentSessionSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            todayTimesSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            summarySectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
         ])
 
-        [headerStack, currentSessionStack, todayTimesStack, summaryStack].forEach { section in
-            section.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
-        }
-
         view = rootView
-        apply(state: state)
-        syncEditingUI()
+        configureActions()
+        render()
     }
 
     func apply(state: MainPopoverViewState) {
         self.state = state
-
-        guard isViewLoaded else { return }
-
-        dateLabel.stringValue = state.dateText
-        checkedInSummaryLabel.stringValue = state.checkedInSummaryText
-        currentSessionValueLabel.stringValue = state.currentSessionText
-        startTimeValueLabel.stringValue = state.startTimeText
-        endTimeValueLabel.stringValue = state.endTimeText
-        weeklyValueLabel.stringValue = state.weeklyTotalText
-        monthlyValueLabel.stringValue = state.monthlyTotalText
+        currentSessionText = state.currentSessionText
+        currentSessionDuration = nil
+        render()
     }
 
     func applyCurrentSession(startTime: Date?, endTime: Date?) {
@@ -370,7 +252,6 @@ final class MainPopoverViewController: NSViewController {
     func beginCurrentSessionUpdates(startTime: Date?, endTime: Date?) {
         todayTimeEditModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
         currentSessionRuntime.begin(startTime: startTime, endTime: endTime)
-        syncEditorValues()
     }
 
     func stopCurrentSessionUpdates() {
@@ -384,18 +265,17 @@ final class MainPopoverViewController: NSViewController {
 
     func beginEditingStartTime() {
         todayTimeEditModeState.beginEditing(.startTime)
-        syncEditingUI()
+        render()
     }
 
     func beginEditingEndTime() {
         todayTimeEditModeState.beginEditing(.endTime)
-        syncEditingUI()
+        render()
     }
 
     func cancelEditingTime() {
         todayTimeEditModeState.cancel()
-        syncEditorValues()
-        syncEditingUI()
+        render()
     }
 
     func applyEditingTime() {
@@ -408,13 +288,24 @@ final class MainPopoverViewController: NSViewController {
             return
         }
 
-        guard todayTimeEditModeState.hasValidDraftTimes else { return }
+        guard todayTimeEditModeState.hasValidDraftTimes else {
+            render()
+            return
+        }
+
         guard let appliedTimes = todayTimeEditModeState.apply() else { return }
 
-        startTimeValueLabel.stringValue = timeText(for: appliedTimes.startTime)
-        endTimeValueLabel.stringValue = timeText(for: appliedTimes.endTime)
+        state = MainPopoverViewState(
+            dateText: state.dateText,
+            checkedInSummaryText: checkedInSummaryText(for: appliedTimes.startTime),
+            currentSessionText: currentSessionText,
+            startTimeText: timeText(for: appliedTimes.startTime),
+            endTimeText: timeText(for: appliedTimes.endTime),
+            weeklyTotalText: state.weeklyTotalText,
+            monthlyTotalText: state.monthlyTotalText
+        )
         onApplyEditedTimes?(appliedTimes.startTime, appliedTimes.endTime)
-        syncEditingUI()
+        render()
     }
 
     @objc
@@ -437,15 +328,12 @@ final class MainPopoverViewController: NSViewController {
         applyEditingTime()
     }
 
-    private func configureEditControls() {
-        configureEditStack(
-            startTimeEditStack,
-            picker: startTimePicker
-        )
-        configureEditStack(
-            endTimeEditStack,
-            picker: endTimePicker
-        )
+    private func configureActions() {
+        let startTapRecognizer = NSClickGestureRecognizer(target: self, action: #selector(handleStartTimeRowTap))
+        todayTimesSectionView.startRowView.addGestureRecognizer(startTapRecognizer)
+
+        let endTapRecognizer = NSClickGestureRecognizer(target: self, action: #selector(handleEndTimeRowTap))
+        todayTimesSectionView.endRowView.addGestureRecognizer(endTapRecognizer)
 
         startTimeCancelButton.target = self
         startTimeCancelButton.action = #selector(handleCancelEditing)
@@ -455,275 +343,31 @@ final class MainPopoverViewController: NSViewController {
         startTimeApplyButton.action = #selector(handleApplyEditing)
         endTimeApplyButton.target = self
         endTimeApplyButton.action = #selector(handleApplyEditing)
-        startTimeApplyButton.isEnabled = true
-        endTimeApplyButton.isEnabled = true
-
-        editingActionRow.orientation = .horizontal
-        editingActionRow.alignment = .centerY
-        editingActionRow.spacing = 8
-        editingActionRow.addArrangedSubview(NSView())
-        editingActionRow.addArrangedSubview(startTimeCancelButton)
-        editingActionRow.addArrangedSubview(startTimeApplyButton)
-        editingActionRow.addArrangedSubview(endTimeCancelButton)
-        editingActionRow.addArrangedSubview(endTimeApplyButton)
-        editingActionRow.isHidden = true
     }
 
-    private func configureEditStack(
-        _ stack: NSStackView,
-        picker: NSDatePicker
-    ) {
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 0
-        stack.addArrangedSubview(picker)
-        stack.isHidden = true
-    }
+    private func render() {
+        guard isViewLoaded else { return }
 
-    private func configureTimeRow(
-        _ row: NSStackView,
-        titleLabel: NSTextField,
-        valueLabel: NSTextField,
-        editStack: NSStackView,
-        iconSystemName: String,
-        action: Selector
-    ) {
-        let iconView = Self.makeSymbolImageView(systemName: iconSystemName)
-        let trailingContainer = NSView()
-        let valuePill = MainPopoverViewController.makeValuePillContainer()
-        trailingContainer.translatesAutoresizingMaskIntoConstraints = false
-        valuePill.translatesAutoresizingMaskIntoConstraints = false
-        valueLabel.translatesAutoresizingMaskIntoConstraints = false
-        editStack.translatesAutoresizingMaskIntoConstraints = false
-        trailingContainer.addSubview(valuePill)
-        valuePill.addSubview(valueLabel)
-        trailingContainer.addSubview(editStack)
-        NSLayoutConstraint.activate([
-            valuePill.leadingAnchor.constraint(equalTo: trailingContainer.leadingAnchor),
-            valuePill.trailingAnchor.constraint(equalTo: trailingContainer.trailingAnchor),
-            valuePill.topAnchor.constraint(equalTo: trailingContainer.topAnchor),
-            valuePill.bottomAnchor.constraint(equalTo: trailingContainer.bottomAnchor),
-            valueLabel.leadingAnchor.constraint(equalTo: valuePill.leadingAnchor, constant: 12),
-            valueLabel.trailingAnchor.constraint(equalTo: valuePill.trailingAnchor, constant: -12),
-            valueLabel.centerYAnchor.constraint(equalTo: valuePill.centerYAnchor),
-            editStack.leadingAnchor.constraint(equalTo: trailingContainer.leadingAnchor),
-            editStack.trailingAnchor.constraint(equalTo: trailingContainer.trailingAnchor),
-            editStack.topAnchor.constraint(equalTo: trailingContainer.topAnchor),
-            editStack.bottomAnchor.constraint(equalTo: trailingContainer.bottomAnchor),
-        ])
-
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.distribution = .fill
-        row.spacing = 14
-        row.addArrangedSubview(iconView)
-        row.addArrangedSubview(titleLabel)
-        row.addArrangedSubview(NSView())
-        row.addArrangedSubview(trailingContainer)
-        titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        trailingContainer.widthAnchor.constraint(equalToConstant: 110).isActive = true
-        valuePill.heightAnchor.constraint(equalToConstant: 50).isActive = true
-        valueLabel.alignment = .center
-
-        let recognizer = NSClickGestureRecognizer(target: self, action: action)
-        row.addGestureRecognizer(recognizer)
-    }
-
-    private func syncEditorValues() {
-        if let startTime = todayTimeEditModeState.draftStartTime {
-            startTimePicker.dateValue = startTime
-        } else {
-            startTimePicker.dateValue = currentTimeProvider()
-        }
-
-        if let endTime = todayTimeEditModeState.draftEndTime {
-            endTimePicker.dateValue = endTime
-        } else {
-            endTimePicker.dateValue = currentTimeProvider()
-        }
-    }
-
-    private func syncEditingUI() {
-        let isEditingStartTime = todayTimeEditModeState.isEditingStartTime
-        let isEditingEndTime = todayTimeEditModeState.isEditingEndTime
-
-        startTimeValueLabel.isHidden = isEditingStartTime
-        startTimeEditStack.isHidden = !isEditingStartTime
-        startTimePicker.isHidden = !isEditingStartTime
-        startTimeApplyButton.isHidden = !isEditingStartTime
-        startTimeCancelButton.isHidden = !isEditingStartTime
-
-        endTimeValueLabel.isHidden = isEditingEndTime
-        endTimeEditStack.isHidden = !isEditingEndTime
-        endTimePicker.isHidden = !isEditingEndTime
-        endTimeApplyButton.isHidden = !isEditingEndTime
-        endTimeCancelButton.isHidden = !isEditingEndTime
-        editingActionRow.isHidden = !(isEditingStartTime || isEditingEndTime)
-    }
-
-    private func applyCurrentSessionProgress(duration: TimeInterval?) {
-        let clampedFraction: CGFloat
-        if let duration {
-            let rawFraction = CGFloat(duration / currentSessionGoalDuration)
-            if rawFraction >= 1 {
-                clampedFraction = maximumVisibleProgressFraction
-            } else {
-                clampedFraction = max(0, rawFraction)
-            }
-        } else {
-            clampedFraction = 0
-        }
-        currentSessionProgressBar.progressFraction = clampedFraction
-    }
-
-    private func makeHeaderSection() -> NSView {
-        let calendarImageView = Self.makeSymbolImageView(systemName: "calendar")
-        let settingsImageView = Self.makeSymbolImageView(systemName: "gearshape")
-        dateLabel.font = .systemFont(ofSize: 16, weight: .bold)
-        checkedInSummaryLabel.textColor = .secondaryLabelColor
-
-        let dateRow = NSStackView(views: [calendarImageView, dateLabel, NSView(), settingsImageView])
-        dateRow.orientation = .horizontal
-        dateRow.alignment = .centerY
-        dateRow.spacing = 10
-
-        let checkInRow = NSStackView(views: [
-            Self.makeTintedSymbolImageView(systemName: "arrow.right.to.line", color: .systemGreen),
-            checkedInSummaryLabel,
-            NSView()
-        ])
-        checkInRow.orientation = .horizontal
-        checkInRow.alignment = .centerY
-        checkInRow.spacing = 8
-
-        let stack = Self.makeSectionStack(edgeInsets: NSEdgeInsets(top: 18, left: 20, bottom: 18, right: 20))
-        stack.spacing = 10
-        stack.addArrangedSubview(dateRow)
-        stack.addArrangedSubview(checkInRow)
-        return stack
-    }
-
-    private func makeCurrentSessionSection() -> NSView {
-        let titleRow = NSStackView(views: [
-            Self.makeTintedSymbolImageView(systemName: "hourglass", color: .systemBlue),
-            currentSessionTitleLabel
-        ])
-        titleRow.orientation = .horizontal
-        titleRow.alignment = .centerY
-        titleRow.spacing = 8
-
-        currentSessionValueLabel.textColor = .systemBlue
-
-        let progressCaptionRow = NSStackView(views: [
-            currentSessionProgressLeadingLabel,
-            NSView(),
-            currentSessionProgressTrailingLabel
-        ])
-        progressCaptionRow.orientation = .horizontal
-        progressCaptionRow.alignment = .centerY
-        progressCaptionRow.spacing = 8
-
-        let stack = Self.makeSectionStack(edgeInsets: NSEdgeInsets(top: 26, left: 26, bottom: 26, right: 26))
-        stack.alignment = .centerX
-        stack.spacing = 16
-        stack.addArrangedSubview(titleRow)
-        stack.addArrangedSubview(currentSessionValueLabel)
-        stack.addArrangedSubview(currentSessionProgressBar)
-        stack.addArrangedSubview(progressCaptionRow)
-
-        NSLayoutConstraint.activate([
-            currentSessionProgressBar.widthAnchor.constraint(
-                equalTo: stack.widthAnchor,
-                constant: -(stack.edgeInsets.left + stack.edgeInsets.right)
-            ),
-        ])
-
-        return stack
-    }
-
-    private func makeTodayTimesSection() -> NSView {
-        todayTimesSectionView.translatesAutoresizingMaskIntoConstraints = false
-
-        todayTimesBackgroundView.wantsLayer = true
-        todayTimesBackgroundView.layer?.backgroundColor = NSColor(
-            calibratedWhite: 0.97,
-            alpha: 1
-        ).cgColor
-        todayTimesBackgroundView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.16).cgColor
-        todayTimesBackgroundView.layer?.shadowOpacity = 0.08
-        todayTimesBackgroundView.layer?.shadowRadius = 10
-        todayTimesBackgroundView.layer?.shadowOffset = CGSize(width: 0, height: -1)
-        todayTimesBackgroundView.translatesAutoresizingMaskIntoConstraints = false
-
-        let stack = NSStackView(views: [startTimeRow, endTimeRow, editingActionRow])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        todayTimesSectionView.addSubview(todayTimesBackgroundView)
-        todayTimesSectionView.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            todayTimesBackgroundView.topAnchor.constraint(equalTo: todayTimesSectionView.topAnchor),
-            todayTimesBackgroundView.leadingAnchor.constraint(equalTo: todayTimesSectionView.leadingAnchor),
-            todayTimesBackgroundView.trailingAnchor.constraint(equalTo: todayTimesSectionView.trailingAnchor),
-            todayTimesBackgroundView.bottomAnchor.constraint(equalTo: todayTimesSectionView.bottomAnchor),
-            stack.topAnchor.constraint(equalTo: todayTimesBackgroundView.topAnchor, constant: 18),
-            stack.leadingAnchor.constraint(equalTo: todayTimesBackgroundView.leadingAnchor, constant: 18),
-            stack.trailingAnchor.constraint(equalTo: todayTimesBackgroundView.trailingAnchor, constant: -18),
-            stack.bottomAnchor.constraint(equalTo: todayTimesBackgroundView.bottomAnchor, constant: -18),
-        ])
-
-        return todayTimesSectionView
-    }
-
-    private func makeSummarySection() -> NSView {
-        let weeklyStack = makeSummaryColumn(
-            icon: Self.makeSymbolImageView(systemName: "calendar"),
-            titleLabel: weeklyTitleLabel,
-            valueLabel: weeklyValueLabel,
-            alignment: .left
-        )
-        let monthlyStack = makeSummaryColumn(
-            icon: Self.makeSymbolImageView(systemName: "chart.bar"),
-            titleLabel: monthlyTitleLabel,
-            valueLabel: monthlyValueLabel,
-            alignment: .right
+        let renderModel = renderModelFactory.make(
+            viewState: state,
+            currentSessionText: currentSessionText,
+            currentSessionDuration: currentSessionDuration,
+            editModeState: todayTimeEditModeState,
+            fallbackTime: currentTimeProvider()
         )
 
-        let row = NSStackView(views: [weeklyStack, NSView(), monthlyStack])
-        row.orientation = .horizontal
-        row.alignment = .top
-        row.spacing = 12
-
-        let section = Self.makeSectionStack(edgeInsets: NSEdgeInsets(top: 16, left: 20, bottom: 18, right: 20))
-        section.addArrangedSubview(row)
-        return section
+        headerSectionView.apply(renderModel.header)
+        currentSessionSectionView.apply(renderModel.currentSession)
+        todayTimesSectionView.apply(renderModel.todayTimes)
+        summarySectionView.apply(renderModel.summary)
     }
 
-    private func makeSummaryColumn(
-        icon: NSImageView,
-        titleLabel: NSTextField,
-        valueLabel: NSTextField,
-        alignment: NSTextAlignment
-    ) -> NSView {
-        titleLabel.alignment = alignment
-        valueLabel.alignment = alignment
-
-        let titleRow = NSStackView(views: [icon, titleLabel])
-        titleRow.orientation = .horizontal
-        titleRow.alignment = .centerY
-        titleRow.spacing = 8
-
-        if alignment == .right {
-            titleRow.insertArrangedSubview(NSView(), at: 0)
+    private func checkedInSummaryText(for startTime: Date?) -> String {
+        guard let startTime else {
+            return MainPopoverViewState.placeholder.checkedInSummaryText
         }
 
-        let stack = NSStackView(views: [titleRow, valueLabel])
-        stack.orientation = .vertical
-        stack.alignment = alignment == .right ? .trailing : .leading
-        stack.spacing = 8
-        return stack
+        return "Checked in at \(timeText(for: startTime))"
     }
 
     private func timeText(for date: Date?) -> String {
@@ -734,115 +378,12 @@ final class MainPopoverViewController: NSViewController {
         return timeFormatter.string(from: date)
     }
 
-    private static func makeSectionTitleLabel() -> NSTextField {
-        let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 13, weight: .semibold)
-        label.textColor = .labelColor
-        return label
-    }
-
-    private static func makeSecondaryLabel() -> NSTextField {
-        let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 12)
-        label.textColor = .secondaryLabelColor
-        return label
-    }
-
-    private static func makeValueLabel() -> NSTextField {
-        let label = NSTextField(labelWithString: "")
-        label.font = .monospacedDigitSystemFont(ofSize: 56, weight: .regular)
-        label.textColor = .systemBlue
-        label.alignment = .center
-        return label
-    }
-
-    private static func makeRowValueLabel() -> NSTextField {
-        let label = NSTextField(labelWithString: "")
-        label.font = .monospacedDigitSystemFont(ofSize: 18, weight: .semibold)
-        label.textColor = .labelColor
-        return label
-    }
-
-    private static func makeTimePicker() -> NSDatePicker {
-        let picker = NSDatePicker()
-        picker.datePickerElements = [.hourMinute]
-        picker.datePickerStyle = .textField
-        picker.datePickerMode = .single
-        picker.translatesAutoresizingMaskIntoConstraints = false
-        picker.isHidden = true
-        picker.controlSize = .regular
-        picker.alignment = .center
-        picker.isBordered = false
-        picker.isBezeled = false
-        picker.drawsBackground = false
-        picker.font = .monospacedDigitSystemFont(ofSize: 18, weight: .semibold)
-        return picker
-    }
-
-    private static func makeActionButton(title: String) -> NSButton {
-        let button = NSButton(title: title, target: nil, action: nil)
-        button.bezelStyle = .rounded
-        button.controlSize = .small
-        button.isHidden = true
-        return button
-    }
-
-    private static func makeSummaryValueLabel() -> NSTextField {
-        let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 18, weight: .bold)
-        label.textColor = .labelColor
-        return label
-    }
-
-    private static func makeProgressCaptionLabel(alignment: NSTextAlignment) -> NSTextField {
-        let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 11, weight: .semibold)
-        label.textColor = .secondaryLabelColor
-        label.alignment = alignment
-        return label
-    }
-
     private static func makeSeparator() -> NSView {
         let separator = NSBox()
         separator.boxType = .separator
         separator.translatesAutoresizingMaskIntoConstraints = false
         separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return separator
-    }
-
-    private static func makeSectionStack(edgeInsets: NSEdgeInsets) -> NSStackView {
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 8
-        stack.edgeInsets = edgeInsets
-        return stack
-    }
-
-    private static func makeSymbolImageView(systemName: String) -> NSImageView {
-        let imageView = NSImageView()
-        imageView.image = NSImage(
-            systemSymbolName: systemName,
-            accessibilityDescription: nil
-        )
-        imageView.contentTintColor = .secondaryLabelColor
-        return imageView
-    }
-
-    private static func makeTintedSymbolImageView(systemName: String, color: NSColor) -> NSImageView {
-        let imageView = makeSymbolImageView(systemName: systemName)
-        imageView.contentTintColor = color
-        return imageView
-    }
-
-    private static func makeValuePillContainer() -> NSView {
-        let view = NSView()
-        view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.white.cgColor
-        view.layer?.borderColor = NSColor.separatorColor.cgColor
-        view.layer?.borderWidth = 1
-        view.layer?.cornerRadius = 12
-        return view
     }
 
     fileprivate static func format(duration: TimeInterval) -> String {

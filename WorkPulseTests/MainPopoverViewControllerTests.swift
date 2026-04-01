@@ -19,6 +19,7 @@ struct MainPopoverViewControllerTests {
         #expect(controller.currentSessionProgressLeadingLabel.stringValue == "0H")
         #expect(controller.currentSessionProgressTrailingLabel.stringValue == "Goal: 8h")
         #expect(controller.currentSessionProgressBar.progressFraction == 0)
+        #expect(controller.currentSessionProgressBar.trackBorderWidth > 0)
         #expect(controller.startTimeTitleLabel.stringValue == "Start Time")
         #expect(controller.startTimeValueLabel.stringValue == "--:--")
         #expect(controller.endTimeTitleLabel.stringValue == "End Time")
@@ -229,6 +230,8 @@ struct MainPopoverViewControllerTests {
         #expect(controller.startTimeCancelButton.isHidden == false)
         #expect(controller.endTimeValueLabel.isHidden == false)
         #expect(controller.currentSessionValueLabel.isHidden == false)
+        #expect(controller.editingActionRow.isDescendant(of: controller.todayTimesSectionView.startRowView.valuePillView) == false)
+        #expect(controller.editingActionRow.isDescendant(of: controller.todayTimesSectionView.endRowView.valuePillView) == false)
     }
 
     @Test
@@ -387,6 +390,33 @@ struct MainPopoverViewControllerTests {
         controller.beginEditingEndTime()
 
         #expect(controller.endTimePicker.dateValue == currentTime)
+    }
+
+    @Test
+    @MainActor
+    func summaryColumnsStayAlignedAcrossDifferentValues() {
+        let controller = MainPopoverViewController()
+        let state = MainPopoverViewState(
+            dateText: "Wednesday, Apr 1",
+            checkedInSummaryText: "Checked in at 08:45",
+            currentSessionText: "00:11:33",
+            startTimeText: "08:45",
+            endTimeText: "--:--",
+            weeklyTotalText: "132:59",
+            monthlyTotalText: "9:05"
+        )
+
+        controller.loadViewIfNeeded()
+        controller.apply(state: state)
+        controller.view.layoutSubtreeIfNeeded()
+
+        #expect(controller.summarySectionView.columnsRow.arrangedSubviews.count == 3)
+        #expect(controller.summarySectionView.columnsRow.arrangedSubviews[0] === controller.summarySectionView.weeklyColumn)
+        #expect(controller.summarySectionView.columnsRow.arrangedSubviews[2] === controller.summarySectionView.monthlyColumn)
+        #expect(controller.summarySectionView.weeklyColumn.alignment == .leading)
+        #expect(controller.summarySectionView.monthlyColumn.alignment == .trailing)
+        #expect(controller.monthlyTitleLabel.alignment == .right)
+        #expect(controller.monthlyValueLabel.alignment == .right)
     }
 }
 

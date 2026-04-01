@@ -56,7 +56,7 @@ struct MainPopoverCurrentSessionRuntimeTests {
         let runtime = MainPopoverCurrentSessionRuntime(
             currentTimeProvider: { Date(timeIntervalSince1970: 0) },
             currentSessionScheduler: scheduler,
-            onTextChange: { receivedTexts.append($0) }
+            onChange: { text, _ in receivedTexts.append(text) }
         )
 
         runtime.begin(startTime: nil, endTime: nil)
@@ -79,7 +79,7 @@ struct MainPopoverCurrentSessionRuntimeTests {
         let runtime = MainPopoverCurrentSessionRuntime(
             currentTimeProvider: { now },
             currentSessionScheduler: scheduler,
-            onTextChange: { receivedTexts.append($0) }
+            onChange: { text, _ in receivedTexts.append(text) }
         )
 
         runtime.begin(startTime: startTime, endTime: nil)
@@ -112,7 +112,7 @@ struct MainPopoverCurrentSessionRuntimeTests {
                 ?? Date(timeIntervalSince1970: 0)
             },
             currentSessionScheduler: scheduler,
-            onTextChange: { receivedTexts.append($0) }
+            onChange: { text, _ in receivedTexts.append(text) }
         )
 
         runtime.begin(startTime: startTime, endTime: endTime)
