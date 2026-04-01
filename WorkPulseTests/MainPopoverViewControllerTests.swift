@@ -182,7 +182,7 @@ struct MainPopoverViewControllerTests {
     @MainActor
     private func makeController(
         state: MainPopoverViewState = MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
-        currentTimeProvider: @escaping () -> Date = Date.init,
+        currentTimeProvider: @escaping () -> Date = { Date(timeIntervalSince1970: 0) },
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler(),
         currentSessionCalculator: CurrentSessionCalculator = makeSeoulCurrentSessionCalculator()
     ) -> MainPopoverViewController {

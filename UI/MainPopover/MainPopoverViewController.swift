@@ -53,7 +53,7 @@ final class MainPopoverViewController: NSViewController {
         state: MainPopoverViewState,
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
         copy: MainPopoverCopy = .english,
-        currentTimeProvider: @escaping () -> Date = Date.init,
+        currentTimeProvider: @escaping () -> Date,
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler()
     ) {
         self.state = state

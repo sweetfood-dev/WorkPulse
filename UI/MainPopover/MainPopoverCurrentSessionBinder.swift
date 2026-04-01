@@ -27,7 +27,7 @@ final class MainPopoverCurrentSessionBinder {
         copy: MainPopoverCopy = .english,
         progressPolicy: MainPopoverCurrentSessionProgressPolicy = MainPopoverCurrentSessionProgressPolicy(),
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
-        currentTimeProvider: @escaping () -> Date = Date.init,
+        currentTimeProvider: @escaping () -> Date,
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler()
     ) {
         self.copy = copy

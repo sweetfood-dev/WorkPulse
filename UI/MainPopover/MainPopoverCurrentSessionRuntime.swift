@@ -11,7 +11,7 @@ final class MainPopoverCurrentSessionRuntime {
 
     init(
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
-        currentTimeProvider: @escaping () -> Date = Date.init,
+        currentTimeProvider: @escaping () -> Date,
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler(),
         placeholderText: String = MainPopoverCopy.english.currentSessionPlaceholderText,
         onChange: @escaping (String, TimeInterval?) -> Void
