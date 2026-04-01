@@ -51,9 +51,10 @@ struct MainPopoverViewControllerTests {
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
         )
-        let now = try #require(
+        let baseNow = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")
         )
+        let now = baseNow.addingTimeInterval(0.2)
         let controller = makeController(currentTimeProvider: { now })
 
         controller.loadViewIfNeeded()

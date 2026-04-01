@@ -19,6 +19,7 @@ struct MainPopoverCurrentSessionProgressPolicyTests {
     @Test
     func treatsOnlyStrictlyGreaterThanGoalAsOvertime() {
         #expect(policy.isOverGoal(8 * 60 * 60) == false)
+        #expect(policy.isOverGoal((8 * 60 * 60) + 0.2) == false)
         #expect(policy.isOverGoal((8 * 60 * 60) + 1) == true)
     }
 }
