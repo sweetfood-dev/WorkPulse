@@ -14,7 +14,8 @@ struct MainPopoverRenderModelFactoryTests {
             valueText: "00:12:34",
             leadingCaptionText: "0H",
             trailingCaptionText: "Goal: 8h",
-            progressFraction: 0.12
+            progressFraction: 0.12,
+            visualState: .normal
         )
         let todayTimes = MainPopoverTodayTimesRenderModel(
             startRow: MainPopoverTimeRowRenderModel(
@@ -60,6 +61,7 @@ struct MainPopoverRenderModelFactoryTests {
                 timePlaceholderText: "--:--",
                 totalPlaceholderText: "--",
                 currentSessionTitle: "SESSION",
+                currentSessionWarningTitle: "🔥 SESSION",
                 currentSessionLeadingCaption: "START",
                 startTimeTitle: "In",
                 endTimeTitle: "Out",
@@ -77,7 +79,8 @@ struct MainPopoverRenderModelFactoryTests {
                 valueText: "00:00:00",
                 leadingCaptionText: "START",
                 trailingCaptionText: "Target 8h",
-                progressFraction: 0
+                progressFraction: 0,
+                visualState: .normal
             ),
             todayTimes: MainPopoverTodayTimesRenderModel(
                 startRow: MainPopoverTimeRowRenderModel(

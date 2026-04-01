@@ -6,6 +6,10 @@ struct MainPopoverCurrentSessionSectionSnapshot {
     let leadingCaptionText: String
     let trailingCaptionText: String
     let progressFraction: CGFloat
+    let isWarningState: Bool
+    let valueTextColor: CGColor?
+    let progressLeadingColor: CGColor?
+    let progressTrailingColor: CGColor?
     let trackBorderWidth: CGFloat
     let isTitleIconLeading: Bool
     let valueFontPointSize: CGFloat
@@ -46,9 +50,13 @@ final class MainPopoverCurrentSessionSectionView: NSView {
             attributes: MainPopoverStyle.Typography.currentSessionTitleAttributes
         )
         valueLabel.stringValue = renderModel.valueText
+        valueLabel.textColor = renderModel.visualState == .warning
+            ? MainPopoverStyle.Colors.currentSessionWarningValue
+            : MainPopoverStyle.Colors.currentSessionValue
         leadingCaptionLabel.stringValue = renderModel.leadingCaptionText
         trailingCaptionLabel.stringValue = renderModel.trailingCaptionText
         progressBar.progressFraction = renderModel.progressFraction
+        progressBar.applyVisualState(renderModel.visualState)
     }
 
     var snapshot: MainPopoverCurrentSessionSectionSnapshot {
@@ -58,6 +66,10 @@ final class MainPopoverCurrentSessionSectionView: NSView {
             leadingCaptionText: leadingCaptionLabel.stringValue,
             trailingCaptionText: trailingCaptionLabel.stringValue,
             progressFraction: progressBar.progressFraction,
+            isWarningState: valueLabel.textColor == MainPopoverStyle.Colors.currentSessionWarningValue,
+            valueTextColor: valueLabel.textColor?.cgColor,
+            progressLeadingColor: progressBar.fillLeadingColor,
+            progressTrailingColor: progressBar.fillTrailingColor,
             trackBorderWidth: progressBar.trackBorderWidth,
             isTitleIconLeading: titleRow.arrangedSubviews.first === titleIconView,
             valueFontPointSize: valueLabel.font?.pointSize ?? 0,
