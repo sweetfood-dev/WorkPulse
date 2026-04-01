@@ -50,57 +50,25 @@ struct MainPopoverRenderModel {
 
 struct MainPopoverRenderModelFactory {
     private let copy: MainPopoverCopy
-    private let progressPolicy: MainPopoverCurrentSessionProgressPolicy
 
     init(
-        copy: MainPopoverCopy = .english,
-        progressPolicy: MainPopoverCurrentSessionProgressPolicy
+        copy: MainPopoverCopy = .english
     ) {
         self.copy = copy
-        self.progressPolicy = progressPolicy
     }
 
     func make(
         viewState: MainPopoverViewState,
-        currentSessionText: String,
-        currentSessionDuration: TimeInterval?,
-        editModeState: TodayTimeEditModeState,
-        fallbackTime: Date
+        currentSession: MainPopoverCurrentSessionRenderModel,
+        todayTimes: MainPopoverTodayTimesRenderModel
     ) -> MainPopoverRenderModel {
         MainPopoverRenderModel(
             header: MainPopoverHeaderRenderModel(
                 dateText: viewState.dateText,
                 checkedInSummaryText: viewState.checkedInSummaryText
             ),
-            currentSession: MainPopoverCurrentSessionRenderModel(
-                titleText: copy.currentSessionTitle,
-                valueText: currentSessionText,
-                leadingCaptionText: copy.currentSessionLeadingCaption,
-                trailingCaptionText: copy.currentSessionTrailingCaption(
-                    goalDuration: progressPolicy.goalDuration
-                ),
-                progressFraction: progressPolicy.fraction(for: currentSessionDuration)
-            ),
-            todayTimes: MainPopoverTodayTimesRenderModel(
-                startRow: makeTimeRow(
-                    titleText: copy.startTimeTitle,
-                    valueText: viewState.startTimeText,
-                    isEditing: editModeState.isEditingStartTime,
-                    draftTime: editModeState.draftStartTime,
-                    fallbackTime: fallbackTime
-                ),
-                endRow: makeTimeRow(
-                    titleText: copy.endTimeTitle,
-                    valueText: viewState.endTimeText,
-                    isEditing: editModeState.isEditingEndTime,
-                    draftTime: editModeState.draftEndTime,
-                    fallbackTime: fallbackTime
-                ),
-                showsEditingActions: editModeState.editingField != nil,
-                showsStartActions: editModeState.isEditingStartTime,
-                showsEndActions: editModeState.isEditingEndTime,
-                isApplyEnabled: editModeState.hasValidDraftTimes
-            ),
+            currentSession: currentSession,
+            todayTimes: todayTimes,
             summary: MainPopoverSummaryRenderModel(
                 weekly: MainPopoverSummaryItemRenderModel(
                     titleText: copy.weeklyTitle,
@@ -111,22 +79,6 @@ struct MainPopoverRenderModelFactory {
                     valueText: viewState.monthlyTotalText
                 )
             )
-        )
-    }
-
-    private func makeTimeRow(
-        titleText: String,
-        valueText: String,
-        isEditing: Bool,
-        draftTime: Date?,
-        fallbackTime: Date
-    ) -> MainPopoverTimeRowRenderModel {
-        MainPopoverTimeRowRenderModel(
-            titleText: titleText,
-            valueText: valueText,
-            isValueVisible: !isEditing,
-            isPickerVisible: isEditing,
-            pickerDateValue: draftTime ?? fallbackTime
         )
     }
 }

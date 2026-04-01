@@ -10,24 +10,10 @@ struct MainPopoverViewSnapshot {
 final class MainPopoverViewController: NSViewController {
     private var state: MainPopoverViewState
     private let copy: MainPopoverCopy
-    private let timeFormatter: DateFormatter
-    private var todayTimeEditModeState = TodayTimeEditModeState()
     private let currentTimeProvider: () -> Date
+    private let currentSessionCalculator: CurrentSessionCalculator
+    private let currentSessionScheduler: any CurrentSessionScheduling
     private let renderModelFactory: MainPopoverRenderModelFactory
-    private var currentSessionText: String
-    private var currentSessionDuration: TimeInterval?
-    private lazy var currentSessionRuntime = MainPopoverCurrentSessionRuntime(
-        currentSessionCalculator: runtimeDependencies.currentSessionCalculator,
-        currentTimeProvider: currentTimeProvider,
-        currentSessionScheduler: runtimeDependencies.currentSessionScheduler,
-        placeholderText: copy.currentSessionPlaceholderText,
-        onChange: { [weak self] text, duration in
-            self?.currentSessionText = text
-            self?.currentSessionDuration = duration
-            self?.render()
-        }
-    )
-    private let runtimeDependencies: RuntimeDependencies
     var onApplyEditedTimes: ((Date?, Date?) -> Void)?
 
     private let headerSectionView = MainPopoverHeaderSectionView()
@@ -35,31 +21,47 @@ final class MainPopoverViewController: NSViewController {
     private let todayTimesSectionView = MainPopoverTodayTimesSectionView()
     private let summarySectionView = MainPopoverSummarySectionView()
 
+    private lazy var currentSessionBinder: MainPopoverCurrentSessionBinder = {
+        let binder = MainPopoverCurrentSessionBinder(
+            initialText: state.currentSessionText,
+            copy: copy,
+            currentSessionCalculator: currentSessionCalculator,
+            currentTimeProvider: currentTimeProvider,
+            currentSessionScheduler: currentSessionScheduler
+        )
+        binder.onDidChange = { [weak self] in
+            self?.render()
+        }
+        return binder
+    }()
+
+    private lazy var todayTimesBinder: MainPopoverTodayTimesBinder = {
+        let binder = MainPopoverTodayTimesBinder(
+            sectionView: todayTimesSectionView,
+            copy: copy
+        )
+        binder.onDidChange = { [weak self] in
+            self?.render()
+        }
+        binder.onDidApplyTimes = { [weak self] appliedTimes in
+            self?.onApplyEditedTimes?(appliedTimes.startTime, appliedTimes.endTime)
+        }
+        return binder
+    }()
+
     init(
-        state: MainPopoverViewState? = nil,
+        state: MainPopoverViewState,
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
         copy: MainPopoverCopy = .english,
         currentTimeProvider: @escaping () -> Date = Date.init,
         currentSessionScheduler: any CurrentSessionScheduling = TimerCurrentSessionScheduler()
     ) {
-        let resolvedState = state ?? MainPopoverViewStateFactory(copy: copy).makePlaceholder()
-        self.state = resolvedState
+        self.state = state
         self.copy = copy
-        self.currentSessionText = resolvedState.currentSessionText
-        self.currentSessionDuration = nil
         self.currentTimeProvider = currentTimeProvider
-        self.runtimeDependencies = RuntimeDependencies(
-            currentSessionCalculator: currentSessionCalculator,
-            currentSessionScheduler: currentSessionScheduler
-        )
-        let progressPolicy = MainPopoverCurrentSessionProgressPolicy()
-        self.renderModelFactory = MainPopoverRenderModelFactory(
-            copy: copy,
-            progressPolicy: progressPolicy
-        )
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        self.timeFormatter = formatter
+        self.currentSessionCalculator = currentSessionCalculator
+        self.currentSessionScheduler = currentSessionScheduler
+        self.renderModelFactory = MainPopoverRenderModelFactory(copy: copy)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -110,28 +112,27 @@ final class MainPopoverViewController: NSViewController {
         ])
 
         view = rootView
-        configureActions()
         render()
     }
 
     func apply(state: MainPopoverViewState) {
         self.state = state
-        currentSessionText = state.currentSessionText
-        currentSessionDuration = nil
+        currentSessionBinder.load(viewState: state)
         render()
     }
 
     func applyCurrentSession(startTime: Date?, endTime: Date?) {
-        currentSessionRuntime.apply(startTime: startTime, endTime: endTime)
+        currentSessionBinder.apply(startTime: startTime, endTime: endTime)
     }
 
     func beginCurrentSessionUpdates(startTime: Date?, endTime: Date?) {
-        todayTimeEditModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
-        currentSessionRuntime.begin(startTime: startTime, endTime: endTime)
+        todayTimesBinder.loadSavedTimes(startTime: startTime, endTime: endTime)
+        currentSessionBinder.begin(startTime: startTime, endTime: endTime)
+        render()
     }
 
     func stopCurrentSessionUpdates() {
-        currentSessionRuntime.stop()
+        currentSessionBinder.stop()
     }
 
     override func viewDidDisappear() {
@@ -139,84 +140,20 @@ final class MainPopoverViewController: NSViewController {
         stopCurrentSessionUpdates()
     }
 
-    func beginEditingStartTime() {
-        todayTimeEditModeState.beginEditing(.startTime)
-        render()
+    func beginEditing(_ field: TodayTimeField) {
+        todayTimesBinder.beginEditing(field)
     }
 
-    func beginEditingEndTime() {
-        todayTimeEditModeState.beginEditing(.endTime)
-        render()
+    func cancelEditing() {
+        todayTimesBinder.cancelEditing()
     }
 
-    func cancelEditingTime() {
-        todayTimeEditModeState.cancel()
-        render()
+    func applyEditing() {
+        todayTimesBinder.applyEditing()
     }
 
-    func applyEditingTime() {
-        switch todayTimeEditModeState.editingField {
-        case .startTime:
-            todayTimeEditModeState.updateDraftStartTime(todayTimesSectionView.pickerDate(for: .startTime))
-        case .endTime:
-            todayTimeEditModeState.updateDraftEndTime(todayTimesSectionView.pickerDate(for: .endTime))
-        case nil:
-            return
-        }
-
-        guard todayTimeEditModeState.hasValidDraftTimes else {
-            render()
-            return
-        }
-
-        guard let appliedTimes = todayTimeEditModeState.apply() else { return }
-
-        state = MainPopoverViewState(
-            dateText: state.dateText,
-            checkedInSummaryText: checkedInSummaryText(for: appliedTimes.startTime),
-            currentSessionText: currentSessionText,
-            startTimeText: timeText(for: appliedTimes.startTime),
-            endTimeText: timeText(for: appliedTimes.endTime),
-            weeklyTotalText: state.weeklyTotalText,
-            monthlyTotalText: state.monthlyTotalText
-        )
-        onApplyEditedTimes?(appliedTimes.startTime, appliedTimes.endTime)
-        render()
-    }
-
-    @objc
-    private func handleStartTimeRowTap() {
-        beginEditingStartTime()
-    }
-
-    @objc
-    private func handleEndTimeRowTap() {
-        beginEditingEndTime()
-    }
-
-    @objc
-    private func handleCancelEditing() {
-        cancelEditingTime()
-    }
-
-    @objc
-    private func handleApplyEditing() {
-        applyEditingTime()
-    }
-
-    private func configureActions() {
-        todayTimesSectionView.onEvent = { [weak self] event in
-            switch event {
-            case .beginEditing(.startTime):
-                self?.handleStartTimeRowTap()
-            case .beginEditing(.endTime):
-                self?.handleEndTimeRowTap()
-            case .cancelEditing:
-                self?.handleCancelEditing()
-            case .applyEditing:
-                self?.handleApplyEditing()
-            }
-        }
+    func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
+        todayTimesBinder.setPickerDate(date, for: field)
     }
 
     private func render() {
@@ -224,36 +161,17 @@ final class MainPopoverViewController: NSViewController {
 
         let renderModel = renderModelFactory.make(
             viewState: state,
-            currentSessionText: currentSessionText,
-            currentSessionDuration: currentSessionDuration,
-            editModeState: todayTimeEditModeState,
-            fallbackTime: currentTimeProvider()
+            currentSession: currentSessionBinder.makeRenderModel(),
+            todayTimes: todayTimesBinder.makeRenderModel(
+                viewState: state,
+                fallbackTime: currentTimeProvider()
+            )
         )
 
         headerSectionView.apply(renderModel.header)
         currentSessionSectionView.apply(renderModel.currentSession)
         todayTimesSectionView.apply(renderModel.todayTimes)
         summarySectionView.apply(renderModel.summary)
-    }
-
-    private func checkedInSummaryText(for startTime: Date?) -> String {
-        guard let startTime else {
-            return copy.checkedInSummaryPlaceholder
-        }
-
-        return copy.checkedInSummaryText(for: timeText(for: startTime))
-    }
-
-    private func timeText(for date: Date?) -> String {
-        guard let date else {
-            return copy.timePlaceholderText
-        }
-
-        return timeFormatter.string(from: date)
-    }
-
-    func setPickerDate(_ date: Date, for field: TodayTimeField) {
-        todayTimesSectionView.setPickerDate(date, for: field)
     }
 
     var snapshot: MainPopoverViewSnapshot {
@@ -263,10 +181,5 @@ final class MainPopoverViewController: NSViewController {
             todayTimes: todayTimesSectionView.snapshot,
             summary: summarySectionView.snapshot
         )
-    }
-
-    private struct RuntimeDependencies {
-        let currentSessionCalculator: CurrentSessionCalculator
-        let currentSessionScheduler: any CurrentSessionScheduling
     }
 }

@@ -4,87 +4,53 @@ import Testing
 
 @Suite("MainPopoverRenderModelFactory")
 struct MainPopoverRenderModelFactoryTests {
-    private let progressPolicy = MainPopoverCurrentSessionProgressPolicy()
-    private let factory = MainPopoverRenderModelFactory(
-        progressPolicy: MainPopoverCurrentSessionProgressPolicy()
-    )
+    private let factory = MainPopoverRenderModelFactory()
     private let placeholderState = MainPopoverViewStateFactory(copy: .english).makePlaceholder()
 
     @Test
-    func usesZeroProgressForPlaceholderSession() {
-        let renderModel = factory.make(
-            viewState: placeholderState,
-            currentSessionText: MainPopoverCopy.english.currentSessionPlaceholderText,
-            currentSessionDuration: nil,
-            editModeState: TodayTimeEditModeState(),
-            fallbackTime: Date(timeIntervalSince1970: 0)
+    func composesInjectedCurrentSessionAndTodayTimesRenderModels() {
+        let currentSession = MainPopoverCurrentSessionRenderModel(
+            titleText: "SESSION",
+            valueText: "00:12:34",
+            leadingCaptionText: "0H",
+            trailingCaptionText: "Goal: 8h",
+            progressFraction: 0.12
         )
-
-        #expect(renderModel.currentSession.progressFraction == 0)
-        #expect(renderModel.currentSession.leadingCaptionText == "0H")
-        #expect(renderModel.currentSession.trailingCaptionText == "Goal: 8h")
-    }
-
-    @Test
-    func clampsOverGoalProgressToVisibleTrackMaximum() {
-        let renderModel = factory.make(
-            viewState: placeholderState,
-            currentSessionText: "09:30:00",
-            currentSessionDuration: 9.5 * 60 * 60,
-            editModeState: TodayTimeEditModeState(),
-            fallbackTime: Date(timeIntervalSince1970: 0)
+        let todayTimes = MainPopoverTodayTimesRenderModel(
+            startRow: MainPopoverTimeRowRenderModel(
+                titleText: "In",
+                valueText: "08:45",
+                isValueVisible: true,
+                isPickerVisible: false,
+                pickerDateValue: Date(timeIntervalSince1970: 0)
+            ),
+            endRow: MainPopoverTimeRowRenderModel(
+                titleText: "Out",
+                valueText: "--:--",
+                isValueVisible: true,
+                isPickerVisible: false,
+                pickerDateValue: Date(timeIntervalSince1970: 0)
+            ),
+            showsEditingActions: false,
+            showsStartActions: false,
+            showsEndActions: false,
+            isApplyEnabled: false
         )
-
-        #expect(renderModel.currentSession.progressFraction == 0.94)
-    }
-
-    @Test
-    func startTimeEditingShowsOnlyStartActionsAndPicker() {
-        var editModeState = TodayTimeEditModeState()
-        let startTime = Date(timeIntervalSince1970: 100)
-        let endTime = Date(timeIntervalSince1970: 200)
-        editModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
-        editModeState.beginEditing(.startTime)
 
         let renderModel = factory.make(
             viewState: placeholderState,
-            currentSessionText: "00:00:00",
-            currentSessionDuration: 0,
-            editModeState: editModeState,
-            fallbackTime: Date(timeIntervalSince1970: 0)
+            currentSession: currentSession,
+            todayTimes: todayTimes
         )
 
-        #expect(renderModel.todayTimes.showsEditingActions)
-        #expect(renderModel.todayTimes.showsStartActions)
-        #expect(renderModel.todayTimes.showsEndActions == false)
-        #expect(renderModel.todayTimes.startRow.isPickerVisible)
-        #expect(renderModel.todayTimes.startRow.isValueVisible == false)
-        #expect(renderModel.todayTimes.endRow.isPickerVisible == false)
-        #expect(renderModel.todayTimes.endRow.isValueVisible)
+        #expect(renderModel.currentSession.titleText == "SESSION")
+        #expect(renderModel.currentSession.valueText == "00:12:34")
+        #expect(renderModel.todayTimes.startRow.titleText == "In")
+        #expect(renderModel.todayTimes.endRow.titleText == "Out")
     }
 
     @Test
-    func invalidDraftDisablesApply() {
-        var editModeState = TodayTimeEditModeState()
-        let startTime = Date(timeIntervalSince1970: 200)
-        let endTime = Date(timeIntervalSince1970: 400)
-        editModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
-        editModeState.beginEditing(.endTime)
-        editModeState.updateDraftEndTime(Date(timeIntervalSince1970: 100))
-
-        let renderModel = factory.make(
-            viewState: placeholderState,
-            currentSessionText: "00:00:00",
-            currentSessionDuration: 0,
-            editModeState: editModeState,
-            fallbackTime: Date(timeIntervalSince1970: 0)
-        )
-
-        #expect(renderModel.todayTimes.isApplyEnabled == false)
-    }
-
-    @Test
-    func usesInjectedCopyValuesForLabelsAndCaptions() {
+    func usesInjectedCopyValuesForSummaryLabels() {
         let factory = MainPopoverRenderModelFactory(
             copy: MainPopoverCopy(
                 placeholderDateText: "Today",
@@ -99,23 +65,40 @@ struct MainPopoverRenderModelFactoryTests {
                 weeklyTitle: "Week",
                 monthlyTitle: "Month",
                 currentSessionGoalLabelPrefix: "Target"
-            ),
-            progressPolicy: progressPolicy
+            )
         )
 
         let renderModel = factory.make(
             viewState: placeholderState,
-            currentSessionText: "00:00:00",
-            currentSessionDuration: 0,
-            editModeState: TodayTimeEditModeState(),
-            fallbackTime: Date(timeIntervalSince1970: 0)
+            currentSession: MainPopoverCurrentSessionRenderModel(
+                titleText: "SESSION",
+                valueText: "00:00:00",
+                leadingCaptionText: "START",
+                trailingCaptionText: "Target 8h",
+                progressFraction: 0
+            ),
+            todayTimes: MainPopoverTodayTimesRenderModel(
+                startRow: MainPopoverTimeRowRenderModel(
+                    titleText: "In",
+                    valueText: "--:--",
+                    isValueVisible: true,
+                    isPickerVisible: false,
+                    pickerDateValue: Date(timeIntervalSince1970: 0)
+                ),
+                endRow: MainPopoverTimeRowRenderModel(
+                    titleText: "Out",
+                    valueText: "--:--",
+                    isValueVisible: true,
+                    isPickerVisible: false,
+                    pickerDateValue: Date(timeIntervalSince1970: 0)
+                ),
+                showsEditingActions: false,
+                showsStartActions: false,
+                showsEndActions: false,
+                isApplyEnabled: false
+            )
         )
 
-        #expect(renderModel.currentSession.titleText == "SESSION")
-        #expect(renderModel.currentSession.leadingCaptionText == "START")
-        #expect(renderModel.currentSession.trailingCaptionText == "Target 8h")
-        #expect(renderModel.todayTimes.startRow.titleText == "In")
-        #expect(renderModel.todayTimes.endRow.titleText == "Out")
         #expect(renderModel.summary.weekly.titleText == "Week")
         #expect(renderModel.summary.monthly.titleText == "Month")
     }

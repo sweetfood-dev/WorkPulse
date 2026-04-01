@@ -2,15 +2,21 @@ import AppKit
 
 enum MainPopoverStyle {
     enum Tokens {
-        enum Brand {
+        enum RawBrand {
             static var accentStart: NSColor { .systemBlue }
             static var accentEnd: NSColor {
                 NSColor(calibratedRed: 0.00, green: 0.42, blue: 0.95, alpha: 1)
             }
         }
 
-        enum Effects {
+        enum RawEffects {
             static var cardShadow: NSColor { .black.withAlphaComponent(0.16) }
+        }
+
+        enum Semantic {
+            static var currentSessionProgressLeading: NSColor { RawBrand.accentStart }
+            static var currentSessionProgressTrailing: NSColor { RawBrand.accentEnd }
+            static var raisedSectionShadow: NSColor { RawEffects.cardShadow }
         }
     }
 
@@ -54,15 +60,15 @@ enum MainPopoverStyle {
         static var divider: NSColor { .separatorColor }
         static var iconTint: NSColor { .secondaryLabelColor }
         static var currentSessionValue: NSColor { .systemBlue }
-        static var currentSessionAccentStart: NSColor { Tokens.Brand.accentStart }
-        static var currentSessionAccentEnd: NSColor { Tokens.Brand.accentEnd }
+        static var currentSessionAccentStart: NSColor { Tokens.Semantic.currentSessionProgressLeading }
+        static var currentSessionAccentEnd: NSColor { Tokens.Semantic.currentSessionProgressTrailing }
         static var checkInAccent: NSColor { .systemGreen }
         static var progressTrackBackground: NSColor { .secondarySystemFill }
         static var progressTrackBorder: NSColor { .separatorColor }
         static var todayTimesBackground: NSColor { .quaternarySystemFill }
         static var valuePillBackground: NSColor { .controlBackgroundColor }
         static var valuePillBorder: NSColor { .separatorColor }
-        static var shadow: NSColor { Tokens.Effects.cardShadow }
+        static var shadow: NSColor { Tokens.Semantic.raisedSectionShadow }
     }
 
     enum Typography {
