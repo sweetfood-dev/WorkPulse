@@ -4,7 +4,6 @@ import QuartzCore
 final class CurrentSessionProgressBarView: NSView {
     private let trackView = NSView()
     private let fillView = NSView()
-    private var fillWidthConstraint: NSLayoutConstraint?
     private var heightConstraint: NSLayoutConstraint?
     private let gradientLayer = CAGradientLayer()
     private var fillColors: [CGColor] = []
@@ -51,7 +50,13 @@ final class CurrentSessionProgressBarView: NSView {
 
     override func layout() {
         super.layout()
-        fillWidthConstraint?.constant = bounds.width * max(0, min(progressFraction, 1))
+        fillView.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: bounds.width * max(0, min(progressFraction, 1)),
+            height: bounds.height
+        )
+        gradientLayer.frame = fillView.bounds
     }
 
     func applyVisualState(_ visualState: MainPopoverCurrentSessionVisualState) {
@@ -83,12 +88,10 @@ final class CurrentSessionProgressBarView: NSView {
         gradientLayer.startPoint = CGPoint(x: 0, y: 0.5)
         gradientLayer.endPoint = CGPoint(x: 1, y: 0.5)
         gradientLayer.cornerRadius = MainPopoverStyle.Metrics.progressCornerRadius
-        fillView.translatesAutoresizingMaskIntoConstraints = false
+        fillView.autoresizingMask = [.height]
 
         addSubview(trackView)
         addSubview(fillView)
-
-        fillWidthConstraint = fillView.widthAnchor.constraint(equalToConstant: 0)
 
         heightConstraint = heightAnchor.constraint(equalToConstant: preferredHeight)
 
@@ -98,10 +101,6 @@ final class CurrentSessionProgressBarView: NSView {
             trackView.trailingAnchor.constraint(equalTo: trailingAnchor),
             trackView.topAnchor.constraint(equalTo: topAnchor),
             trackView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            fillView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            fillView.topAnchor.constraint(equalTo: topAnchor),
-            fillView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            fillWidthConstraint!,
         ])
 
         updatePalette()

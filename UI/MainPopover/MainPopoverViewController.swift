@@ -180,9 +180,10 @@ final class MainPopoverViewController: NSViewController {
     }
 
     func showWeeklyDetail(_ state: MainPopoverWeeklyProgressViewState) {
-        weeklyDetailSectionView.apply(state)
         route = .weeklyDetail
         updateRoute()
+        weeklyDetailSectionView.apply(state)
+        weeklyDetailSectionView.layoutSubtreeIfNeeded()
     }
 
     func showMainView() {
