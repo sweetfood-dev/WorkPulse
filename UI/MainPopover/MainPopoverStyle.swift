@@ -49,6 +49,10 @@ enum MainPopoverStyle {
         static let summaryRowSpacing: CGFloat = 12
         static let summaryTitleRowSpacing: CGFloat = 8
         static let actionRowSpacing: CGFloat = 8
+        static let weeklyDetailSpacing: CGFloat = 12
+        static let weeklyDetailRowSpacing: CGFloat = 10
+        static let monthlyHistoryRowSpacing: CGFloat = 10
+        static let monthlyHistoryWindowSize = NSSize(width: 440, height: 560)
 
         static let shadowOpacity: Float = 0.08
         static let shadowRadius: CGFloat = 10
@@ -57,6 +61,8 @@ enum MainPopoverStyle {
         static let valuePillBorderWidth: CGFloat = 1
         static let progressCornerRadius: CGFloat = 5
         static let valuePillCornerRadius: CGFloat = 12
+
+        static let weeklyDetailInsets = NSEdgeInsets(top: 18, left: 20, bottom: 20, right: 20)
     }
 
     enum Colors {

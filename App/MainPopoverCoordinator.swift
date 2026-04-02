@@ -4,11 +4,15 @@ import AppKit
 final class MainPopoverCoordinator {
     private weak var popoverViewController: MainPopoverViewController?
     private var displayedReferenceDate: Date?
+    var onOpenMonthlyHistory: ((MonthlyHistoryViewState) -> Void)?
+    var onRefreshMonthlyHistory: ((MonthlyHistoryViewState) -> Void)?
     private let runtimeDependencies: MainPopoverRuntimeDependencies
     private let recordStore: any AttendanceRecordStore
     private let viewStateFactory: MainPopoverViewStateFactory
     private let stateLoader: MainPopoverStateLoader
     private let workedDurationCalculator: WorkedDurationCalculator
+    private let weeklyProgressLoader: MainPopoverWeeklyProgressLoader
+    private let monthlyHistoryLoader: MonthlyHistoryLoader
 
     init(
         runtimeDependencies: MainPopoverRuntimeDependencies,
@@ -28,6 +32,20 @@ final class MainPopoverCoordinator {
             recordStore: recordStore,
             viewStateFactory: viewStateFactory,
             calendar: runtimeDependencies.calendar
+        )
+        self.weeklyProgressLoader = MainPopoverWeeklyProgressLoader(
+            recordStore: recordStore,
+            calendar: runtimeDependencies.calendar,
+            locale: runtimeDependencies.locale,
+            timeZone: runtimeDependencies.timeZone,
+            currentDateProvider: runtimeDependencies.currentDateProvider
+        )
+        self.monthlyHistoryLoader = MonthlyHistoryLoader(
+            recordStore: recordStore,
+            calendar: runtimeDependencies.calendar,
+            locale: runtimeDependencies.locale,
+            timeZone: runtimeDependencies.timeZone,
+            currentDateProvider: runtimeDependencies.currentDateProvider
         )
     }
 
@@ -59,11 +77,18 @@ final class MainPopoverCoordinator {
         popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime in
             self?.handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
         }
+        popoverViewController.onOpenWeeklyProgress = { [weak self] in
+            self?.showWeeklyProgress()
+        }
+        popoverViewController.onOpenMonthlyHistory = { [weak self] in
+            self?.showMonthlyHistory()
+        }
         refreshPopover(referenceDate: referenceDate)
     }
 
     func handlePopoverWillOpen() {
         let referenceDate = resolvedReferenceDate()
+        popoverViewController?.showMainView()
 
         if shouldResetEditingForReferenceDate(referenceDate) {
             popoverViewController?.cancelEditing()
@@ -121,6 +146,19 @@ final class MainPopoverCoordinator {
                 endTime: loadedState.todayRecord?.endTime
             )
         )
+        onRefreshMonthlyHistory?(monthlyHistoryLoader.load(referenceDate: referenceDate))
+    }
+
+    private func showWeeklyProgress() {
+        let referenceDate = resolvedReferenceDate()
+        popoverViewController?.showWeeklyDetail(
+            weeklyProgressLoader.load(referenceDate: referenceDate)
+        )
+    }
+
+    private func showMonthlyHistory() {
+        let referenceDate = resolvedReferenceDate()
+        onOpenMonthlyHistory?(monthlyHistoryLoader.load(referenceDate: referenceDate))
     }
 
     private func shouldResetEditingForReferenceDate(_ referenceDate: Date) -> Bool {

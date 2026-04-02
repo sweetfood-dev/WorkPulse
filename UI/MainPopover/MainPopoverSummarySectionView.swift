@@ -1,5 +1,10 @@
 import AppKit
 
+enum MainPopoverSummarySelection: Equatable {
+    case weekly
+    case monthly
+}
+
 struct MainPopoverSummarySectionSnapshot {
     let weeklyTitleText: String
     let weeklyValueText: String
@@ -12,6 +17,8 @@ struct MainPopoverSummarySectionSnapshot {
 }
 
 final class MainPopoverSummarySectionView: NSView {
+    var onSelect: ((MainPopoverSummarySelection) -> Void)?
+
     private let weeklyTitleLabel = NSTextField(labelWithString: "")
     private let weeklyValueLabel = NSTextField(labelWithString: "")
     private let monthlyTitleLabel = NSTextField(labelWithString: "")
@@ -58,6 +65,20 @@ final class MainPopoverSummarySectionView: NSView {
         )
     }
 
+    func simulateSelection(_ selection: MainPopoverSummarySelection) {
+        onSelect?(selection)
+    }
+
+    @objc
+    private func handleWeeklySelection() {
+        onSelect?(.weekly)
+    }
+
+    @objc
+    private func handleMonthlySelection() {
+        onSelect?(.monthly)
+    }
+
     private func configure() {
         translatesAutoresizingMaskIntoConstraints = false
         addSubview(container)
@@ -100,6 +121,13 @@ final class MainPopoverSummarySectionView: NSView {
         monthlyColumn.orientation = .vertical
         monthlyColumn.alignment = .trailing
         monthlyColumn.spacing = MainPopoverStyle.Metrics.summarySpacing
+
+        weeklyColumn.addGestureRecognizer(
+            NSClickGestureRecognizer(target: self, action: #selector(handleWeeklySelection))
+        )
+        monthlyColumn.addGestureRecognizer(
+            NSClickGestureRecognizer(target: self, action: #selector(handleMonthlySelection))
+        )
 
         columnsRow.addArrangedSubview(weeklyColumn)
         columnsRow.addArrangedSubview(NSView())
