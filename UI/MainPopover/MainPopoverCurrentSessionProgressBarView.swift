@@ -5,12 +5,19 @@ final class CurrentSessionProgressBarView: NSView {
     private let trackView = NSView()
     private let fillView = NSView()
     private var fillWidthConstraint: NSLayoutConstraint?
+    private var heightConstraint: NSLayoutConstraint?
     private let gradientLayer = CAGradientLayer()
     private var fillColors: [CGColor] = []
 
     var progressFraction: CGFloat = 0 {
         didSet {
             needsLayout = true
+        }
+    }
+
+    var preferredHeight: CGFloat = MainPopoverStyle.Metrics.progressBarHeight {
+        didSet {
+            heightConstraint?.constant = preferredHeight
         }
     }
 
@@ -51,6 +58,16 @@ final class CurrentSessionProgressBarView: NSView {
         self.visualState = visualState
     }
 
+    func applyTrackStyle(
+        backgroundColor: NSColor,
+        borderColor: NSColor,
+        borderWidth: CGFloat
+    ) {
+        trackView.layer?.backgroundColor = backgroundColor.cgColor
+        trackView.layer?.borderColor = borderColor.cgColor
+        trackView.layer?.borderWidth = borderWidth
+    }
+
     private func configure() {
         wantsLayer = true
 
@@ -73,8 +90,10 @@ final class CurrentSessionProgressBarView: NSView {
 
         fillWidthConstraint = fillView.widthAnchor.constraint(equalToConstant: 0)
 
+        heightConstraint = heightAnchor.constraint(equalToConstant: preferredHeight)
+
         NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: MainPopoverStyle.Metrics.progressBarHeight),
+            heightConstraint!,
             trackView.leadingAnchor.constraint(equalTo: leadingAnchor),
             trackView.trailingAnchor.constraint(equalTo: trailingAnchor),
             trackView.topAnchor.constraint(equalTo: topAnchor),

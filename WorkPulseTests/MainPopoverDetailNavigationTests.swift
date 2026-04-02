@@ -27,12 +27,16 @@ struct MainPopoverDetailNavigationTests {
             currentTimeProvider: { Date(timeIntervalSince1970: 0) }
         )
         let weeklyState = MainPopoverWeeklyProgressViewState(
-            titleText: "WEEKLY PROGRESS",
-            subtitleText: "Mar 30 - Apr 5",
-            totalText: "Total: 16:00",
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "16:00",
+            statusText: "8h 45m remaining to 40h",
+            progressFraction: 0.4,
+            visualState: .normal,
             days: [
                 MainPopoverWeeklyProgressDayViewState(
                     dayText: "Mon 30",
+                    timeRangeText: "09:00 - 18:00",
                     workedText: "08:00",
                     progressFraction: 1,
                     isToday: false
@@ -44,8 +48,12 @@ struct MainPopoverDetailNavigationTests {
         controller.showWeeklyDetail(weeklyState)
 
         #expect(controller.snapshot.isShowingWeeklyDetail)
-        #expect(controller.snapshot.weeklyDetail.titleText == "WEEKLY PROGRESS")
+        #expect(controller.snapshot.weeklyDetail.titleText == "Weekly Progress")
+        #expect(controller.snapshot.weeklyDetail.weekText == "Week 14")
+        #expect(controller.snapshot.weeklyDetail.statusText == "8h 45m remaining to 40h")
+        #expect(controller.snapshot.weeklyDetail.progressFraction == 0.4)
         #expect(controller.snapshot.weeklyDetail.dayCount == 1)
+        #expect(controller.snapshot.weeklyDetail.isWarningState == false)
 
         controller.showMainView()
 
@@ -56,7 +64,7 @@ struct MainPopoverDetailNavigationTests {
 @Suite("MainPopoverDetailLoaders")
 struct MainPopoverDetailLoadersTests {
     @Test
-    func weeklyProgressLoaderBuildsSevenDaysAndFormatsTotal() throws {
+    func weeklyProgressLoaderBuildsWeeklyCardAndDailyRows() throws {
         let referenceDate = try #require(
             makeDate("2026-04-01T12:00:00+09:00")
         )
@@ -82,10 +90,15 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.titleText == "WEEKLY PROGRESS")
+        #expect(state.titleText == "Weekly Progress")
+        #expect(state.weekText == "Week 14")
+        #expect(state.totalDurationText == "16:00")
+        #expect(state.statusText == "24h 00m remaining to 40h")
+        #expect(state.progressFraction == 0.4)
+        #expect(state.visualState == .normal)
         #expect(state.days.count == 7)
-        #expect(state.totalText == "Total: 16:00")
-        #expect(state.days.contains(where: { $0.isToday }))
+        #expect(state.days[1].timeRangeText == "09:00 - 18:00")
+        #expect(state.days[1].workedText == "08:00")
     }
 
     @Test
@@ -115,7 +128,13 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.totalText == "Total: 11:00")
+        #expect(state.weekText == "Week 14")
+        #expect(state.totalDurationText == "11:00")
+        #expect(state.statusText == "29h 00m remaining to 40h")
+        #expect(state.progressFraction > 0.27)
+        #expect(state.progressFraction < 0.28)
+        #expect(state.visualState == .normal)
+        #expect(state.days.first(where: { $0.isToday })?.timeRangeText == "09:00 - --:--")
         #expect(state.days.first(where: { $0.isToday })?.workedText == "03:00")
     }
 

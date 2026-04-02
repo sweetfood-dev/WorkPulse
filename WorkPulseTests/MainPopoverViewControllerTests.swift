@@ -564,6 +564,7 @@ struct MainPopoverViewStateFactoryTests {
             backActionTitle: "Back",
             weeklyTitle: "Week",
             monthlyTitle: "Month",
+            weeklyLabelPrefix: "Week",
             weeklyProgressTitle: "Weekly Progress",
             monthlyHistoryTitle: "Monthly History",
             monthlyHistoryEmptyText: "Empty",
