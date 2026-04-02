@@ -37,6 +37,7 @@ final class MainPopoverCoordinator {
             calendar: runtimeDependencies.calendar,
             locale: runtimeDependencies.locale,
             timeZone: runtimeDependencies.timeZone,
+            calendarDayMetadataProvider: runtimeDependencies.calendarDayMetadataProvider,
             currentDateProvider: runtimeDependencies.currentDateProvider
         )
         self.monthlyHistoryLoader = MonthlyHistoryLoader(
@@ -44,6 +45,7 @@ final class MainPopoverCoordinator {
             calendar: runtimeDependencies.calendar,
             locale: runtimeDependencies.locale,
             timeZone: runtimeDependencies.timeZone,
+            calendarDayMetadataProvider: runtimeDependencies.calendarDayMetadataProvider,
             currentDateProvider: runtimeDependencies.currentDateProvider
         )
     }

@@ -5,6 +5,8 @@ struct MainPopoverWeeklyProgressDayViewState {
     let dayText: String
     let timeRangeText: String
     let workedText: String
+    let annotationText: String?
+    let dayCategory: CalendarDayCategory
     let progressFraction: CGFloat
     let isToday: Bool
 }
@@ -23,6 +25,7 @@ struct MainPopoverWeeklyProgressLoader {
     private let recordStore: any AttendanceRecordQuerying
     private let workedDurationCalculator: WorkedDurationCalculator
     private let calendar: Calendar
+    private let calendarDayMetadataProvider: any CalendarDayMetadataProviding
     private let currentDateProvider: () -> Date
     private let copy: MainPopoverCopy
     private let goalDuration: TimeInterval
@@ -34,12 +37,14 @@ struct MainPopoverWeeklyProgressLoader {
         calendar: Calendar = .current,
         locale: Locale = .current,
         timeZone: TimeZone = .current,
+        calendarDayMetadataProvider: any CalendarDayMetadataProviding = KoreanCalendarDayMetadataProvider(),
         currentDateProvider: @escaping () -> Date,
         copy: MainPopoverCopy = .english
     ) {
         self.recordStore = recordStore
         self.workedDurationCalculator = WorkedDurationCalculator(calendar: calendar)
         self.calendar = calendar
+        self.calendarDayMetadataProvider = calendarDayMetadataProvider
         self.currentDateProvider = currentDateProvider
         self.copy = copy
         self.goalDuration = 40 * 60 * 60
@@ -64,6 +69,7 @@ struct MainPopoverWeeklyProgressLoader {
         let currentDate = currentDateProvider()
         let dayStatesWithDuration = weekDates.map { date in
             let record = recordStore.record(on: date, calendar: calendar)
+            let metadata = calendarDayMetadataProvider.metadata(for: date)
             let duration = workedDuration(
                 for: record,
                 referenceDate: date,
@@ -75,6 +81,8 @@ struct MainPopoverWeeklyProgressLoader {
                     dayText: dayFormatter.string(from: date),
                     timeRangeText: makeTimeRangeText(record: record),
                     workedText: formatWorkedDuration(duration),
+                    annotationText: metadata.holiday?.annotationText,
+                    dayCategory: metadata.category,
                     progressFraction: dailyProgressFraction(for: duration),
                     isToday: calendar.isDate(date, inSameDayAs: referenceDate)
                 ),

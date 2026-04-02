@@ -571,6 +571,7 @@ struct MainPopoverViewStateFactoryTests {
             monthlyHistoryEmptyText: "Empty",
             monthlyHistoryInProgressText: "In progress",
             monthlyHistoryOffText: "Off",
+            monthlyHistoryHolidayText: "Holiday",
             monthlyHistoryActiveText: "Active",
             currentSessionGoalLabelPrefix: "Goal:"
         )

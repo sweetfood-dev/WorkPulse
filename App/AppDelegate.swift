@@ -4,6 +4,7 @@ struct MainPopoverRuntimeDependencies {
     let calendar: Calendar
     let locale: Locale
     let timeZone: TimeZone
+    let calendarDayMetadataProvider: any CalendarDayMetadataProviding
     let currentDateProvider: () -> Date
     let currentSessionScheduler: any CurrentSessionScheduling
 
@@ -12,6 +13,7 @@ struct MainPopoverRuntimeDependencies {
             calendar: .current,
             locale: .current,
             timeZone: .current,
+            calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
             currentDateProvider: Date.init,
             currentSessionScheduler: TimerCurrentSessionScheduler()
         )

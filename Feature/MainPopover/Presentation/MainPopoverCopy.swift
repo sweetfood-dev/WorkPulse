@@ -22,6 +22,7 @@ struct MainPopoverCopy {
     let monthlyHistoryEmptyText: String
     let monthlyHistoryInProgressText: String
     let monthlyHistoryOffText: String
+    let monthlyHistoryHolidayText: String
     let monthlyHistoryActiveText: String
     let currentSessionGoalLabelPrefix: String
 
@@ -47,6 +48,7 @@ struct MainPopoverCopy {
         monthlyHistoryEmptyText: "No attendance records yet",
         monthlyHistoryInProgressText: "In progress",
         monthlyHistoryOffText: "Off",
+        monthlyHistoryHolidayText: "Holiday",
         monthlyHistoryActiveText: "Active",
         currentSessionGoalLabelPrefix: "Goal:"
     )
