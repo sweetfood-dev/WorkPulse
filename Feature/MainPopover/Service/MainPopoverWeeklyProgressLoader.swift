@@ -3,6 +3,7 @@ import Foundation
 
 struct MainPopoverWeeklyProgressDayViewState {
     let dayText: String
+    let timeRangeText: String
     let workedText: String
     let progressFraction: CGFloat
     let isToday: Bool
@@ -10,8 +11,11 @@ struct MainPopoverWeeklyProgressDayViewState {
 
 struct MainPopoverWeeklyProgressViewState {
     let titleText: String
-    let subtitleText: String
-    let totalText: String
+    let weekText: String
+    let totalDurationText: String
+    let statusText: String
+    let progressFraction: CGFloat
+    let visualState: MainPopoverCurrentSessionVisualState
     let days: [MainPopoverWeeklyProgressDayViewState]
 }
 
@@ -21,8 +25,9 @@ struct MainPopoverWeeklyProgressLoader {
     private let calendar: Calendar
     private let currentDateProvider: () -> Date
     private let copy: MainPopoverCopy
+    private let goalDuration: TimeInterval
     private let dayFormatter: DateFormatter
-    private let rangeFormatter: DateFormatter
+    private let timeFormatter: DateFormatter
 
     init(
         recordStore: any AttendanceRecordQuerying,
@@ -37,6 +42,7 @@ struct MainPopoverWeeklyProgressLoader {
         self.calendar = calendar
         self.currentDateProvider = currentDateProvider
         self.copy = copy
+        self.goalDuration = 40 * 60 * 60
 
         let dayFormatter = DateFormatter()
         dayFormatter.calendar = calendar
@@ -45,12 +51,12 @@ struct MainPopoverWeeklyProgressLoader {
         dayFormatter.dateFormat = "EEE d"
         self.dayFormatter = dayFormatter
 
-        let rangeFormatter = DateFormatter()
-        rangeFormatter.calendar = calendar
-        rangeFormatter.locale = locale
-        rangeFormatter.timeZone = timeZone
-        rangeFormatter.dateFormat = "MMM d"
-        self.rangeFormatter = rangeFormatter
+        let timeFormatter = DateFormatter()
+        timeFormatter.calendar = calendar
+        timeFormatter.locale = locale
+        timeFormatter.timeZone = timeZone
+        timeFormatter.dateFormat = "HH:mm"
+        self.timeFormatter = timeFormatter
     }
 
     func load(referenceDate: Date) -> MainPopoverWeeklyProgressViewState {
@@ -67,21 +73,32 @@ struct MainPopoverWeeklyProgressLoader {
             return (
                 MainPopoverWeeklyProgressDayViewState(
                     dayText: dayFormatter.string(from: date),
-                    workedText: formatDuration(duration),
-                    progressFraction: progressFraction(for: duration),
+                    timeRangeText: makeTimeRangeText(record: record),
+                    workedText: formatWorkedDuration(duration),
+                    progressFraction: dailyProgressFraction(for: duration),
                     isToday: calendar.isDate(date, inSameDayAs: referenceDate)
                 ),
                 duration
             )
         }
         let totalDuration = dayStatesWithDuration
-            .compactMap(\.1)
+            .compactMap { entry -> TimeInterval? in
+                entry.1
+            }
             .reduce(0, +)
+        let progressFraction = progressFraction(for: totalDuration)
+        let weekOfYear = calendar.component(.weekOfYear, from: referenceDate)
+        let visualState: MainPopoverCurrentSessionVisualState = totalDuration > goalDuration
+            ? .warning
+            : .normal
 
         return MainPopoverWeeklyProgressViewState(
             titleText: copy.weeklyProgressTitle,
-            subtitleText: weekSubtitle(for: weekDates),
-            totalText: copy.summaryTotalText(totalDurationText: formatDuration(totalDuration)),
+            weekText: copy.weeklyLabelText(weekOfYear: weekOfYear),
+            totalDurationText: formatTotalDuration(totalDuration),
+            statusText: statusText(for: totalDuration, visualState: visualState),
+            progressFraction: progressFraction,
+            visualState: visualState,
             days: dayStatesWithDuration.map(\.0)
         )
     }
@@ -97,12 +114,13 @@ struct MainPopoverWeeklyProgressLoader {
         }
     }
 
-    private func weekSubtitle(for dates: [Date]) -> String {
-        guard let firstDate = dates.first, let lastDate = dates.last else {
-            return ""
-        }
+    private func makeTimeRangeText(record: AttendanceRecord?) -> String {
+        "\(formatTime(record?.startTime)) - \(formatTime(record?.endTime))"
+    }
 
-        return "\(rangeFormatter.string(from: firstDate)) - \(rangeFormatter.string(from: lastDate))"
+    private func formatTime(_ date: Date?) -> String {
+        guard let date else { return copy.timePlaceholderText }
+        return timeFormatter.string(from: date)
     }
 
     private func workedDuration(
@@ -127,7 +145,32 @@ struct MainPopoverWeeklyProgressLoader {
         )
     }
 
-    private func formatDuration(_ duration: TimeInterval?) -> String {
+    private func statusText(
+        for totalDuration: TimeInterval,
+        visualState: MainPopoverCurrentSessionVisualState
+    ) -> String {
+        switch visualState {
+        case .normal:
+            let remainingDuration = max(0, goalDuration - totalDuration)
+            return copy.weeklyRemainingStatusText(
+                durationText: formatStatusDuration(remainingDuration),
+                goalHours: Int(goalDuration / 3_600)
+            )
+        case .warning:
+            return copy.weeklyOvertimeStatusText(
+                durationText: formatStatusDuration(totalDuration - goalDuration)
+            )
+        }
+    }
+
+    private func formatStatusDuration(_ duration: TimeInterval) -> String {
+        let totalMinutes = max(0, Int(duration) / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return "\(hours)h \(String(format: "%02d", minutes))m"
+    }
+
+    private func formatWorkedDuration(_ duration: TimeInterval?) -> String {
         guard let duration, duration > 0 else {
             return copy.totalPlaceholderText
         }
@@ -138,10 +181,21 @@ struct MainPopoverWeeklyProgressLoader {
         return String(format: "%02d:%02d", hours, minutes)
     }
 
-    private func progressFraction(for duration: TimeInterval?) -> CGFloat {
-        guard let duration, duration > 0 else { return 0 }
+    private func formatTotalDuration(_ duration: TimeInterval) -> String {
+        let totalMinutes = max(0, Int(duration) / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return String(format: "%02d:%02d", hours, minutes)
+    }
 
+    private func dailyProgressFraction(for duration: TimeInterval?) -> CGFloat {
+        guard let duration, duration > 0 else { return 0 }
         let fraction = CGFloat(duration / MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration)
         return min(1, max(0, fraction))
+    }
+
+    private func progressFraction(for duration: TimeInterval) -> CGFloat {
+        guard duration > 0 else { return 0 }
+        return min(1, max(0, CGFloat(duration / goalDuration)))
     }
 }

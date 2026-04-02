@@ -53,6 +53,10 @@ enum MainPopoverStyle {
         static let weeklyDetailRowSpacing: CGFloat = 10
         static let monthlyHistoryRowSpacing: CGFloat = 10
         static let monthlyHistoryWindowSize = NSSize(width: 440, height: 560)
+        static let weeklyProgressCardWidth: CGFloat = 320
+        static let weeklyProgressCardCornerRadius: CGFloat = 14
+        static let weeklyProgressStatusCornerRadius: CGFloat = 12
+        static let weeklyProgressBarHeight: CGFloat = 12
 
         static let shadowOpacity: Float = 0.08
         static let shadowRadius: CGFloat = 10
@@ -80,6 +84,16 @@ enum MainPopoverStyle {
         static var checkInAccent: NSColor { .systemGreen }
         static var progressTrackBackground: NSColor { .secondarySystemFill }
         static var progressTrackBorder: NSColor { .separatorColor }
+        static var weeklyProgressTrackBackground: NSColor { .black.withAlphaComponent(0.05) }
+        static var weeklyProgressTrackBorder: NSColor { .clear }
+        static var weeklyProgressCardBackground: NSColor { .white.withAlphaComponent(0.96) }
+        static var weeklyProgressCardBorder: NSColor { .black.withAlphaComponent(0.06) }
+        static var weeklyProgressStatusBackground: NSColor { .systemBlue.withAlphaComponent(0.08) }
+        static var weeklyProgressStatusBorder: NSColor { .systemBlue.withAlphaComponent(0.12) }
+        static var weeklyProgressStatusText: NSColor { .systemBlue }
+        static var weeklyProgressWarningStatusBackground: NSColor { .systemOrange.withAlphaComponent(0.10) }
+        static var weeklyProgressWarningStatusBorder: NSColor { .systemOrange.withAlphaComponent(0.16) }
+        static var weeklyProgressWarningStatusText: NSColor { .systemOrange }
         static var todayTimesBackground: NSColor { .quaternarySystemFill }
         static var valuePillBackground: NSColor { .controlBackgroundColor }
         static var valuePillBorder: NSColor { .separatorColor }

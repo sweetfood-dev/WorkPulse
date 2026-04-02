@@ -15,6 +15,7 @@ struct MainPopoverCopy {
     let backActionTitle: String
     let weeklyTitle: String
     let monthlyTitle: String
+    let weeklyLabelPrefix: String
     let weeklyProgressTitle: String
     let monthlyHistoryTitle: String
     let monthlyHistoryEmptyText: String
@@ -36,7 +37,8 @@ struct MainPopoverCopy {
         backActionTitle: "Back",
         weeklyTitle: "This Week",
         monthlyTitle: "This Month",
-        weeklyProgressTitle: "WEEKLY PROGRESS",
+        weeklyLabelPrefix: "Week",
+        weeklyProgressTitle: "Weekly Progress",
         monthlyHistoryTitle: "MONTHLY HISTORY",
         monthlyHistoryEmptyText: "No attendance records yet",
         monthlyHistoryInProgressText: "In progress",
@@ -58,5 +60,17 @@ struct MainPopoverCopy {
 
     func summaryTotalText(totalDurationText: String) -> String {
         "Total: \(totalDurationText)"
+    }
+
+    func weeklyLabelText(weekOfYear: Int) -> String {
+        "\(weeklyLabelPrefix) \(weekOfYear)"
+    }
+
+    func weeklyRemainingStatusText(durationText: String, goalHours: Int) -> String {
+        "\(durationText) remaining to \(goalHours)h"
+    }
+
+    func weeklyOvertimeStatusText(durationText: String) -> String {
+        "\(durationText) Overtime"
     }
 }
