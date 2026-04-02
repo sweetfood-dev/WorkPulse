@@ -259,6 +259,28 @@ struct MainPopoverDetailLoadersTests {
     }
 
     @Test
+    func monthlyHistoryLoaderUsesRuntimeTimezoneForHolidayMetadata() throws {
+        let referenceDate = try #require(
+            makeDate("2026-03-02T12:00:00+11:00")
+        )
+        let sydneyTimeZone = try #require(TimeZone(identifier: "Australia/Sydney"))
+        let loader = MonthlyHistoryLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: []),
+            calendar: makeCalendar(timeZone: sydneyTimeZone),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: sydneyTimeZone,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+        let substituteCell = try #require(state.cells.first(where: { $0.dayText == "2" }))
+
+        #expect(substituteCell.dayCategory == .substituteHoliday)
+        #expect(substituteCell.annotationText?.contains("대체공휴일") == true)
+        #expect(substituteCell.annotationText?.contains("3·1절") == true)
+    }
+
+    @Test
     func weeklyProgressLoaderAnnotatesHolidayRowsWithoutChangingTotals() throws {
         let referenceDate = try #require(
             makeDate("2026-03-02T12:00:00+09:00")
@@ -277,6 +299,28 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.totalDurationText == "00:00")
         #expect(state.days.first(where: { $0.annotationText?.contains("3·1절") == true })?.dayCategory == .holiday)
         #expect(state.days.first(where: { $0.annotationText?.contains("대체공휴일") == true })?.dayCategory == .substituteHoliday)
+    }
+
+    @Test
+    func weeklyProgressLoaderUsesRuntimeTimezoneForHolidayMetadata() throws {
+        let referenceDate = try #require(
+            makeDate("2026-03-02T12:00:00+11:00")
+        )
+        let sydneyTimeZone = try #require(TimeZone(identifier: "Australia/Sydney"))
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: []),
+            calendar: makeCalendar(timeZone: sydneyTimeZone),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: sydneyTimeZone,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+        let mondayState = try #require(state.days.first(where: { $0.dayText.contains("Mon 2") }))
+
+        #expect(mondayState.dayCategory == .substituteHoliday)
+        #expect(mondayState.annotationText?.contains("대체공휴일") == true)
+        #expect(mondayState.annotationText?.contains("3·1절") == true)
     }
 
     @Test
@@ -347,8 +391,12 @@ private func makeDate(_ value: String) -> Date? {
 }
 
 private func makeSeoulCalendar() -> Calendar {
+    makeCalendar(timeZone: TimeZone(identifier: "Asia/Seoul")!)
+}
+
+private func makeCalendar(timeZone: TimeZone) -> Calendar {
     var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+    calendar.timeZone = timeZone
     calendar.locale = Locale(identifier: "ko_KR")
     return calendar
 }

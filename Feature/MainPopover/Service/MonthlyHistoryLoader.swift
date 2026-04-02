@@ -42,7 +42,7 @@ struct MonthlyHistoryLoader {
         calendar: Calendar = .current,
         locale: Locale = .current,
         timeZone: TimeZone = .current,
-        calendarDayMetadataProvider: any CalendarDayMetadataProviding = KoreanCalendarDayMetadataProvider(),
+        calendarDayMetadataProvider: (any CalendarDayMetadataProviding)? = nil,
         currentDateProvider: @escaping () -> Date,
         copy: MainPopoverCopy = .english
     ) {
@@ -51,6 +51,7 @@ struct MonthlyHistoryLoader {
         self.workedDurationCalculator = WorkedDurationCalculator(calendar: calendar)
         self.calendar = calendar
         self.calendarDayMetadataProvider = calendarDayMetadataProvider
+            ?? KoreanCalendarDayMetadataProvider(timeZone: timeZone)
         self.currentDateProvider = currentDateProvider
         self.copy = copy
 
