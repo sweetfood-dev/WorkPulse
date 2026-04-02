@@ -105,6 +105,42 @@ struct MainPopoverDetailNavigationTests {
         controller.showMainView()
         #expect(controller.snapshot.isShowingMonthlyDetail == false)
     }
+
+    @Test
+    @MainActor
+    func viewControllerExpandsPopoverForSixWeekMonthlyDetail() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showMonthlyHistory(
+            MonthlyHistoryViewState(
+                referenceDate: try #require(makeDate("2026-05-01T00:00:00+09:00")),
+                titleText: "MONTHLY HISTORY",
+                monthText: "May 2026",
+                weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                totalLabelText: "Monthly Total",
+                totalDurationText: "0h 00m",
+                cells: Array(
+                    repeating: MonthlyHistoryDayCellViewState(
+                        dayText: "1",
+                        statusText: "—",
+                        annotationText: nil,
+                        activity: .empty,
+                        dayCategory: .weekday,
+                        isDimmed: false
+                    ),
+                    count: 42
+                )
+            )
+        )
+
+        #expect(controller.snapshot.isShowingMonthlyDetail)
+        #expect(controller.snapshot.monthlyDetail.cellCount == 42)
+        #expect(controller.view.frame.height > MainPopoverStyle.Metrics.popoverSize.height)
+    }
 }
 
 @Suite("MainPopoverDetailLoaders")

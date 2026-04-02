@@ -189,6 +189,15 @@ private final class MonthlyHistoryDayCellView: NSView {
 
 @MainActor
 final class MonthlyHistoryViewController: NSViewController {
+    private enum LayoutMetrics {
+        static let headerHeight: CGFloat = 54
+        static let footerHeight: CGFloat = 48
+        static let contentTopInset: CGFloat = 8
+        static let contentBottomInset: CGFloat = 8
+        static let weekdayToGridSpacing: CGFloat = 4
+        static let weekdayRowHeight: CGFloat = 12
+    }
+
     var onNavigatePrevious: (() -> Void)?
     var onNavigateNext: (() -> Void)?
 
@@ -204,13 +213,27 @@ final class MonthlyHistoryViewController: NSViewController {
     private var weekdayLabels: [NSTextField] = []
     private var dayCellViews: [MonthlyHistoryDayCellView] = []
 
+    static func requiredHeight(forRowCount rowCount: Int) -> CGFloat {
+        let safeRowCount = max(rowCount, 1)
+        let gridHeight = CGFloat(safeRowCount) * MainPopoverStyle.Metrics.monthlyHistoryCellHeight
+            + CGFloat(safeRowCount - 1) * MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
+
+        return LayoutMetrics.headerHeight
+            + LayoutMetrics.footerHeight
+            + LayoutMetrics.contentTopInset
+            + LayoutMetrics.weekdayRowHeight
+            + LayoutMetrics.weekdayToGridSpacing
+            + gridHeight
+            + LayoutMetrics.contentBottomInset
+    }
+
     override func loadView() {
         let rootView = NSView(
             frame: NSRect(
                 x: 0,
                 y: 0,
                 width: MainPopoverStyle.Metrics.monthlyHistoryWindowSize.width,
-                height: MainPopoverStyle.Metrics.monthlyHistoryWindowSize.height
+                height: Self.requiredHeight(forRowCount: 5)
             )
         )
         rootView.wantsLayer = true
@@ -301,7 +324,7 @@ final class MonthlyHistoryViewController: NSViewController {
             headerView.topAnchor.constraint(equalTo: rootView.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             headerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            headerView.heightAnchor.constraint(equalToConstant: 54),
+            headerView.heightAnchor.constraint(equalToConstant: LayoutMetrics.headerHeight),
 
             previousButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 14),
             previousButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
@@ -314,20 +337,21 @@ final class MonthlyHistoryViewController: NSViewController {
             contentView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 12),
             contentView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -12),
 
-            weekdayRow.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            weekdayRow.topAnchor.constraint(equalTo: contentView.topAnchor, constant: LayoutMetrics.contentTopInset),
             weekdayRow.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             weekdayRow.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            weekdayRow.heightAnchor.constraint(equalToConstant: LayoutMetrics.weekdayRowHeight),
 
-            gridRows.topAnchor.constraint(equalTo: weekdayRow.bottomAnchor, constant: 4),
+            gridRows.topAnchor.constraint(equalTo: weekdayRow.bottomAnchor, constant: LayoutMetrics.weekdayToGridSpacing),
             gridRows.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             gridRows.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            gridRows.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            gridRows.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -LayoutMetrics.contentBottomInset),
 
             footerView.topAnchor.constraint(equalTo: contentView.bottomAnchor),
             footerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             footerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             footerView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
-            footerView.heightAnchor.constraint(equalToConstant: 48),
+            footerView.heightAnchor.constraint(equalToConstant: LayoutMetrics.footerHeight),
 
             footerRow.leadingAnchor.constraint(equalTo: footerView.leadingAnchor, constant: 16),
             footerRow.trailingAnchor.constraint(equalTo: footerView.trailingAnchor, constant: -16),
