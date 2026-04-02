@@ -284,6 +284,7 @@ struct MainPopoverDetailLoadersTests {
     func monthlyHistoryViewControllerAppliesCalendarGridAndNavigation() throws {
         let controller = MonthlyHistoryViewController()
         var navigations: [Int] = []
+        let longHolidayName = "부처님오신날 대체공휴일"
 
         controller.onNavigatePrevious = { navigations.append(-1) }
         controller.onNavigateNext = { navigations.append(1) }
@@ -301,7 +302,7 @@ struct MainPopoverDetailLoadersTests {
                     MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
                     MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
                     MonthlyHistoryDayCellViewState(dayText: "1", statusText: "7h 51m", annotationText: nil, activity: .worked, dayCategory: .weekday, isDimmed: false),
-                    MonthlyHistoryDayCellViewState(dayText: "2", statusText: "Active", annotationText: "어린이날", activity: .active, dayCategory: .holiday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "2", statusText: "Active", annotationText: longHolidayName, activity: .active, dayCategory: .holiday, isDimmed: false),
                     MonthlyHistoryDayCellViewState(dayText: "3", statusText: "—", annotationText: nil, activity: .empty, dayCategory: .weekday, isDimmed: true),
                     MonthlyHistoryDayCellViewState(dayText: "4", statusText: "Off", annotationText: nil, activity: .empty, dayCategory: .weekend, isDimmed: true),
                 ]
@@ -317,9 +318,10 @@ struct MainPopoverDetailLoadersTests {
         #expect(controller.snapshot.cellCount == 7)
         #expect(controller.snapshot.workedCellCount == 1)
         #expect(controller.snapshot.activeCellCount == 1)
-        #expect(controller.snapshot.annotationTexts == ["어린이날"])
+        #expect(controller.snapshot.annotationTexts == [longHolidayName])
         #expect(controller.snapshot.rowWidths.count == 1)
         #expect(controller.snapshot.rowWidths.first ?? 0 > 0)
+        #expect(controller.snapshot.hasOverflowingAnnotationLayout == false)
         #expect(navigations == [-1, 1])
     }
 }

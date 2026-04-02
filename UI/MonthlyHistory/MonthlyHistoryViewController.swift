@@ -9,6 +9,7 @@ struct MonthlyHistoryViewControllerSnapshot {
     let activeCellCount: Int
     let annotationTexts: [String]
     let rowWidths: [CGFloat]
+    let hasOverflowingAnnotationLayout: Bool
 }
 
 private final class MonthlyHistoryDayCellView: NSView {
@@ -26,9 +27,19 @@ private final class MonthlyHistoryDayCellView: NSView {
 
         dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
         statusLabel.font = .systemFont(ofSize: 9, weight: .semibold)
+        statusLabel.maximumNumberOfLines = 1
         statusLabel.lineBreakMode = .byTruncatingTail
         annotationLabel.font = .systemFont(ofSize: 8, weight: .medium)
+        annotationLabel.maximumNumberOfLines = 1
         annotationLabel.lineBreakMode = .byTruncatingTail
+
+        for label in [statusLabel, annotationLabel] {
+            label.cell?.wraps = false
+            label.cell?.usesSingleLineMode = true
+            label.cell?.truncatesLastVisibleLine = true
+            label.cell?.lineBreakMode = .byTruncatingTail
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        }
 
         let stack = NSStackView(views: [dayLabel, statusLabel, annotationLabel])
         stack.orientation = .vertical
@@ -163,6 +174,16 @@ private final class MonthlyHistoryDayCellView: NSView {
 
     var isActive: Bool {
         activity == .active
+    }
+
+    var hasOverflowingAnnotationLayout: Bool {
+        guard annotationLabel.isHidden == false else {
+            return false
+        }
+
+        layoutSubtreeIfNeeded()
+        return annotationLabel.frame.maxX > bounds.maxX - 6
+            || annotationLabel.frame.maxY > bounds.maxY - 6
     }
 }
 
@@ -341,7 +362,8 @@ final class MonthlyHistoryViewController: NSViewController {
             workedCellCount: dayCellViews.filter(\.isWorked).count,
             activeCellCount: dayCellViews.filter(\.isActive).count,
             annotationTexts: dayCellViews.map(\.annotationText).filter { $0.isEmpty == false },
-            rowWidths: gridRows.arrangedSubviews.map(\.frame.width)
+            rowWidths: gridRows.arrangedSubviews.map(\.frame.width),
+            hasOverflowingAnnotationLayout: dayCellViews.contains { $0.hasOverflowingAnnotationLayout }
         )
     }
 
