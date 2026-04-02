@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 protocol AttendanceRecordQuerying {
     func record(on date: Date, calendar: Calendar) -> AttendanceRecord?
@@ -6,10 +7,159 @@ protocol AttendanceRecordQuerying {
 }
 
 protocol AttendanceRecordWriting {
-    func upsertRecord(_ record: AttendanceRecord)
+    func upsertRecord(_ record: AttendanceRecord) throws
 }
 
 protocol AttendanceRecordStore: AttendanceRecordQuerying, AttendanceRecordWriting {}
+
+struct MirroredAttendanceRecordStore: AttendanceRecordStore {
+    private let primary: any AttendanceRecordStore
+    private let fallback: any AttendanceRecordStore
+
+    init(
+        primary: any AttendanceRecordStore,
+        fallback: any AttendanceRecordStore
+    ) {
+        self.primary = primary
+        self.fallback = fallback
+    }
+
+    func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
+        primary.record(on: date, calendar: calendar)
+            ?? fallback.record(on: date, calendar: calendar)
+    }
+
+    func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord] {
+        let primaryRecords = primary.records(
+            equalTo: date,
+            toGranularity: granularity,
+            calendar: calendar
+        )
+
+        return primaryRecords.isEmpty
+            ? fallback.records(equalTo: date, toGranularity: granularity, calendar: calendar)
+            : primaryRecords
+    }
+
+    func upsertRecord(_ record: AttendanceRecord) throws {
+        try primary.upsertRecord(record)
+        try fallback.upsertRecord(record)
+    }
+}
+
+@Model
+final class AttendanceRecordEntity {
+    var date: Date
+    var startTime: Date?
+    var endTime: Date?
+
+    init(date: Date, startTime: Date?, endTime: Date?) {
+        self.date = date
+        self.startTime = startTime
+        self.endTime = endTime
+    }
+
+    convenience init(record: AttendanceRecord) {
+        self.init(
+            date: record.date,
+            startTime: record.startTime,
+            endTime: record.endTime
+        )
+    }
+
+    var attendanceRecord: AttendanceRecord {
+        AttendanceRecord(
+            date: date,
+            startTime: startTime,
+            endTime: endTime
+        )
+    }
+}
+
+final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
+    private let modelContext: ModelContext
+    private let calendar: Calendar
+
+    init(
+        modelContainer: ModelContainer,
+        calendar: Calendar = .current,
+        legacyRecords: [AttendanceRecord] = []
+    ) throws {
+        self.modelContext = ModelContext(modelContainer)
+        self.calendar = calendar
+        try migrateIfNeeded(from: legacyRecords)
+    }
+
+    convenience init(
+        calendar: Calendar = .current,
+        legacyRecords: [AttendanceRecord] = []
+    ) throws {
+        try self.init(
+            modelContainer: ModelContainer(for: AttendanceRecordEntity.self),
+            calendar: calendar,
+            legacyRecords: legacyRecords
+        )
+    }
+
+    func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
+        loadRecords().last {
+            calendar.isDate($0.date, inSameDayAs: date)
+        }
+    }
+
+    func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord] {
+        loadRecords().filter {
+            calendar.isDate($0.date, equalTo: date, toGranularity: granularity)
+        }
+    }
+
+    func upsertRecord(_ record: AttendanceRecord) throws {
+        let entities = loadAllEntities()
+
+        if let entity = entities.last(where: { calendar.isDate($0.date, inSameDayAs: record.date) }) {
+            entity.date = record.date
+            entity.startTime = record.startTime
+            entity.endTime = record.endTime
+        } else {
+            modelContext.insert(AttendanceRecordEntity(record: record))
+        }
+
+        try saveContext()
+    }
+
+    func loadRecords() -> [AttendanceRecord] {
+        loadAllEntities().map(\.attendanceRecord)
+    }
+
+    private func migrateIfNeeded(from legacyRecords: [AttendanceRecord]) throws {
+        guard loadAllEntities().isEmpty, legacyRecords.isEmpty == false else {
+            return
+        }
+
+        legacyRecords.forEach {
+            modelContext.insert(AttendanceRecordEntity(record: $0))
+        }
+
+        try saveContext()
+    }
+
+    private func loadAllEntities() -> [AttendanceRecordEntity] {
+        do {
+            let descriptor = FetchDescriptor<AttendanceRecordEntity>(
+                sortBy: [SortDescriptor(\.date)]
+            )
+            return try modelContext.fetch(descriptor)
+        } catch {
+            assertionFailure("Failed to fetch attendance records: \(error)")
+            return []
+        }
+    }
+
+    private func saveContext() throws {
+        guard modelContext.hasChanges else { return }
+        try modelContext.save()
+    }
+}
 
 struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
     private let userDefaults: UserDefaults
@@ -48,7 +198,7 @@ struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
         }
     }
 
-    func upsertRecord(_ record: AttendanceRecord) {
+    func upsertRecord(_ record: AttendanceRecord) throws {
         var records = loadAllRecords()
 
         if let index = records.lastIndex(where: { calendar.isDate($0.date, inSameDayAs: record.date) }) {
@@ -57,7 +207,7 @@ struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
             records.append(record)
         }
 
-        guard let data = try? encoder.encode(records) else { return }
+        let data = try encoder.encode(records)
         userDefaults.set(data, forKey: key)
     }
 

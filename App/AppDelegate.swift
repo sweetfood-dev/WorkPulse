@@ -27,9 +27,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         runtimeDependencies: MainPopoverRuntimeDependencies = .live,
         recordStore: (any AttendanceRecordStore)? = nil
     ) {
-        let resolvedRecordStore = recordStore ?? UserDefaultsAttendanceRecordStore(
-            calendar: runtimeDependencies.calendar
-        )
+        let resolvedRecordStore = recordStore ?? {
+            let legacyStore = UserDefaultsAttendanceRecordStore(
+                calendar: runtimeDependencies.calendar
+            )
+
+            do {
+                let swiftDataStore = try SwiftDataAttendanceRecordStore(
+                    calendar: runtimeDependencies.calendar,
+                    legacyRecords: legacyStore.loadRecords()
+                )
+                return MirroredAttendanceRecordStore(
+                    primary: swiftDataStore,
+                    fallback: legacyStore
+                )
+            } catch {
+                assertionFailure("Failed to create SwiftData attendance store: \(error)")
+                return legacyStore
+            }
+        }()
         self.popoverCoordinator = MainPopoverCoordinator(
             runtimeDependencies: runtimeDependencies,
             recordStore: resolvedRecordStore
