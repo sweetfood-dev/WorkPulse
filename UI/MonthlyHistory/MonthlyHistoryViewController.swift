@@ -7,6 +7,7 @@ struct MonthlyHistoryViewControllerSnapshot {
     let cellCount: Int
     let workedCellCount: Int
     let activeCellCount: Int
+    let rowWidths: [CGFloat]
 }
 
 private final class MonthlyHistoryDayCellView: NSView {
@@ -274,13 +275,15 @@ final class MonthlyHistoryViewController: NSViewController {
     }
 
     var snapshot: MonthlyHistoryViewControllerSnapshot {
-        MonthlyHistoryViewControllerSnapshot(
+        view.layoutSubtreeIfNeeded()
+        return MonthlyHistoryViewControllerSnapshot(
             monthText: monthLabel.stringValue,
             totalDurationText: totalDurationLabel.stringValue,
             weekdayCount: weekdayLabels.count,
             cellCount: dayCellViews.count,
             workedCellCount: dayCellViews.filter(\.isWorked).count,
-            activeCellCount: dayCellViews.filter(\.isActive).count
+            activeCellCount: dayCellViews.filter(\.isActive).count,
+            rowWidths: gridRows.arrangedSubviews.map(\.frame.width)
         )
     }
 
@@ -352,6 +355,7 @@ final class MonthlyHistoryViewController: NSViewController {
             row.spacing = MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
             row.translatesAutoresizingMaskIntoConstraints = false
             gridRows.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: gridRows.widthAnchor).isActive = true
         }
 
         while gridRows.arrangedSubviews.count > rowCount {

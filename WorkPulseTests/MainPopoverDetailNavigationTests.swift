@@ -215,6 +215,8 @@ struct MainPopoverDetailLoadersTests {
         #expect(controller.snapshot.cellCount == 7)
         #expect(controller.snapshot.workedCellCount == 1)
         #expect(controller.snapshot.activeCellCount == 1)
+        #expect(controller.snapshot.rowWidths.count == 1)
+        #expect(controller.snapshot.rowWidths.first ?? 0 > 0)
         #expect(navigations == [-1, 1])
     }
 }
