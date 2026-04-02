@@ -1,18 +1,27 @@
 import Foundation
 
-struct MonthlyHistoryItemViewState {
-    let dateText: String
-    let timeRangeText: String
-    let workedDurationText: String
-    let isInProgress: Bool
+enum MonthlyHistoryDayCellKind: Equatable {
+    case outsideMonth
+    case worked
+    case active
+    case off(isDimmed: Bool)
+    case empty(isDimmed: Bool)
+}
+
+struct MonthlyHistoryDayCellViewState: Equatable {
+    let dayText: String
+    let detailText: String
+    let kind: MonthlyHistoryDayCellKind
 }
 
 struct MonthlyHistoryViewState {
+    let referenceDate: Date
     let titleText: String
-    let subtitleText: String
-    let totalText: String
-    let emptyText: String
-    let items: [MonthlyHistoryItemViewState]
+    let monthText: String
+    let weekdayTexts: [String]
+    let totalLabelText: String
+    let totalDurationText: String
+    let cells: [MonthlyHistoryDayCellViewState]
 }
 
 struct MonthlyHistoryLoader {
@@ -23,8 +32,6 @@ struct MonthlyHistoryLoader {
     private let currentDateProvider: () -> Date
     private let copy: MainPopoverCopy
     private let monthFormatter: DateFormatter
-    private let dateFormatter: DateFormatter
-    private let timeFormatter: DateFormatter
 
     init(
         recordStore: any AttendanceRecordQuerying,
@@ -48,20 +55,6 @@ struct MonthlyHistoryLoader {
         monthFormatter.timeZone = timeZone
         monthFormatter.dateFormat = "MMMM yyyy"
         self.monthFormatter = monthFormatter
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.calendar = calendar
-        dateFormatter.locale = locale
-        dateFormatter.timeZone = timeZone
-        dateFormatter.dateFormat = "EEE, MMM d"
-        self.dateFormatter = dateFormatter
-
-        let timeFormatter = DateFormatter()
-        timeFormatter.calendar = calendar
-        timeFormatter.locale = locale
-        timeFormatter.timeZone = timeZone
-        timeFormatter.dateFormat = "HH:mm"
-        self.timeFormatter = timeFormatter
     }
 
     func load(referenceDate: Date) -> MonthlyHistoryViewState {
@@ -69,82 +62,137 @@ struct MonthlyHistoryLoader {
             equalTo: referenceDate,
             toGranularity: .month,
             calendar: calendar
-        ).sorted { $0.date > $1.date }
+        )
         let totalDuration = totalsCalculator.monthlyTotal(
             records: records,
             referenceDate: referenceDate,
             calendar: calendar
         )
         let currentDate = currentDateProvider()
+        let monthStart = monthStart(for: referenceDate)
 
         return MonthlyHistoryViewState(
+            referenceDate: monthStart,
             titleText: copy.monthlyHistoryTitle,
-            subtitleText: monthFormatter.string(from: referenceDate),
-            totalText: copy.summaryTotalText(totalDurationText: formatWorkedDuration(totalDuration)),
-            emptyText: copy.monthlyHistoryEmptyText,
-            items: records.map { record in
-                makeItemState(record: record, currentDate: currentDate)
-            }
+            monthText: monthFormatter.string(from: monthStart),
+            weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+            totalLabelText: copy.monthlyHistoryTotalTitle,
+            totalDurationText: formatTotalDuration(totalDuration),
+            cells: makeDayCells(
+                monthStart: monthStart,
+                records: records,
+                currentDate: currentDate
+            )
         )
     }
 
-    private func makeItemState(
-        record: AttendanceRecord,
+    private func makeDayCells(
+        monthStart: Date,
+        records: [AttendanceRecord],
         currentDate: Date
-    ) -> MonthlyHistoryItemViewState {
-        let isInProgress =
-            record.startTime != nil &&
-            record.endTime == nil &&
-            calendar.isDate(record.date, inSameDayAs: currentDate)
-        let duration = workedDuration(
-            startTime: record.startTime,
-            endTime: record.endTime,
-            recordDate: record.date,
-            currentDate: currentDate
-        )
-
-        return MonthlyHistoryItemViewState(
-            dateText: dateFormatter.string(from: record.date),
-            timeRangeText: makeTimeRangeText(startTime: record.startTime, endTime: record.endTime),
-            workedDurationText: isInProgress ? copy.monthlyHistoryInProgressText : formatWorkedDuration(duration),
-            isInProgress: isInProgress
-        )
-    }
-
-    private func makeTimeRangeText(startTime: Date?, endTime: Date?) -> String {
-        "\(formatTime(startTime)) - \(formatTime(endTime))"
-    }
-
-    private func formatTime(_ date: Date?) -> String {
-        guard let date else {
-            return copy.timePlaceholderText
+    ) -> [MonthlyHistoryDayCellViewState] {
+        guard let dayRange = calendar.range(of: .day, in: .month, for: monthStart) else {
+            return []
         }
 
-        return timeFormatter.string(from: date)
-    }
+        let currentDayStart = calendar.startOfDay(for: currentDate)
+        let recordsByDay = Dictionary(
+            records.map { (calendar.startOfDay(for: $0.date), $0) },
+            uniquingKeysWith: { _, newest in newest }
+        )
+        let leadingPlaceholderCount = calendar.component(.weekday, from: monthStart) - 1
+        var cells = Array(
+            repeating: MonthlyHistoryDayCellViewState(
+                dayText: "",
+                detailText: "",
+                kind: .outsideMonth
+            ),
+            count: leadingPlaceholderCount
+        )
 
-    private func formatWorkedDuration(_ duration: TimeInterval?) -> String {
-        guard let duration, duration > 0 else {
-            return copy.totalPlaceholderText
+        for day in dayRange {
+            guard let date = calendar.date(byAdding: .day, value: day - 1, to: monthStart) else {
+                continue
+            }
+
+            let record = recordsByDay[calendar.startOfDay(for: date)]
+            let isFuture = calendar.startOfDay(for: date) > currentDayStart
+            let isToday = calendar.isDate(date, inSameDayAs: currentDate)
+            let workedDuration = workedDuration(for: record, date: date, currentDate: currentDate)
+
+            let kind: MonthlyHistoryDayCellKind
+            let detailText: String
+
+            if isToday, record?.startTime != nil, record?.endTime == nil {
+                kind = .active
+                detailText = copy.monthlyHistoryActiveText
+            } else if let workedDuration, workedDuration > 0 {
+                kind = .worked
+                detailText = formatWorkedDuration(workedDuration)
+            } else if calendar.isDateInWeekend(date) {
+                kind = .off(isDimmed: isFuture)
+                detailText = copy.monthlyHistoryOffText
+            } else {
+                kind = .empty(isDimmed: isFuture)
+                detailText = "—"
+            }
+
+            cells.append(
+                MonthlyHistoryDayCellViewState(
+                    dayText: "\(day)",
+                    detailText: detailText,
+                    kind: kind
+                )
+            )
         }
 
-        let totalMinutes = Int(duration) / 60
+        while cells.count.isMultiple(of: 7) == false {
+            cells.append(
+                MonthlyHistoryDayCellViewState(
+                    dayText: "",
+                    detailText: "",
+                    kind: .outsideMonth
+                )
+            )
+        }
+
+        return cells
+    }
+
+    private func monthStart(for date: Date) -> Date {
+        calendar.date(
+            from: calendar.dateComponents([.year, .month], from: date)
+        ) ?? calendar.startOfDay(for: date)
+    }
+
+    private func formatWorkedDuration(_ duration: TimeInterval) -> String {
+        let totalMinutes = max(Int(duration) / 60, 0)
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        return String(format: "%02d:%02d", hours, minutes)
+        return "\(hours)h \(String(format: "%02dm", minutes))"
+    }
+
+    private func formatTotalDuration(_ duration: TimeInterval) -> String {
+        guard duration > 0 else {
+            return "0h 00m"
+        }
+
+        return formatWorkedDuration(duration)
     }
 
     private func workedDuration(
-        startTime: Date?,
-        endTime: Date?,
-        recordDate: Date,
+        for record: AttendanceRecord?,
+        date: Date,
         currentDate: Date
     ) -> TimeInterval? {
-        let effectiveEndTime: Date?
+        guard let record, let startTime = record.startTime else {
+            return nil
+        }
 
-        if let endTime {
+        let effectiveEndTime: Date?
+        if let endTime = record.endTime {
             effectiveEndTime = endTime
-        } else if startTime != nil, calendar.isDate(recordDate, inSameDayAs: currentDate) {
+        } else if calendar.isDate(date, inSameDayAs: currentDate) {
             effectiveEndTime = currentDate
         } else {
             effectiveEndTime = nil

@@ -41,7 +41,6 @@
 		A1B2C3D4E5F60000000000B2 /* MonthlyHistoryLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000C2 /* MonthlyHistoryLoader.swift */; };
 		A1B2C3D4E5F60000000000B3 /* MainPopoverWeeklyProgressSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000C3 /* MainPopoverWeeklyProgressSectionView.swift */; };
 		A1B2C3D4E5F60000000000B4 /* MonthlyHistoryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000C4 /* MonthlyHistoryViewController.swift */; };
-		A1B2C3D4E5F60000000000B5 /* MonthlyHistoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000C5 /* MonthlyHistoryWindowController.swift */; };
 		B1C2D3E4F5A6000000000001 /* MenuBarShellControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */; };
 		B1C2D3E4F5A6000000000002 /* MainPopoverViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */; };
 		B1C2D3E4F5A6000000000003 /* CurrentSessionCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000014 /* CurrentSessionCalculatorTests.swift */; };
@@ -98,7 +97,6 @@
 		A1B2C3D4E5F60000000000C2 /* MonthlyHistoryLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyHistoryLoader.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60000000000C3 /* MainPopoverWeeklyProgressSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverWeeklyProgressSectionView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60000000000C4 /* MonthlyHistoryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyHistoryViewController.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60000000000C5 /* MonthlyHistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyHistoryWindowController.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarShellControllerTests.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000012 /* WorkPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WorkPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverViewControllerTests.swift; sourceTree = "<group>"; };
@@ -196,7 +194,6 @@
 			sourceTree = "<group>";
 			children = (
 				A1B2C3D4E5F60000000000C4 /* MonthlyHistoryViewController.swift */,
-				A1B2C3D4E5F60000000000C5 /* MonthlyHistoryWindowController.swift */,
 			);
 		};
 		A1B2C3D4E5F6000000000036 /* Feature */ = {
@@ -391,7 +388,6 @@
 				A1B2C3D4E5F60000000000B1 /* MainPopoverWeeklyProgressLoader.swift in Sources */,
 				A1B2C3D4E5F60000000000B2 /* MonthlyHistoryLoader.swift in Sources */,
 				A1B2C3D4E5F60000000000B4 /* MonthlyHistoryViewController.swift in Sources */,
-				A1B2C3D4E5F60000000000B5 /* MonthlyHistoryWindowController.swift in Sources */,
 				A1B2C3D4E5F600000000002C /* WorkedDurationCalculator.swift in Sources */,
 				A1B2C3D4E5F6000000000006 /* MainPopoverViewStateFactory.swift in Sources */,
 				A1B2C3D4E5F6000000000004 /* MainPopoverViewController.swift in Sources */,

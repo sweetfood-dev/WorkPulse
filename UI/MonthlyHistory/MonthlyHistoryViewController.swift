@@ -1,45 +1,45 @@
 import AppKit
 
-private final class MonthlyHistoryRowView: NSView {
-    private let dateLabel = NSTextField(labelWithString: "")
-    private let timeRangeLabel = NSTextField(labelWithString: "")
-    private let workedDurationLabel = NSTextField(labelWithString: "")
-    private let row = NSStackView()
+struct MonthlyHistoryViewControllerSnapshot {
+    let monthText: String
+    let totalDurationText: String
+    let weekdayCount: Int
+    let cellCount: Int
+    let workedCellCount: Int
+    let activeCellCount: Int
+    let rowWidths: [CGFloat]
+}
+
+private final class MonthlyHistoryDayCellView: NSView {
+    private let dayLabel = NSTextField(labelWithString: "")
+    private let detailLabel = NSTextField(labelWithString: "")
+    private var kind: MonthlyHistoryDayCellKind = .outsideMonth
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         translatesAutoresizingMaskIntoConstraints = false
         wantsLayer = true
-        layer?.backgroundColor = MainPopoverStyle.Colors.todayTimesBackground.cgColor
-        layer?.cornerRadius = MainPopoverStyle.Metrics.valuePillCornerRadius
+        layer?.cornerRadius = MainPopoverStyle.Metrics.monthlyHistoryCellCornerRadius
+        layer?.borderWidth = 1
 
-        dateLabel.font = MainPopoverStyle.Typography.sectionTitle
-        dateLabel.textColor = MainPopoverStyle.Colors.primaryText
+        dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+        detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
+        detailLabel.alignment = .right
 
-        timeRangeLabel.font = MainPopoverStyle.Typography.secondary
-        timeRangeLabel.textColor = MainPopoverStyle.Colors.secondaryText
+        let stack = NSStackView(views: [dayLabel, NSView(), detailLabel])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 0
+        stack.translatesAutoresizingMaskIntoConstraints = false
 
-        workedDurationLabel.font = MainPopoverStyle.Typography.rowValue
-        workedDurationLabel.textColor = MainPopoverStyle.Colors.primaryText
-        workedDurationLabel.alignment = .right
-
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 12
-        row.translatesAutoresizingMaskIntoConstraints = false
-        row.addArrangedSubview(dateLabel)
-        row.addArrangedSubview(timeRangeLabel)
-        row.addArrangedSubview(NSView())
-        row.addArrangedSubview(workedDurationLabel)
-
-        addSubview(row)
+        addSubview(stack)
 
         NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
-            row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
-            workedDurationLabel.widthAnchor.constraint(equalToConstant: 88),
+            heightAnchor.constraint(equalToConstant: MainPopoverStyle.Metrics.monthlyHistoryCellHeight),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
         ])
     }
 
@@ -48,25 +48,83 @@ private final class MonthlyHistoryRowView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func apply(_ state: MonthlyHistoryItemViewState) {
-        dateLabel.stringValue = state.dateText
-        timeRangeLabel.stringValue = state.timeRangeText
-        workedDurationLabel.stringValue = state.workedDurationText
-        workedDurationLabel.textColor = state.isInProgress
-            ? MainPopoverStyle.Colors.currentSessionValue
-            : MainPopoverStyle.Colors.primaryText
+    func apply(_ state: MonthlyHistoryDayCellViewState) {
+        kind = state.kind
+        dayLabel.stringValue = state.dayText
+        detailLabel.stringValue = state.detailText
+        alphaValue = 1
+
+        switch state.kind {
+        case .outsideMonth:
+            layer?.backgroundColor = NSColor.clear.cgColor
+            layer?.borderColor = NSColor.clear.cgColor
+            dayLabel.textColor = .clear
+            detailLabel.textColor = .clear
+        case .worked:
+            layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryWorkedCellBackground.cgColor
+            layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryWorkedCellBorder.cgColor
+            dayLabel.textColor = MainPopoverStyle.Colors.primaryText
+            detailLabel.textColor = MainPopoverStyle.Colors.monthlyHistoryWorkedText
+        case .active:
+            layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryActiveCellBackground.cgColor
+            layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryActiveCellBorder.cgColor
+            dayLabel.textColor = MainPopoverStyle.Colors.currentSessionValue
+            dayLabel.font = .systemFont(ofSize: 10, weight: .bold)
+            detailLabel.textColor = MainPopoverStyle.Colors.currentSessionValue
+        case .off(let isDimmed):
+            layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryOffCellBackground.cgColor
+            layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryOffCellBorder.cgColor
+            dayLabel.textColor = MainPopoverStyle.Colors.secondaryText
+            detailLabel.textColor = MainPopoverStyle.Colors.secondaryText.withAlphaComponent(0.7)
+            detailLabel.font = .systemFont(ofSize: 8, weight: .regular)
+            alphaValue = isDimmed ? 0.55 : 1
+        case .empty(let isDimmed):
+            layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryPlaceholderCellBackground.cgColor
+            layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryPlaceholderCellBorder.cgColor
+            dayLabel.textColor = MainPopoverStyle.Colors.secondaryText
+            detailLabel.textColor = MainPopoverStyle.Colors.secondaryText.withAlphaComponent(0.65)
+            detailLabel.font = .systemFont(ofSize: 8, weight: .regular)
+            alphaValue = isDimmed ? 0.55 : 0.75
+        }
+
+        if case .worked = state.kind {
+            dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+            detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
+        } else if case .active = state.kind {
+            detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
+        } else if case .outsideMonth = state.kind {
+            dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+            detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
+        }
+    }
+
+    var isWorked: Bool {
+        if case .worked = kind { return true }
+        return false
+    }
+
+    var isActive: Bool {
+        if case .active = kind { return true }
+        return false
     }
 }
 
 @MainActor
 final class MonthlyHistoryViewController: NSViewController {
-    private let titleLabel = NSTextField(labelWithString: "")
-    private let subtitleLabel = NSTextField(labelWithString: "")
+    var onNavigatePrevious: (() -> Void)?
+    var onNavigateNext: (() -> Void)?
+
+    private let previousButton = NSButton(title: "", target: nil, action: nil)
+    private let nextButton = NSButton(title: "", target: nil, action: nil)
+    private let titleIconView = NSImageView()
+    private let monthLabel = NSTextField(labelWithString: "")
     private let totalLabel = NSTextField(labelWithString: "")
-    private let emptyLabel = NSTextField(labelWithString: "")
-    private let rowsStack = NSStackView()
-    private let scrollView = NSScrollView()
-    private var rowViews: [MonthlyHistoryRowView] = []
+    private let totalDurationLabel = NSTextField(labelWithString: "")
+    private let weekdayRow = NSStackView()
+    private let gridRows = NSStackView()
+
+    private var weekdayLabels: [NSTextField] = []
+    private var dayCellViews: [MonthlyHistoryDayCellView] = []
 
     override func loadView() {
         let rootView = NSView(
@@ -80,70 +138,122 @@ final class MonthlyHistoryViewController: NSViewController {
         rootView.wantsLayer = true
         rootView.layer?.backgroundColor = MainPopoverStyle.Colors.popoverBackground.cgColor
 
-        titleLabel.font = MainPopoverStyle.Typography.dateTitle
-        titleLabel.textColor = MainPopoverStyle.Colors.primaryText
+        let headerView = NSView()
+        headerView.translatesAutoresizingMaskIntoConstraints = false
+        headerView.wantsLayer = true
+        headerView.layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryHeaderBackground.cgColor
 
-        subtitleLabel.font = MainPopoverStyle.Typography.secondary
-        subtitleLabel.textColor = MainPopoverStyle.Colors.secondaryText
+        let footerView = NSView()
+        footerView.translatesAutoresizingMaskIntoConstraints = false
+        footerView.wantsLayer = true
+        footerView.layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryFooterBackground.cgColor
 
-        totalLabel.font = MainPopoverStyle.Typography.summaryValue
-        totalLabel.textColor = MainPopoverStyle.Colors.primaryText
+        configureNavigationButton(
+            previousButton,
+            symbolName: "chevron.left",
+            action: #selector(handleNavigatePrevious)
+        )
+        configureNavigationButton(
+            nextButton,
+            symbolName: "chevron.right",
+            action: #selector(handleNavigateNext)
+        )
 
-        emptyLabel.font = MainPopoverStyle.Typography.secondary
-        emptyLabel.textColor = MainPopoverStyle.Colors.secondaryText
-        emptyLabel.alignment = .center
-        emptyLabel.isHidden = true
+        titleIconView.image = NSImage(
+            systemSymbolName: "clock.arrow.circlepath",
+            accessibilityDescription: nil
+        )
+        titleIconView.contentTintColor = MainPopoverStyle.Colors.currentSessionValue
 
-        rowsStack.orientation = .vertical
-        rowsStack.alignment = .leading
-        rowsStack.spacing = MainPopoverStyle.Metrics.monthlyHistoryRowSpacing
-        rowsStack.translatesAutoresizingMaskIntoConstraints = false
+        monthLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        monthLabel.textColor = MainPopoverStyle.Colors.primaryText
 
-        let documentView = NSView()
-        documentView.translatesAutoresizingMaskIntoConstraints = false
-        documentView.addSubview(rowsStack)
-        NSLayoutConstraint.activate([
-            rowsStack.topAnchor.constraint(equalTo: documentView.topAnchor),
-            rowsStack.leadingAnchor.constraint(equalTo: documentView.leadingAnchor),
-            rowsStack.trailingAnchor.constraint(equalTo: documentView.trailingAnchor),
-            rowsStack.bottomAnchor.constraint(equalTo: documentView.bottomAnchor),
-            rowsStack.widthAnchor.constraint(equalTo: documentView.widthAnchor),
+        let titleStack = NSStackView(views: [titleIconView, monthLabel])
+        titleStack.orientation = .horizontal
+        titleStack.alignment = .centerY
+        titleStack.spacing = 8
+        titleStack.translatesAutoresizingMaskIntoConstraints = false
+
+        headerView.addSubview(previousButton)
+        headerView.addSubview(titleStack)
+        headerView.addSubview(nextButton)
+
+        weekdayRow.orientation = .horizontal
+        weekdayRow.distribution = .fillEqually
+        weekdayRow.alignment = .centerY
+        weekdayRow.spacing = MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
+        weekdayRow.translatesAutoresizingMaskIntoConstraints = false
+
+        gridRows.orientation = .vertical
+        gridRows.alignment = .leading
+        gridRows.spacing = MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
+        gridRows.translatesAutoresizingMaskIntoConstraints = false
+
+        let contentView = NSView()
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(weekdayRow)
+        contentView.addSubview(gridRows)
+
+        totalLabel.font = .systemFont(ofSize: 10, weight: .bold)
+        totalLabel.textColor = MainPopoverStyle.Colors.secondaryText
+        totalLabel.alignment = .left
+
+        totalDurationLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        totalDurationLabel.textColor = MainPopoverStyle.Colors.currentSessionValue
+        totalDurationLabel.alignment = .right
+
+        let footerRow = NSStackView(views: [
+            makeFooterIconView(),
+            totalLabel,
+            NSView(),
+            totalDurationLabel,
         ])
+        footerRow.orientation = .horizontal
+        footerRow.alignment = .centerY
+        footerRow.spacing = 8
+        footerRow.translatesAutoresizingMaskIntoConstraints = false
 
-        scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = true
-        scrollView.borderType = .noBorder
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.documentView = documentView
+        footerView.addSubview(footerRow)
 
-        rootView.addSubview(titleLabel)
-        rootView.addSubview(subtitleLabel)
-        rootView.addSubview(totalLabel)
-        rootView.addSubview(emptyLabel)
-        rootView.addSubview(scrollView)
-
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        totalLabel.translatesAutoresizingMaskIntoConstraints = false
-        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        rootView.addSubview(headerView)
+        rootView.addSubview(contentView)
+        rootView.addSubview(footerView)
 
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: rootView.topAnchor, constant: 20),
-            titleLabel.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 20),
-            titleLabel.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -20),
-            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
-            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
-            totalLabel.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 12),
-            totalLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            totalLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: totalLabel.bottomAnchor, constant: 16),
-            scrollView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 20),
-            scrollView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -20),
-            scrollView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor, constant: -20),
-            emptyLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-            emptyLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
-            documentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
+            headerView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            headerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            headerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            headerView.heightAnchor.constraint(equalToConstant: 54),
+
+            previousButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 14),
+            previousButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            titleStack.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
+            titleStack.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            nextButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -14),
+            nextButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+
+            contentView.topAnchor.constraint(equalTo: headerView.bottomAnchor),
+            contentView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 12),
+            contentView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -12),
+
+            weekdayRow.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            weekdayRow.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            weekdayRow.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+
+            gridRows.topAnchor.constraint(equalTo: weekdayRow.bottomAnchor, constant: 4),
+            gridRows.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            gridRows.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            gridRows.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+
+            footerView.topAnchor.constraint(equalTo: contentView.bottomAnchor),
+            footerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            footerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            footerView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
+            footerView.heightAnchor.constraint(equalToConstant: 48),
+
+            footerRow.leadingAnchor.constraint(equalTo: footerView.leadingAnchor, constant: 16),
+            footerRow.trailingAnchor.constraint(equalTo: footerView.trailingAnchor, constant: -16),
+            footerRow.centerYAnchor.constraint(equalTo: footerView.centerYAnchor),
         ])
 
         view = rootView
@@ -151,29 +261,122 @@ final class MonthlyHistoryViewController: NSViewController {
 
     func apply(_ state: MonthlyHistoryViewState) {
         loadViewIfNeeded()
-        titleLabel.stringValue = state.titleText
-        subtitleLabel.stringValue = state.subtitleText
-        totalLabel.stringValue = state.totalText
-        emptyLabel.stringValue = state.emptyText
-        emptyLabel.isHidden = state.items.isEmpty == false
-        syncRows(count: state.items.count)
-
-        zip(rowViews, state.items).forEach { row, item in
-            row.apply(item)
+        monthLabel.stringValue = state.monthText
+        totalLabel.stringValue = state.totalLabelText.uppercased()
+        totalDurationLabel.stringValue = state.totalDurationText
+        syncWeekdays(count: state.weekdayTexts.count)
+        zip(weekdayLabels, state.weekdayTexts).forEach { label, text in
+            label.stringValue = text
+        }
+        syncCells(count: state.cells.count)
+        zip(dayCellViews, state.cells).forEach { cellView, cellState in
+            cellView.apply(cellState)
         }
     }
 
-    private func syncRows(count: Int) {
-        while rowViews.count < count {
-            let rowView = MonthlyHistoryRowView()
-            rowViews.append(rowView)
-            rowsStack.addArrangedSubview(rowView)
+    var snapshot: MonthlyHistoryViewControllerSnapshot {
+        view.layoutSubtreeIfNeeded()
+        return MonthlyHistoryViewControllerSnapshot(
+            monthText: monthLabel.stringValue,
+            totalDurationText: totalDurationLabel.stringValue,
+            weekdayCount: weekdayLabels.count,
+            cellCount: dayCellViews.count,
+            workedCellCount: dayCellViews.filter(\.isWorked).count,
+            activeCellCount: dayCellViews.filter(\.isActive).count,
+            rowWidths: gridRows.arrangedSubviews.map(\.frame.width)
+        )
+    }
+
+    func simulateNavigatePrevious() {
+        handleNavigatePrevious()
+    }
+
+    func simulateNavigateNext() {
+        handleNavigateNext()
+    }
+
+    @objc
+    private func handleNavigatePrevious() {
+        onNavigatePrevious?()
+    }
+
+    @objc
+    private func handleNavigateNext() {
+        onNavigateNext?()
+    }
+
+    private func configureNavigationButton(
+        _ button: NSButton,
+        symbolName: String,
+        action: Selector
+    ) {
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.bezelStyle = .texturedRounded
+        button.isBordered = false
+        button.contentTintColor = MainPopoverStyle.Colors.secondaryText
+        button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+        button.imagePosition = .imageOnly
+        button.target = self
+        button.action = action
+    }
+
+    private func makeFooterIconView() -> NSImageView {
+        let view = NSImageView()
+        view.image = NSImage(systemSymbolName: "sum", accessibilityDescription: nil)
+        view.contentTintColor = MainPopoverStyle.Colors.secondaryText
+        return view
+    }
+
+    private func syncWeekdays(count: Int) {
+        while weekdayLabels.count < count {
+            let label = NSTextField(labelWithString: "")
+            label.font = .systemFont(ofSize: 9, weight: .bold)
+            label.textColor = MainPopoverStyle.Colors.secondaryText
+            label.alignment = .center
+            weekdayLabels.append(label)
+            weekdayRow.addArrangedSubview(label)
         }
 
-        while rowViews.count > count {
-            let rowView = rowViews.removeLast()
-            rowsStack.removeArrangedSubview(rowView)
-            rowView.removeFromSuperview()
+        while weekdayLabels.count > count {
+            let label = weekdayLabels.removeLast()
+            weekdayRow.removeArrangedSubview(label)
+            label.removeFromSuperview()
+        }
+    }
+
+    private func syncCells(count: Int) {
+        let rowCount = count / 7
+
+        while gridRows.arrangedSubviews.count < rowCount {
+            let row = NSStackView()
+            row.orientation = .horizontal
+            row.distribution = .fillEqually
+            row.alignment = .centerY
+            row.spacing = MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
+            row.translatesAutoresizingMaskIntoConstraints = false
+            gridRows.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: gridRows.widthAnchor).isActive = true
+        }
+
+        while gridRows.arrangedSubviews.count > rowCount {
+            guard let row = gridRows.arrangedSubviews.last else { break }
+            gridRows.removeArrangedSubview(row)
+            row.removeFromSuperview()
+        }
+
+        while dayCellViews.count < count {
+            let cellView = MonthlyHistoryDayCellView()
+            let rowIndex = dayCellViews.count / 7
+            (gridRows.arrangedSubviews[rowIndex] as? NSStackView)?.addArrangedSubview(cellView)
+            dayCellViews.append(cellView)
+        }
+
+        while dayCellViews.count > count {
+            let cellView = dayCellViews.removeLast()
+            cellView.superview.flatMap { superview in
+                (superview as? NSStackView)?.removeArrangedSubview(cellView)
+            }
+            cellView.removeFromSuperview()
         }
     }
 }

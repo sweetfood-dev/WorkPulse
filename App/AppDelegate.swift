@@ -21,7 +21,6 @@ struct MainPopoverRuntimeDependencies {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarShellController: MenuBarShellController?
-    private var monthlyHistoryWindowController: MonthlyHistoryWindowController?
     private let popoverCoordinator: MainPopoverCoordinator
 
     init(
@@ -52,12 +51,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             recordStore: resolvedRecordStore
         )
         super.init()
-        self.popoverCoordinator.onOpenMonthlyHistory = { [weak self] state in
-            self?.presentMonthlyHistory(state)
-        }
-        self.popoverCoordinator.onRefreshMonthlyHistory = { [weak self] state in
-            self?.monthlyHistoryWindowController?.apply(state)
-        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -86,18 +79,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func handlePopoverWillOpen() {
         popoverCoordinator.handlePopoverWillOpen()
-    }
-
-    private func presentMonthlyHistory(_ state: MonthlyHistoryViewState) {
-        let windowController = monthlyHistoryWindowController ?? {
-            let controller = MonthlyHistoryWindowController()
-            controller.onWillCloseWindow = { [weak self] in
-                self?.monthlyHistoryWindowController = nil
-            }
-            monthlyHistoryWindowController = controller
-            return controller
-        }()
-
-        windowController.show(state: state)
     }
 }
