@@ -66,8 +66,13 @@ struct MainPopoverRenderModelFactoryTests {
                 startTimeTitle: "In",
                 endTimeTitle: "Out",
                 deleteActionTitle: "Delete",
+                backActionTitle: "Back",
                 weeklyTitle: "Week",
                 monthlyTitle: "Month",
+                weeklyProgressTitle: "Weekly Progress",
+                monthlyHistoryTitle: "Monthly History",
+                monthlyHistoryEmptyText: "Empty",
+                monthlyHistoryInProgressText: "In progress",
                 currentSessionGoalLabelPrefix: "Target"
             )
         )

@@ -5,6 +5,13 @@ struct MainPopoverViewSnapshot {
     let currentSession: MainPopoverCurrentSessionSectionSnapshot
     let todayTimes: MainPopoverTodayTimesSectionSnapshot
     let summary: MainPopoverSummarySectionSnapshot
+    let weeklyDetail: MainPopoverWeeklyProgressSectionSnapshot
+    let isShowingWeeklyDetail: Bool
+}
+
+private enum MainPopoverRoute {
+    case main
+    case weeklyDetail
 }
 
 final class MainPopoverViewController: NSViewController {
@@ -15,11 +22,16 @@ final class MainPopoverViewController: NSViewController {
     private let currentSessionScheduler: any CurrentSessionScheduling
     private let renderModelFactory: MainPopoverRenderModelFactory
     var onApplyEditedTimes: ((Date?, Date?) -> Void)?
+    var onOpenWeeklyProgress: (() -> Void)?
+    var onOpenMonthlyHistory: (() -> Void)?
 
     private let headerSectionView = MainPopoverHeaderSectionView()
     private let currentSessionSectionView = MainPopoverCurrentSessionSectionView()
     private let todayTimesSectionView = MainPopoverTodayTimesSectionView()
     private let summarySectionView = MainPopoverSummarySectionView()
+    private let weeklyDetailSectionView = MainPopoverWeeklyProgressSectionView()
+    private let mainContentView = NSView()
+    private var route: MainPopoverRoute = .main
 
     private lazy var currentSessionBinder: MainPopoverCurrentSessionBinder = {
         let binder = MainPopoverCurrentSessionBinder(
@@ -63,6 +75,17 @@ final class MainPopoverViewController: NSViewController {
         self.currentSessionScheduler = currentSessionScheduler
         self.renderModelFactory = MainPopoverRenderModelFactory(copy: copy)
         super.init(nibName: nil, bundle: nil)
+        summarySectionView.onSelect = { [weak self] selection in
+            switch selection {
+            case .weekly:
+                self?.onOpenWeeklyProgress?()
+            case .monthly:
+                self?.onOpenMonthlyHistory?()
+            }
+        }
+        weeklyDetailSectionView.onBack = { [weak self] in
+            self?.showMainView()
+        }
     }
 
     @available(*, unavailable)
@@ -98,17 +121,30 @@ final class MainPopoverViewController: NSViewController {
             summarySectionView,
         ].forEach(contentStack.addArrangedSubview)
 
-        rootView.addSubview(contentStack)
+        mainContentView.translatesAutoresizingMaskIntoConstraints = false
+        mainContentView.addSubview(contentStack)
+        rootView.addSubview(mainContentView)
+        rootView.addSubview(weeklyDetailSectionView)
+        weeklyDetailSectionView.translatesAutoresizingMaskIntoConstraints = false
+        weeklyDetailSectionView.isHidden = true
 
         NSLayoutConstraint.activate([
-            contentStack.topAnchor.constraint(equalTo: rootView.topAnchor),
-            contentStack.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            contentStack.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: rootView.bottomAnchor),
+            mainContentView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            mainContentView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            mainContentView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            mainContentView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
+            contentStack.topAnchor.constraint(equalTo: mainContentView.topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: mainContentView.leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: mainContentView.trailingAnchor),
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: mainContentView.bottomAnchor),
             headerSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             currentSessionSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             todayTimesSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             summarySectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            weeklyDetailSectionView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            weeklyDetailSectionView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            weeklyDetailSectionView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            weeklyDetailSectionView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
         ])
 
         view = rootView
@@ -141,6 +177,21 @@ final class MainPopoverViewController: NSViewController {
 
     func stopCurrentSessionUpdates() {
         currentSessionBinder.stop()
+    }
+
+    func showWeeklyDetail(_ state: MainPopoverWeeklyProgressViewState) {
+        weeklyDetailSectionView.apply(state)
+        route = .weeklyDetail
+        updateRoute()
+    }
+
+    func showMainView() {
+        route = .main
+        updateRoute()
+    }
+
+    var isShowingWeeklyDetail: Bool {
+        route == .weeklyDetail
     }
 
     override func viewDidDisappear() {
@@ -196,12 +247,20 @@ final class MainPopoverViewController: NSViewController {
         summarySectionView.apply(renderModel.summary)
     }
 
+    private func updateRoute() {
+        guard isViewLoaded else { return }
+        mainContentView.isHidden = route != .main
+        weeklyDetailSectionView.isHidden = route != .weeklyDetail
+    }
+
     var snapshot: MainPopoverViewSnapshot {
         MainPopoverViewSnapshot(
             header: headerSectionView.snapshot,
             currentSession: currentSessionSectionView.snapshot,
             todayTimes: todayTimesSectionView.snapshot,
-            summary: summarySectionView.snapshot
+            summary: summarySectionView.snapshot,
+            weeklyDetail: weeklyDetailSectionView.snapshot,
+            isShowingWeeklyDetail: isShowingWeeklyDetail
         )
     }
 }

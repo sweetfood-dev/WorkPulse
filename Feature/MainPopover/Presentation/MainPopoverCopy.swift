@@ -12,8 +12,13 @@ struct MainPopoverCopy {
     let startTimeTitle: String
     let endTimeTitle: String
     let deleteActionTitle: String
+    let backActionTitle: String
     let weeklyTitle: String
     let monthlyTitle: String
+    let weeklyProgressTitle: String
+    let monthlyHistoryTitle: String
+    let monthlyHistoryEmptyText: String
+    let monthlyHistoryInProgressText: String
     let currentSessionGoalLabelPrefix: String
 
     static let english = MainPopoverCopy(
@@ -28,8 +33,13 @@ struct MainPopoverCopy {
         startTimeTitle: "Start Time",
         endTimeTitle: "End Time",
         deleteActionTitle: "Delete",
+        backActionTitle: "Back",
         weeklyTitle: "This Week",
         monthlyTitle: "This Month",
+        weeklyProgressTitle: "WEEKLY PROGRESS",
+        monthlyHistoryTitle: "MONTHLY HISTORY",
+        monthlyHistoryEmptyText: "No attendance records yet",
+        monthlyHistoryInProgressText: "In progress",
         currentSessionGoalLabelPrefix: "Goal:"
     )
 
@@ -44,5 +54,9 @@ struct MainPopoverCopy {
 
     func checkedInSummaryText(for timeText: String) -> String {
         "\(checkedInSummaryPrefix) \(timeText)"
+    }
+
+    func summaryTotalText(totalDurationText: String) -> String {
+        "Total: \(totalDurationText)"
     }
 }
