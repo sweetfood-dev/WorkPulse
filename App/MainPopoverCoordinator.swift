@@ -82,13 +82,17 @@ final class MainPopoverCoordinator {
 
     private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
         let referenceDate = resolvedReferenceDate()
-        recordStore.upsertRecord(
-            AttendanceRecord(
-                date: referenceDate,
-                startTime: startTime,
-                endTime: endTime
+        do {
+            try recordStore.upsertRecord(
+                AttendanceRecord(
+                    date: referenceDate,
+                    startTime: startTime,
+                    endTime: endTime
+                )
             )
-        )
+        } catch {
+            NSLog("Failed to save attendance record: %@", String(describing: error))
+        }
         refreshPopover(referenceDate: referenceDate)
     }
 

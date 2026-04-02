@@ -470,7 +470,7 @@ struct UserDefaultsAttendanceRecordStoreTests {
             endTime: nil
         )
 
-        store.upsertRecord(record)
+        try store.upsertRecord(record)
 
         #expect(store.loadRecords() == [record])
     }
@@ -491,8 +491,8 @@ struct UserDefaultsAttendanceRecordStoreTests {
             endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00"))
         )
 
-        store.upsertRecord(originalRecord)
-        store.upsertRecord(editedRecord)
+        try store.upsertRecord(originalRecord)
+        try store.upsertRecord(editedRecord)
 
         #expect(store.loadRecords() == [editedRecord])
     }
@@ -516,8 +516,8 @@ struct UserDefaultsAttendanceRecordStoreTests {
             ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
         )
 
-        store.upsertRecord(originalRecord)
-        store.upsertRecord(editedRecord)
+        try store.upsertRecord(originalRecord)
+        try store.upsertRecord(editedRecord)
 
         #expect(store.record(on: referenceDate, calendar: Self.seoulCalendar) == editedRecord)
     }
@@ -546,9 +546,9 @@ struct UserDefaultsAttendanceRecordStoreTests {
             endTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T18:00:00+09:00"))
         )
 
-        store.upsertRecord(weeklyRecord)
-        store.upsertRecord(monthlyRecord)
-        store.upsertRecord(nextMonthRecord)
+        try store.upsertRecord(weeklyRecord)
+        try store.upsertRecord(monthlyRecord)
+        try store.upsertRecord(nextMonthRecord)
 
         let weeklyRecords = store.records(
             equalTo: referenceDate,
@@ -599,7 +599,7 @@ struct SwiftDataAttendanceRecordStoreTests {
             endTime: nil
         )
 
-        store.upsertRecord(record)
+        try store.upsertRecord(record)
 
         #expect(store.loadRecords() == [record])
     }
@@ -618,8 +618,8 @@ struct SwiftDataAttendanceRecordStoreTests {
             endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00"))
         )
 
-        store.upsertRecord(originalRecord)
-        store.upsertRecord(editedRecord)
+        try store.upsertRecord(originalRecord)
+        try store.upsertRecord(editedRecord)
 
         #expect(store.loadRecords() == [editedRecord])
     }
@@ -646,9 +646,9 @@ struct SwiftDataAttendanceRecordStoreTests {
             endTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T18:00:00+09:00"))
         )
 
-        store.upsertRecord(weeklyRecord)
-        store.upsertRecord(monthlyRecord)
-        store.upsertRecord(nextMonthRecord)
+        try store.upsertRecord(weeklyRecord)
+        try store.upsertRecord(monthlyRecord)
+        try store.upsertRecord(nextMonthRecord)
 
         let weeklyRecords = store.records(
             equalTo: referenceDate,
@@ -679,7 +679,7 @@ struct SwiftDataAttendanceRecordStoreTests {
         let legacyUserDefaults = try makeUserDefaults()
         defer { legacyUserDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
         let legacyStore = UserDefaultsAttendanceRecordStore(userDefaults: legacyUserDefaults)
-        legacyStore.upsertRecord(legacyRecord)
+        try legacyStore.upsertRecord(legacyRecord)
 
         let configuration = ModelConfiguration(
             for: AttendanceRecordEntity.self,
@@ -689,7 +689,7 @@ struct SwiftDataAttendanceRecordStoreTests {
             for: AttendanceRecordEntity.self,
             configurations: configuration
         )
-        let store = SwiftDataAttendanceRecordStore(
+        let store = try SwiftDataAttendanceRecordStore(
             modelContainer: container,
             calendar: Self.seoulCalendar,
             legacyRecords: legacyStore.loadRecords()
@@ -707,7 +707,7 @@ struct SwiftDataAttendanceRecordStoreTests {
             for: AttendanceRecordEntity.self,
             configurations: configuration
         )
-        return SwiftDataAttendanceRecordStore(
+        return try SwiftDataAttendanceRecordStore(
             modelContainer: container,
             calendar: Self.seoulCalendar
         )
@@ -752,7 +752,7 @@ struct MirroredAttendanceRecordStoreTests {
             userDefaults: legacyUserDefaults,
             calendar: Self.seoulCalendar
         )
-        legacyStore.upsertRecord(originalRecord)
+        try legacyStore.upsertRecord(originalRecord)
 
         let configuration = ModelConfiguration(
             for: AttendanceRecordEntity.self,
@@ -762,7 +762,7 @@ struct MirroredAttendanceRecordStoreTests {
             for: AttendanceRecordEntity.self,
             configurations: configuration
         )
-        let primaryStore = SwiftDataAttendanceRecordStore(
+        let primaryStore = try SwiftDataAttendanceRecordStore(
             modelContainer: container,
             calendar: Self.seoulCalendar,
             legacyRecords: legacyStore.loadRecords()
@@ -772,7 +772,7 @@ struct MirroredAttendanceRecordStoreTests {
             fallback: legacyStore
         )
 
-        store.upsertRecord(editedRecord)
+        try store.upsertRecord(editedRecord)
 
         #expect(primaryStore.loadRecords() == [editedRecord])
         #expect(legacyStore.loadRecords() == [editedRecord])
@@ -794,7 +794,7 @@ struct MirroredAttendanceRecordStoreTests {
             userDefaults: legacyUserDefaults,
             calendar: Self.seoulCalendar
         )
-        legacyStore.upsertRecord(fallbackRecord)
+        try legacyStore.upsertRecord(fallbackRecord)
 
         let store = MirroredAttendanceRecordStore(
             primary: try makePrimaryStore(),
@@ -827,8 +827,8 @@ struct MirroredAttendanceRecordStoreTests {
             userDefaults: legacyUserDefaults,
             calendar: Self.seoulCalendar
         )
-        legacyStore.upsertRecord(weeklyRecord)
-        legacyStore.upsertRecord(nextMonthRecord)
+        try legacyStore.upsertRecord(weeklyRecord)
+        try legacyStore.upsertRecord(nextMonthRecord)
 
         let store = MirroredAttendanceRecordStore(
             primary: try makePrimaryStore(),
@@ -844,6 +844,30 @@ struct MirroredAttendanceRecordStoreTests {
         #expect(weeklyRecords.count == 2)
         #expect(weeklyRecords.contains { $0 == weeklyRecord })
         #expect(weeklyRecords.contains { $0 == nextMonthRecord })
+    }
+
+    @Test
+    func upsertRecordRethrowsPrimaryFailureWithoutUpdatingFallback() throws {
+        let editedRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+        )
+        let legacyUserDefaults = try makeUserDefaults()
+        defer { legacyUserDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let legacyStore = UserDefaultsAttendanceRecordStore(
+            userDefaults: legacyUserDefaults,
+            calendar: Self.seoulCalendar
+        )
+        let store = MirroredAttendanceRecordStore(
+            primary: ThrowingAttendanceRecordStore(records: []),
+            fallback: legacyStore
+        )
+
+        #expect(throws: ThrowingAttendanceRecordStore.TestError.self) {
+            try store.upsertRecord(editedRecord)
+        }
+        #expect(legacyStore.loadRecords().isEmpty)
     }
 
     private func makeUserDefaults() throws -> UserDefaults {
@@ -862,7 +886,7 @@ struct MirroredAttendanceRecordStoreTests {
             for: AttendanceRecordEntity.self,
             configurations: configuration
         )
-        return SwiftDataAttendanceRecordStore(
+        return try SwiftDataAttendanceRecordStore(
             modelContainer: container,
             calendar: Self.seoulCalendar
         )
@@ -1208,6 +1232,54 @@ struct AppDelegateTests {
         #expect(controller.snapshot.currentSession.valueText == "01:05:00")
     }
 
+    @Test
+    @MainActor
+    func applyingEditedTimesKeepsStoredSnapshotWhenSaveFails() throws {
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let persistedRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: startTime,
+            endTime: nil
+        )
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: makeSeoulCalendar())
+            ),
+            currentTimeProvider: { referenceDate }
+        )
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                currentDateProvider: { referenceDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: ThrowingAttendanceRecordStore(records: [persistedRecord])
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
+        controller.beginEditing(.endTime)
+        controller.setEditingPickerDate(endTime, for: .endTime)
+        controller.applyEditing()
+
+        let snapshot = controller.snapshot
+        #expect(snapshot.todayTimes.endRow.valueText == "--:--")
+        #expect(snapshot.currentSession.valueText == "10:00:00")
+        #expect(snapshot.todayTimes.isEndApplyVisible == false)
+        #expect(snapshot.todayTimes.isEndCancelVisible == false)
+    }
+
     private static var seoulCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "en_US_POSIX")
@@ -1312,13 +1384,37 @@ private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
         records
     }
 
-    func upsertRecord(_ record: AttendanceRecord) {
+    func upsertRecord(_ record: AttendanceRecord) throws {
         if let index = records.lastIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: record.date) }) {
             records[index] = record
             return
         }
 
         records.append(record)
+    }
+}
+
+private struct ThrowingAttendanceRecordStore: AttendanceRecordStore {
+    enum TestError: Error {
+        case saveFailed
+    }
+
+    let records: [AttendanceRecord]
+
+    func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
+        records.last {
+            calendar.isDate($0.date, inSameDayAs: date)
+        }
+    }
+
+    func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord] {
+        records.filter {
+            calendar.isDate($0.date, equalTo: date, toGranularity: granularity)
+        }
+    }
+
+    func upsertRecord(_ record: AttendanceRecord) throws {
+        throw TestError.saveFailed
     }
 }
 

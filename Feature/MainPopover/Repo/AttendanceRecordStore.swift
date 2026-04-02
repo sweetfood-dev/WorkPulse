@@ -7,7 +7,7 @@ protocol AttendanceRecordQuerying {
 }
 
 protocol AttendanceRecordWriting {
-    func upsertRecord(_ record: AttendanceRecord)
+    func upsertRecord(_ record: AttendanceRecord) throws
 }
 
 protocol AttendanceRecordStore: AttendanceRecordQuerying, AttendanceRecordWriting {}
@@ -41,9 +41,9 @@ struct MirroredAttendanceRecordStore: AttendanceRecordStore {
             : primaryRecords
     }
 
-    func upsertRecord(_ record: AttendanceRecord) {
-        primary.upsertRecord(record)
-        fallback.upsertRecord(record)
+    func upsertRecord(_ record: AttendanceRecord) throws {
+        try primary.upsertRecord(record)
+        try fallback.upsertRecord(record)
     }
 }
 
@@ -84,10 +84,10 @@ final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
         modelContainer: ModelContainer,
         calendar: Calendar = .current,
         legacyRecords: [AttendanceRecord] = []
-    ) {
+    ) throws {
         self.modelContext = ModelContext(modelContainer)
         self.calendar = calendar
-        migrateIfNeeded(from: legacyRecords)
+        try migrateIfNeeded(from: legacyRecords)
     }
 
     convenience init(
@@ -113,7 +113,7 @@ final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
         }
     }
 
-    func upsertRecord(_ record: AttendanceRecord) {
+    func upsertRecord(_ record: AttendanceRecord) throws {
         let entities = loadAllEntities()
 
         if let entity = entities.last(where: { calendar.isDate($0.date, inSameDayAs: record.date) }) {
@@ -124,14 +124,14 @@ final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
             modelContext.insert(AttendanceRecordEntity(record: record))
         }
 
-        saveContext()
+        try saveContext()
     }
 
     func loadRecords() -> [AttendanceRecord] {
         loadAllEntities().map(\.attendanceRecord)
     }
 
-    private func migrateIfNeeded(from legacyRecords: [AttendanceRecord]) {
+    private func migrateIfNeeded(from legacyRecords: [AttendanceRecord]) throws {
         guard loadAllEntities().isEmpty, legacyRecords.isEmpty == false else {
             return
         }
@@ -140,7 +140,7 @@ final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
             modelContext.insert(AttendanceRecordEntity(record: $0))
         }
 
-        saveContext()
+        try saveContext()
     }
 
     private func loadAllEntities() -> [AttendanceRecordEntity] {
@@ -155,12 +155,9 @@ final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
         }
     }
 
-    private func saveContext() {
-        do {
-            try modelContext.save()
-        } catch {
-            assertionFailure("Failed to save attendance records: \(error)")
-        }
+    private func saveContext() throws {
+        guard modelContext.hasChanges else { return }
+        try modelContext.save()
     }
 }
 
@@ -201,7 +198,7 @@ struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
         }
     }
 
-    func upsertRecord(_ record: AttendanceRecord) {
+    func upsertRecord(_ record: AttendanceRecord) throws {
         var records = loadAllRecords()
 
         if let index = records.lastIndex(where: { calendar.isDate($0.date, inSameDayAs: record.date) }) {
@@ -210,7 +207,7 @@ struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
             records.append(record)
         }
 
-        guard let data = try? encoder.encode(records) else { return }
+        let data = try encoder.encode(records)
         userDefaults.set(data, forKey: key)
     }
 
