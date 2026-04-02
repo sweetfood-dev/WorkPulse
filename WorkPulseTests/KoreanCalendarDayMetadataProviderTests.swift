@@ -7,6 +7,16 @@ struct KoreanCalendarDayMetadataProviderTests {
     private let provider = KoreanCalendarDayMetadataProvider()
 
     @Test
+    func unsupportedYearFallsBackToWeekendOrWeekdayWithoutHolidayMetadata() throws {
+        let date = try #require(makeDate("2041-03-01T12:00:00+09:00"))
+
+        let metadata = provider.metadata(for: date)
+
+        #expect(metadata.holiday == nil)
+        #expect(metadata.category == expectedNonHolidayCategory(for: date))
+    }
+
+    @Test
     func weekendDateReturnsWeekendCategory() throws {
         let date = try #require(makeDate("2026-04-04T12:00:00+09:00"))
 
@@ -35,6 +45,56 @@ struct KoreanCalendarDayMetadataProviderTests {
         #expect(metadata.category == .substituteHoliday)
         #expect(metadata.holiday?.substituteForName == "3·1절")
         #expect(metadata.holiday?.annotationText == "3·1절 대체공휴일")
+    }
+
+    @Test
+    func christmasUses2021SpecialSubstituteHolidayRule() throws {
+        let date = try #require(makeDate("2021-12-27T12:00:00+09:00"))
+
+        let metadata = provider.metadata(for: date)
+
+        #expect(metadata.category == .substituteHoliday)
+        #expect(metadata.holiday?.annotationText == "기독탄신일 대체공휴일")
+    }
+
+    @Test
+    func hangulDayUses2021SpecialSubstituteHolidayRule() throws {
+        let date = try #require(makeDate("2021-10-11T12:00:00+09:00"))
+
+        let metadata = provider.metadata(for: date)
+
+        #expect(metadata.category == .substituteHoliday)
+        #expect(metadata.holiday?.annotationText == "한글날 대체공휴일")
+    }
+
+    @Test
+    func hangulDayUses2022WeekendSubstituteHolidayRule() throws {
+        let date = try #require(makeDate("2022-10-10T12:00:00+09:00"))
+
+        let metadata = provider.metadata(for: date)
+
+        #expect(metadata.category == .substituteHoliday)
+        #expect(metadata.holiday?.annotationText == "한글날 대체공휴일")
+    }
+
+    @Test
+    func buddhasBirthdayDoesNotCreateSubstituteHolidayBefore2023() throws {
+        let date = try #require(makeDate("2022-05-09T12:00:00+09:00"))
+
+        let metadata = provider.metadata(for: date)
+
+        #expect(metadata.holiday == nil)
+        #expect(metadata.category == .weekday)
+    }
+
+    @Test
+    func buddhasBirthdayCreatesSubstituteHolidayFrom2023() throws {
+        let date = try #require(makeDate("2023-05-29T12:00:00+09:00"))
+
+        let metadata = provider.metadata(for: date)
+
+        #expect(metadata.category == .substituteHoliday)
+        #expect(metadata.holiday?.annotationText == "부처님오신날 대체공휴일")
     }
 
     @Test
@@ -67,4 +127,10 @@ struct KoreanCalendarDayMetadataProviderTests {
 
 private func makeDate(_ value: String) -> Date? {
     ISO8601DateFormatter().date(from: value)
+}
+
+private func expectedNonHolidayCategory(for date: Date) -> CalendarDayCategory {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+    return calendar.isDateInWeekend(date) ? .weekend : .weekday
 }

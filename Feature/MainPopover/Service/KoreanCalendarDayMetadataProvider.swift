@@ -1,6 +1,8 @@
 import Foundation
 
 final class KoreanCalendarDayMetadataProvider: CalendarDayMetadataProviding {
+    private static let supportedYearRange = 2000...2040
+
     private enum HolidayKind {
         case newYear
         case independenceDay
@@ -100,6 +102,10 @@ final class KoreanCalendarDayMetadataProvider: CalendarDayMetadataProviding {
     }
 
     private func holidays(for year: Int) -> [Date: HolidayMetadata] {
+        guard Self.supportedYearRange.contains(year) else {
+            return [:]
+        }
+
         lock.lock()
         defer { lock.unlock() }
 
@@ -144,7 +150,7 @@ final class KoreanCalendarDayMetadataProvider: CalendarDayMetadataProviding {
         appendHoliday(on: seollalDate.flatMap { gregorianCalendar.date(byAdding: .day, value: -1, to: $0) }, rule: HolidayRule(kind: .lunarNewYearEve, policy: substitutePolicy(for: .lunarNewYearEve, year: year)))
         appendHoliday(on: seollalDate, rule: HolidayRule(kind: .lunarNewYear, policy: substitutePolicy(for: .lunarNewYear, year: year)))
         appendHoliday(on: seollalDate.flatMap { gregorianCalendar.date(byAdding: .day, value: 1, to: $0) }, rule: HolidayRule(kind: .lunarNewYearNext, policy: substitutePolicy(for: .lunarNewYearNext, year: year)))
-        appendHoliday(on: makeLunarDate(gregorianYear: year, lunarMonth: 4, lunarDay: 8), rule: HolidayRule(kind: .buddhasBirthday, policy: substitutePolicy(for: .buddhasBirthday, year: year)))
+        appendHoliday(on: buddhasBirthdayDate(for: year), rule: HolidayRule(kind: .buddhasBirthday, policy: substitutePolicy(for: .buddhasBirthday, year: year)))
         appendHoliday(on: makeGregorianDate(year: year, month: 5, day: 5), rule: HolidayRule(kind: .childrensDay, policy: substitutePolicy(for: .childrensDay, year: year)))
         appendHoliday(on: makeGregorianDate(year: year, month: 6, day: 6), rule: HolidayRule(kind: .memorialDay, policy: nil))
         appendHoliday(on: makeGregorianDate(year: year, month: 8, day: 15), rule: HolidayRule(kind: .liberationDay, policy: substitutePolicy(for: .liberationDay, year: year)))
@@ -275,5 +281,14 @@ final class KoreanCalendarDayMetadataProvider: CalendarDayMetadataProviding {
         )
         components.isLeapMonth = false
         return lunarCalendar.date(from: components).map { gregorianCalendar.startOfDay(for: $0) }
+    }
+
+    private func buddhasBirthdayDate(for year: Int) -> Date? {
+        if year == 2023 {
+            // Foundation's chinese calendar maps Korean lunar 4/8 to the prior day in 2023.
+            return makeGregorianDate(year: 2023, month: 5, day: 27)
+        }
+
+        return makeLunarDate(gregorianYear: year, lunarMonth: 4, lunarDay: 8)
     }
 }
