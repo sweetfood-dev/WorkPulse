@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import WorkPulse
 
@@ -549,20 +550,23 @@ struct UserDefaultsAttendanceRecordStoreTests {
         store.upsertRecord(monthlyRecord)
         store.upsertRecord(nextMonthRecord)
 
-        #expect(
-            store.records(
-                equalTo: referenceDate,
-                toGranularity: .weekOfYear,
-                calendar: Self.seoulCalendar
-            ) == [weeklyRecord, nextMonthRecord]
-        )
-        #expect(
-            store.records(
-                equalTo: referenceDate,
-                toGranularity: .month,
-                calendar: Self.seoulCalendar
-            ) == [weeklyRecord, monthlyRecord]
-        )
+        let weeklyRecords = store.records(
+            equalTo: referenceDate,
+            toGranularity: .weekOfYear,
+            calendar: Self.seoulCalendar
+        ).sorted { $0.date < $1.date }
+        let monthlyRecords = store.records(
+            equalTo: referenceDate,
+            toGranularity: .month,
+            calendar: Self.seoulCalendar
+        ).sorted { $0.date < $1.date }
+
+        #expect(weeklyRecords.count == 2)
+        #expect(monthlyRecords.count == 2)
+        #expect(weeklyRecords.contains { $0 == weeklyRecord })
+        #expect(weeklyRecords.contains { $0 == nextMonthRecord })
+        #expect(monthlyRecords.contains { $0 == weeklyRecord })
+        #expect(monthlyRecords.contains { $0 == monthlyRecord })
     }
 
     private func makeUserDefaults() throws -> UserDefaults {
@@ -574,6 +578,150 @@ struct UserDefaultsAttendanceRecordStoreTests {
 
     private var userDefaultsSuiteName: String? {
         "UserDefaultsAttendanceRecordStoreTests.\(UUID().uuidString)"
+    }
+
+    private static var seoulCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+        return calendar
+    }
+}
+
+@Suite("SwiftDataAttendanceRecordStore")
+struct SwiftDataAttendanceRecordStoreTests {
+    @Test
+    func upsertRecordAppendsWhenDayDoesNotExist() throws {
+        let store = try makeStore()
+        let record = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+
+        store.upsertRecord(record)
+
+        #expect(store.loadRecords() == [record])
+    }
+
+    @Test
+    func upsertRecordReplacesExistingRecordForSameDay() throws {
+        let store = try makeStore()
+        let originalRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+        let editedRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00"))
+        )
+
+        store.upsertRecord(originalRecord)
+        store.upsertRecord(editedRecord)
+
+        #expect(store.loadRecords() == [editedRecord])
+    }
+
+    @Test
+    func recordsReturnsOnlyEntriesMatchingRequestedGranularity() throws {
+        let store = try makeStore()
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let weeklyRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-30T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T18:00:00+09:00"))
+        )
+        let monthlyRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-03T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-03T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-03T18:00:00+09:00"))
+        )
+        let nextMonthRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-04-01T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T18:00:00+09:00"))
+        )
+
+        store.upsertRecord(weeklyRecord)
+        store.upsertRecord(monthlyRecord)
+        store.upsertRecord(nextMonthRecord)
+
+        let weeklyRecords = store.records(
+            equalTo: referenceDate,
+            toGranularity: .weekOfYear,
+            calendar: Self.seoulCalendar
+        )
+        let monthlyRecords = store.records(
+            equalTo: referenceDate,
+            toGranularity: .month,
+            calendar: Self.seoulCalendar
+        )
+
+        #expect(weeklyRecords.count == 2)
+        #expect(monthlyRecords.count == 2)
+        #expect(weeklyRecords.contains { $0 == weeklyRecord })
+        #expect(weeklyRecords.contains { $0 == nextMonthRecord })
+        #expect(monthlyRecords.contains { $0 == weeklyRecord })
+        #expect(monthlyRecords.contains { $0 == monthlyRecord })
+    }
+
+    @Test
+    func migratesLegacyUserDefaultsRecordsWhenStoreStartsEmpty() throws {
+        let legacyRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+        )
+        let legacyUserDefaults = try makeUserDefaults()
+        defer { legacyUserDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let legacyStore = UserDefaultsAttendanceRecordStore(userDefaults: legacyUserDefaults)
+        legacyStore.upsertRecord(legacyRecord)
+
+        let configuration = ModelConfiguration(
+            for: AttendanceRecordEntity.self,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(
+            for: AttendanceRecordEntity.self,
+            configurations: configuration
+        )
+        let store = SwiftDataAttendanceRecordStore(
+            modelContainer: container,
+            calendar: Self.seoulCalendar,
+            legacyRecords: legacyStore.loadRecords()
+        )
+
+        #expect(store.loadRecords() == [legacyRecord])
+    }
+
+    private func makeStore() throws -> SwiftDataAttendanceRecordStore {
+        let configuration = ModelConfiguration(
+            for: AttendanceRecordEntity.self,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(
+            for: AttendanceRecordEntity.self,
+            configurations: configuration
+        )
+        return SwiftDataAttendanceRecordStore(
+            modelContainer: container,
+            calendar: Self.seoulCalendar
+        )
+    }
+
+    private func makeUserDefaults() throws -> UserDefaults {
+        let suiteName = try #require(userDefaultsSuiteName)
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
+        userDefaults.removePersistentDomain(forName: suiteName)
+        return userDefaults
+    }
+
+    private var userDefaultsSuiteName: String? {
+        "SwiftDataAttendanceRecordStoreTests.\(UUID().uuidString)"
     }
 
     private static var seoulCalendar: Calendar {
