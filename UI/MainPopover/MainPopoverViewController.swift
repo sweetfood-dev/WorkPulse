@@ -6,12 +6,15 @@ struct MainPopoverViewSnapshot {
     let todayTimes: MainPopoverTodayTimesSectionSnapshot
     let summary: MainPopoverSummarySectionSnapshot
     let weeklyDetail: MainPopoverWeeklyProgressSectionSnapshot
+    let monthlyDetail: MonthlyHistoryViewControllerSnapshot
     let isShowingWeeklyDetail: Bool
+    let isShowingMonthlyDetail: Bool
 }
 
 private enum MainPopoverRoute {
     case main
     case weeklyDetail
+    case monthlyDetail
 }
 
 final class MainPopoverViewController: NSViewController {
@@ -30,8 +33,12 @@ final class MainPopoverViewController: NSViewController {
     private let todayTimesSectionView = MainPopoverTodayTimesSectionView()
     private let summarySectionView = MainPopoverSummarySectionView()
     private let weeklyDetailSectionView = MainPopoverWeeklyProgressSectionView()
+    private let monthlyDetailContainerView = NSView()
+    private let monthlyDetailBackButton = NSButton(title: "", target: nil, action: nil)
+    private let monthlyHistoryViewController = MonthlyHistoryViewController()
     private let mainContentView = NSView()
     private var route: MainPopoverRoute = .main
+    var onNavigateMonthlyHistory: ((Int) -> Void)?
 
     private lazy var currentSessionBinder: MainPopoverCurrentSessionBinder = {
         let binder = MainPopoverCurrentSessionBinder(
@@ -86,6 +93,12 @@ final class MainPopoverViewController: NSViewController {
         weeklyDetailSectionView.onBack = { [weak self] in
             self?.showMainView()
         }
+        monthlyHistoryViewController.onNavigatePrevious = { [weak self] in
+            self?.onNavigateMonthlyHistory?(-1)
+        }
+        monthlyHistoryViewController.onNavigateNext = { [weak self] in
+            self?.onNavigateMonthlyHistory?(1)
+        }
     }
 
     @available(*, unavailable)
@@ -125,8 +138,24 @@ final class MainPopoverViewController: NSViewController {
         mainContentView.addSubview(contentStack)
         rootView.addSubview(mainContentView)
         rootView.addSubview(weeklyDetailSectionView)
+        rootView.addSubview(monthlyDetailContainerView)
         weeklyDetailSectionView.translatesAutoresizingMaskIntoConstraints = false
         weeklyDetailSectionView.isHidden = true
+        monthlyDetailContainerView.translatesAutoresizingMaskIntoConstraints = false
+        monthlyDetailContainerView.isHidden = true
+
+        monthlyDetailBackButton.title = copy.backActionTitle
+        monthlyDetailBackButton.bezelStyle = .rounded
+        monthlyDetailBackButton.target = self
+        monthlyDetailBackButton.action = #selector(handleMonthlyDetailBack)
+        monthlyDetailBackButton.font = .systemFont(ofSize: 11, weight: .semibold)
+        monthlyDetailBackButton.translatesAutoresizingMaskIntoConstraints = false
+
+        addChild(monthlyHistoryViewController)
+        let monthlyDetailView = monthlyHistoryViewController.view
+        monthlyDetailView.translatesAutoresizingMaskIntoConstraints = false
+        monthlyDetailContainerView.addSubview(monthlyDetailBackButton)
+        monthlyDetailContainerView.addSubview(monthlyDetailView)
 
         NSLayoutConstraint.activate([
             mainContentView.topAnchor.constraint(equalTo: rootView.topAnchor),
@@ -145,6 +174,19 @@ final class MainPopoverViewController: NSViewController {
             weeklyDetailSectionView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             weeklyDetailSectionView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             weeklyDetailSectionView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
+
+            monthlyDetailContainerView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            monthlyDetailContainerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            monthlyDetailContainerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            monthlyDetailContainerView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
+
+            monthlyDetailBackButton.topAnchor.constraint(equalTo: monthlyDetailContainerView.topAnchor, constant: 18),
+            monthlyDetailBackButton.leadingAnchor.constraint(equalTo: monthlyDetailContainerView.leadingAnchor, constant: 20),
+
+            monthlyDetailView.topAnchor.constraint(equalTo: monthlyDetailBackButton.bottomAnchor, constant: 12),
+            monthlyDetailView.leadingAnchor.constraint(equalTo: monthlyDetailContainerView.leadingAnchor),
+            monthlyDetailView.trailingAnchor.constraint(equalTo: monthlyDetailContainerView.trailingAnchor),
+            monthlyDetailView.bottomAnchor.constraint(equalTo: monthlyDetailContainerView.bottomAnchor),
         ])
 
         view = rootView
@@ -186,13 +228,32 @@ final class MainPopoverViewController: NSViewController {
         weeklyDetailSectionView.layoutSubtreeIfNeeded()
     }
 
+    func showMonthlyHistory(_ state: MonthlyHistoryViewState) {
+        route = .monthlyDetail
+        updateRoute()
+        monthlyHistoryViewController.apply(state)
+        monthlyHistoryViewController.view.layoutSubtreeIfNeeded()
+    }
+
     func showMainView() {
         route = .main
         updateRoute()
     }
 
+    func simulateMonthlyNavigatePrevious() {
+        monthlyHistoryViewController.simulateNavigatePrevious()
+    }
+
+    func simulateMonthlyNavigateNext() {
+        monthlyHistoryViewController.simulateNavigateNext()
+    }
+
     var isShowingWeeklyDetail: Bool {
         route == .weeklyDetail
+    }
+
+    var isShowingMonthlyDetail: Bool {
+        route == .monthlyDetail
     }
 
     override func viewDidDisappear() {
@@ -252,6 +313,12 @@ final class MainPopoverViewController: NSViewController {
         guard isViewLoaded else { return }
         mainContentView.isHidden = route != .main
         weeklyDetailSectionView.isHidden = route != .weeklyDetail
+        monthlyDetailContainerView.isHidden = route != .monthlyDetail
+    }
+
+    @objc
+    private func handleMonthlyDetailBack() {
+        showMainView()
     }
 
     var snapshot: MainPopoverViewSnapshot {
@@ -261,7 +328,9 @@ final class MainPopoverViewController: NSViewController {
             todayTimes: todayTimesSectionView.snapshot,
             summary: summarySectionView.snapshot,
             weeklyDetail: weeklyDetailSectionView.snapshot,
-            isShowingWeeklyDetail: isShowingWeeklyDetail
+            monthlyDetail: monthlyHistoryViewController.snapshot,
+            isShowingWeeklyDetail: isShowingWeeklyDetail,
+            isShowingMonthlyDetail: isShowingMonthlyDetail
         )
     }
 }

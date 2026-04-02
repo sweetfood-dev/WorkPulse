@@ -4,8 +4,7 @@ import AppKit
 final class MainPopoverCoordinator {
     private weak var popoverViewController: MainPopoverViewController?
     private var displayedReferenceDate: Date?
-    var onOpenMonthlyHistory: ((MonthlyHistoryViewState) -> Void)?
-    var onRefreshMonthlyHistory: ((MonthlyHistoryViewState) -> Void)?
+    private var displayedMonthlyHistoryReferenceDate: Date?
     private let runtimeDependencies: MainPopoverRuntimeDependencies
     private let recordStore: any AttendanceRecordStore
     private let viewStateFactory: MainPopoverViewStateFactory
@@ -83,12 +82,16 @@ final class MainPopoverCoordinator {
         popoverViewController.onOpenMonthlyHistory = { [weak self] in
             self?.showMonthlyHistory()
         }
+        popoverViewController.onNavigateMonthlyHistory = { [weak self] monthOffset in
+            self?.navigateMonthlyHistory(by: monthOffset)
+        }
         refreshPopover(referenceDate: referenceDate)
     }
 
     func handlePopoverWillOpen() {
         let referenceDate = resolvedReferenceDate()
         popoverViewController?.showMainView()
+        displayedMonthlyHistoryReferenceDate = nil
 
         if shouldResetEditingForReferenceDate(referenceDate) {
             popoverViewController?.cancelEditing()
@@ -146,7 +149,6 @@ final class MainPopoverCoordinator {
                 endTime: loadedState.todayRecord?.endTime
             )
         )
-        onRefreshMonthlyHistory?(monthlyHistoryLoader.load(referenceDate: referenceDate))
     }
 
     private func showWeeklyProgress() {
@@ -158,7 +160,9 @@ final class MainPopoverCoordinator {
 
     private func showMonthlyHistory() {
         let referenceDate = resolvedReferenceDate()
-        onOpenMonthlyHistory?(loadMonthlyHistory(referenceDate: referenceDate))
+        let state = loadMonthlyHistory(referenceDate: referenceDate)
+        displayedMonthlyHistoryReferenceDate = state.referenceDate
+        popoverViewController?.showMonthlyHistory(state)
     }
 
     func loadMonthlyHistory(referenceDate: Date) -> MonthlyHistoryViewState {
@@ -175,6 +179,18 @@ final class MainPopoverCoordinator {
         }
 
         return monthlyHistoryLoader.load(referenceDate: shiftedDate)
+    }
+
+    private func navigateMonthlyHistory(by monthOffset: Int) {
+        guard
+            let referenceDate = displayedMonthlyHistoryReferenceDate,
+            let state = shiftMonthlyHistory(referenceDate: referenceDate, by: monthOffset)
+        else {
+            return
+        }
+
+        displayedMonthlyHistoryReferenceDate = state.referenceDate
+        popoverViewController?.showMonthlyHistory(state)
     }
 
     private func shouldResetEditingForReferenceDate(_ referenceDate: Date) -> Bool {
