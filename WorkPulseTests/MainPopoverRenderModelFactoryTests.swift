@@ -72,8 +72,11 @@ struct MainPopoverRenderModelFactoryTests {
                 weeklyLabelPrefix: "Week",
                 weeklyProgressTitle: "Weekly Progress",
                 monthlyHistoryTitle: "Monthly History",
+                monthlyHistoryTotalTitle: "Monthly Total",
                 monthlyHistoryEmptyText: "Empty",
                 monthlyHistoryInProgressText: "In progress",
+                monthlyHistoryOffText: "Off",
+                monthlyHistoryActiveText: "Active",
                 currentSessionGoalLabelPrefix: "Target"
             )
         )

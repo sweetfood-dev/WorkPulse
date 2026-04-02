@@ -166,11 +166,56 @@ struct MainPopoverDetailLoadersTests {
         let state = loader.load(referenceDate: referenceDate)
 
         #expect(state.titleText == "MONTHLY HISTORY")
-        #expect(state.items.count == 2)
-        #expect(state.items[0].isInProgress)
-        #expect(state.items[0].workedDurationText == "In progress")
-        #expect(state.items[1].isInProgress == false)
-        #expect(state.items[1].workedDurationText == "--")
+        #expect(state.monthText == "April 2026")
+        #expect(state.totalLabelText == "Monthly Total")
+        #expect(state.totalDurationText == "0h 00m")
+        #expect(state.weekdayTexts == ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
+        #expect(state.cells.count == 35)
+        #expect(state.cells.first(where: { $0.dayText == "1" })?.kind == .empty(isDimmed: false))
+        #expect(state.cells.first(where: { $0.dayText == "2" })?.kind == .active)
+        #expect(state.cells.first(where: { $0.dayText == "2" })?.detailText == "Active")
+        #expect(state.cells.first(where: { $0.dayText == "4" })?.kind == .off(isDimmed: true))
+    }
+
+    @Test
+    @MainActor
+    func monthlyHistoryViewControllerAppliesCalendarGridAndNavigation() throws {
+        let controller = MonthlyHistoryViewController()
+        var navigations: [Int] = []
+
+        controller.onNavigatePrevious = { navigations.append(-1) }
+        controller.onNavigateNext = { navigations.append(1) }
+        controller.loadViewIfNeeded()
+        controller.apply(
+            MonthlyHistoryViewState(
+                referenceDate: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+                titleText: "MONTHLY HISTORY",
+                monthText: "April 2026",
+                weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                totalLabelText: "Monthly Total",
+                totalDurationText: "9h 06m",
+                cells: [
+                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
+                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
+                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
+                    MonthlyHistoryDayCellViewState(dayText: "1", detailText: "7h 51m", kind: .worked),
+                    MonthlyHistoryDayCellViewState(dayText: "2", detailText: "Active", kind: .active),
+                    MonthlyHistoryDayCellViewState(dayText: "3", detailText: "—", kind: .empty(isDimmed: true)),
+                    MonthlyHistoryDayCellViewState(dayText: "4", detailText: "Off", kind: .off(isDimmed: true)),
+                ]
+            )
+        )
+
+        controller.simulateNavigatePrevious()
+        controller.simulateNavigateNext()
+
+        #expect(controller.snapshot.monthText == "April 2026")
+        #expect(controller.snapshot.totalDurationText == "9h 06m")
+        #expect(controller.snapshot.weekdayCount == 7)
+        #expect(controller.snapshot.cellCount == 7)
+        #expect(controller.snapshot.workedCellCount == 1)
+        #expect(controller.snapshot.activeCellCount == 1)
+        #expect(navigations == [-1, 1])
     }
 }
 

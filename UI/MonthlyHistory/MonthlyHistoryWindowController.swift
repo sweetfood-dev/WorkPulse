@@ -3,6 +3,8 @@ import AppKit
 @MainActor
 final class MonthlyHistoryWindowController: NSWindowController, NSWindowDelegate {
     var onWillCloseWindow: (() -> Void)?
+    var onNavigatePreviousMonth: (() -> Void)?
+    var onNavigateNextMonth: (() -> Void)?
 
     private let monthlyHistoryViewController = MonthlyHistoryViewController()
 
@@ -23,6 +25,12 @@ final class MonthlyHistoryWindowController: NSWindowController, NSWindowDelegate
         window.contentViewController = monthlyHistoryViewController
         super.init(window: window)
         window.delegate = self
+        monthlyHistoryViewController.onNavigatePrevious = { [weak self] in
+            self?.onNavigatePreviousMonth?()
+        }
+        monthlyHistoryViewController.onNavigateNext = { [weak self] in
+            self?.onNavigateNextMonth?()
+        }
     }
 
     @available(*, unavailable)
@@ -32,7 +40,7 @@ final class MonthlyHistoryWindowController: NSWindowController, NSWindowDelegate
 
     func show(state: MonthlyHistoryViewState) {
         monthlyHistoryViewController.apply(state)
-        window?.title = state.titleText
+        window?.title = state.monthText
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -40,7 +48,7 @@ final class MonthlyHistoryWindowController: NSWindowController, NSWindowDelegate
 
     func apply(_ state: MonthlyHistoryViewState) {
         monthlyHistoryViewController.apply(state)
-        window?.title = state.titleText
+        window?.title = state.monthText
     }
 
     func windowWillClose(_ notification: Notification) {

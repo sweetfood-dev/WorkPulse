@@ -567,8 +567,11 @@ struct MainPopoverViewStateFactoryTests {
             weeklyLabelPrefix: "Week",
             weeklyProgressTitle: "Weekly Progress",
             monthlyHistoryTitle: "Monthly History",
+            monthlyHistoryTotalTitle: "Monthly Total",
             monthlyHistoryEmptyText: "Empty",
             monthlyHistoryInProgressText: "In progress",
+            monthlyHistoryOffText: "Off",
+            monthlyHistoryActiveText: "Active",
             currentSessionGoalLabelPrefix: "Goal:"
         )
         let state = MainPopoverViewStateFactory(copy: copy).makePlaceholder()

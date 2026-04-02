@@ -18,8 +18,11 @@ struct MainPopoverCopy {
     let weeklyLabelPrefix: String
     let weeklyProgressTitle: String
     let monthlyHistoryTitle: String
+    let monthlyHistoryTotalTitle: String
     let monthlyHistoryEmptyText: String
     let monthlyHistoryInProgressText: String
+    let monthlyHistoryOffText: String
+    let monthlyHistoryActiveText: String
     let currentSessionGoalLabelPrefix: String
 
     static let english = MainPopoverCopy(
@@ -40,8 +43,11 @@ struct MainPopoverCopy {
         weeklyLabelPrefix: "Week",
         weeklyProgressTitle: "Weekly Progress",
         monthlyHistoryTitle: "MONTHLY HISTORY",
+        monthlyHistoryTotalTitle: "Monthly Total",
         monthlyHistoryEmptyText: "No attendance records yet",
         monthlyHistoryInProgressText: "In progress",
+        monthlyHistoryOffText: "Off",
+        monthlyHistoryActiveText: "Active",
         currentSessionGoalLabelPrefix: "Goal:"
     )
 

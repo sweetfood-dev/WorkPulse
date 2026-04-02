@@ -52,11 +52,15 @@ enum MainPopoverStyle {
         static let weeklyDetailSpacing: CGFloat = 12
         static let weeklyDetailRowSpacing: CGFloat = 10
         static let monthlyHistoryRowSpacing: CGFloat = 10
-        static let monthlyHistoryWindowSize = NSSize(width: 440, height: 560)
+        static let monthlyHistoryWindowSize = NSSize(width: 360, height: 456)
         static let weeklyProgressCardWidth: CGFloat = 320
         static let weeklyProgressCardCornerRadius: CGFloat = 14
         static let weeklyProgressStatusCornerRadius: CGFloat = 12
         static let weeklyProgressBarHeight: CGFloat = 12
+        static let monthlyHistoryCardCornerRadius: CGFloat = 14
+        static let monthlyHistoryCellCornerRadius: CGFloat = 8
+        static let monthlyHistoryGridSpacing: CGFloat = 6
+        static let monthlyHistoryCellHeight: CGFloat = 44
 
         static let shadowOpacity: Float = 0.08
         static let shadowRadius: CGFloat = 10
@@ -94,6 +98,18 @@ enum MainPopoverStyle {
         static var weeklyProgressWarningStatusBackground: NSColor { .systemOrange.withAlphaComponent(0.10) }
         static var weeklyProgressWarningStatusBorder: NSColor { .systemOrange.withAlphaComponent(0.16) }
         static var weeklyProgressWarningStatusText: NSColor { .systemOrange }
+        static var monthlyHistoryHeaderBackground: NSColor { .white.withAlphaComponent(0.84) }
+        static var monthlyHistoryFooterBackground: NSColor { .windowBackgroundColor.withAlphaComponent(0.9) }
+        static var monthlyHistoryCardBorder: NSColor { .black.withAlphaComponent(0.05) }
+        static var monthlyHistoryWorkedCellBackground: NSColor { .white }
+        static var monthlyHistoryWorkedCellBorder: NSColor { .black.withAlphaComponent(0.05) }
+        static var monthlyHistoryWorkedText: NSColor { .systemBlue }
+        static var monthlyHistoryOffCellBackground: NSColor { .black.withAlphaComponent(0.03) }
+        static var monthlyHistoryOffCellBorder: NSColor { .black.withAlphaComponent(0.03) }
+        static var monthlyHistoryPlaceholderCellBackground: NSColor { .black.withAlphaComponent(0.02) }
+        static var monthlyHistoryPlaceholderCellBorder: NSColor { .black.withAlphaComponent(0.02) }
+        static var monthlyHistoryActiveCellBackground: NSColor { .systemBlue.withAlphaComponent(0.08) }
+        static var monthlyHistoryActiveCellBorder: NSColor { .systemBlue.withAlphaComponent(0.20) }
         static var todayTimesBackground: NSColor { .quaternarySystemFill }
         static var valuePillBackground: NSColor { .controlBackgroundColor }
         static var valuePillBorder: NSColor { .separatorColor }
