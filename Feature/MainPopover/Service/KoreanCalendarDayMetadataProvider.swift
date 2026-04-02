@@ -63,6 +63,24 @@ final class KoreanCalendarDayMetadataProvider: CalendarDayMetadataProviding {
         }
     }
 
+    private struct HolidayPeriod {
+        let groups: [HolidayGroup]
+
+        var endDate: Date {
+            groups.last?.date ?? groups[0].date
+        }
+
+        var displayName: String {
+            groups
+                .reduce(into: [String]()) { names, group in
+                    for name in group.names where names.contains(name) == false {
+                        names.append(name)
+                    }
+                }
+                .joined(separator: " · ")
+        }
+    }
+
     private let timeZone: TimeZone
     private let gregorianCalendar: Calendar
     private let lunarCalendar: Calendar
@@ -167,22 +185,50 @@ final class KoreanCalendarDayMetadataProvider: CalendarDayMetadataProviding {
                 substituteForName: nil
             )
         }
-        for group in groupsByDate.values.sorted(by: { $0.date < $1.date }) {
-            guard qualifiesForSubstitute(group) else {
+        for period in holidayPeriods(from: groupsByDate.values.sorted(by: { $0.date < $1.date })) {
+            guard qualifiesForSubstitute(period) else {
                 continue
             }
 
             let substituteDate = nextSubstituteDate(
-                after: group.date,
+                after: period.endDate,
                 blockedDates: Set(holidaysByDate.keys)
             )
             holidaysByDate[substituteDate] = HolidayMetadata(
                 name: "대체공휴일",
-                substituteForName: group.displayName
+                substituteForName: period.displayName
             )
         }
 
         return holidaysByDate
+    }
+
+    private func holidayPeriods(from groups: [HolidayGroup]) -> [HolidayPeriod] {
+        guard let firstGroup = groups.first else {
+            return []
+        }
+
+        var periods: [HolidayPeriod] = []
+        var currentGroups = [firstGroup]
+
+        for group in groups.dropFirst() {
+            let previousDate = currentGroups.last!.date
+            let isConsecutiveDay = gregorianCalendar.isDate(
+                group.date,
+                inSameDayAs: gregorianCalendar.date(byAdding: .day, value: 1, to: previousDate) ?? previousDate
+            )
+
+            if isConsecutiveDay {
+                currentGroups.append(group)
+                continue
+            }
+
+            periods.append(HolidayPeriod(groups: currentGroups))
+            currentGroups = [group]
+        }
+
+        periods.append(HolidayPeriod(groups: currentGroups))
+        return periods
     }
 
     private func qualifiesForSubstitute(_ group: HolidayGroup) -> Bool {
@@ -205,6 +251,10 @@ final class KoreanCalendarDayMetadataProvider: CalendarDayMetadataProviding {
         }
 
         return false
+    }
+
+    private func qualifiesForSubstitute(_ period: HolidayPeriod) -> Bool {
+        period.groups.contains(where: qualifiesForSubstitute)
     }
 
     private func nextSubstituteDate(after date: Date, blockedDates: Set<Date>) -> Date {

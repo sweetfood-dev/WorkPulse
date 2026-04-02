@@ -114,6 +114,20 @@ struct KoreanCalendarDayMetadataProviderTests {
     }
 
     @Test
+    func chuseokHolidayPeriodCreatesOnlyOneSubstituteHoliday() throws {
+        let firstSubstituteCandidate = try #require(makeDate("2036-10-06T12:00:00+09:00"))
+        let secondSubstituteCandidate = try #require(makeDate("2036-10-07T12:00:00+09:00"))
+
+        let firstMetadata = provider.metadata(for: firstSubstituteCandidate)
+        let secondMetadata = provider.metadata(for: secondSubstituteCandidate)
+
+        #expect(firstMetadata.category == .substituteHoliday)
+        #expect(firstMetadata.holiday?.annotationText.contains("추석") == true)
+        #expect(secondMetadata.category == .weekday)
+        #expect(secondMetadata.holiday == nil)
+    }
+
+    @Test
     func utcDateNormalizesIntoSeoulHolidayBucket() throws {
         let formatter = ISO8601DateFormatter()
         let date = try #require(formatter.date(from: "2026-03-01T16:00:00Z"))
