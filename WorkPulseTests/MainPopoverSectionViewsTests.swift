@@ -219,7 +219,8 @@ struct MainPopoverSectionViewsTests {
                 valueText: "01:26:18",
                 leadingCaptionText: "0H",
                 trailingCaptionText: "Goal: 8h",
-                progressFraction: 0.18
+                progressFraction: 0.18,
+                visualState: .normal
             )
         )
         let snapshot = section.snapshot
@@ -231,6 +232,30 @@ struct MainPopoverSectionViewsTests {
         #expect(snapshot.isTitleIconLeading)
         #expect(snapshot.valueFontPointSize > snapshot.captionFontPointSize)
         #expect(snapshot.captionRowItemCount == 3)
+    }
+
+    @Test
+    @MainActor
+    func currentSessionSectionAppliesWarningPaletteAndIndicatorWhenOverGoal() {
+        let section = MainPopoverCurrentSessionSectionView(frame: NSRect(x: 0, y: 0, width: 392, height: 180))
+        section.apply(
+            MainPopoverCurrentSessionRenderModel(
+                titleText: "🔥 CURRENT SESSION",
+                valueText: "08:00:01",
+                leadingCaptionText: "0H",
+                trailingCaptionText: "Goal: 8h",
+                progressFraction: 0.94,
+                visualState: .warning
+            )
+        )
+
+        let snapshot = section.snapshot
+
+        #expect(snapshot.titleText == "🔥 CURRENT SESSION")
+        #expect(snapshot.isWarningState)
+        #expect(snapshot.valueTextColor == MainPopoverStyle.Colors.currentSessionWarningValue.cgColor)
+        #expect(snapshot.progressLeadingColor == MainPopoverStyle.Colors.currentSessionWarningAccentStart.cgColor)
+        #expect(snapshot.progressTrailingColor == MainPopoverStyle.Colors.currentSessionWarningAccentEnd.cgColor)
     }
 
     @Test

@@ -7,6 +7,10 @@ enum MainPopoverStyle {
             static var accentEnd: NSColor {
                 NSColor(calibratedRed: 0.00, green: 0.42, blue: 0.95, alpha: 1)
             }
+            static var warningStart: NSColor { .systemRed }
+            static var warningEnd: NSColor {
+                NSColor(calibratedRed: 0.82, green: 0.16, blue: 0.14, alpha: 1)
+            }
         }
 
         enum RawEffects {
@@ -16,6 +20,8 @@ enum MainPopoverStyle {
         enum Semantic {
             static var currentSessionProgressLeading: NSColor { RawBrand.accentStart }
             static var currentSessionProgressTrailing: NSColor { RawBrand.accentEnd }
+            static var currentSessionWarningLeading: NSColor { RawBrand.warningStart }
+            static var currentSessionWarningTrailing: NSColor { RawBrand.warningEnd }
             static var raisedSectionShadow: NSColor { RawEffects.cardShadow }
         }
     }
@@ -62,6 +68,9 @@ enum MainPopoverStyle {
         static var currentSessionValue: NSColor { .systemBlue }
         static var currentSessionAccentStart: NSColor { Tokens.Semantic.currentSessionProgressLeading }
         static var currentSessionAccentEnd: NSColor { Tokens.Semantic.currentSessionProgressTrailing }
+        static var currentSessionWarningValue: NSColor { Tokens.Semantic.currentSessionWarningLeading }
+        static var currentSessionWarningAccentStart: NSColor { Tokens.Semantic.currentSessionWarningLeading }
+        static var currentSessionWarningAccentEnd: NSColor { Tokens.Semantic.currentSessionWarningTrailing }
         static var checkInAccent: NSColor { .systemGreen }
         static var progressTrackBackground: NSColor { .secondarySystemFill }
         static var progressTrackBorder: NSColor { .separatorColor }

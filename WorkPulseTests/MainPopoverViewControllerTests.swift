@@ -21,6 +21,7 @@ struct MainPopoverViewControllerTests {
 
         #expect(snapshot.currentSession.valueText == "02:45:30")
         #expect(abs(snapshot.currentSession.progressFraction - 0.3448) < 0.001)
+        #expect(snapshot.currentSession.isWarningState == false)
     }
 
     @Test
@@ -40,6 +41,29 @@ struct MainPopoverViewControllerTests {
 
         #expect(snapshot.currentSession.valueText == "08:30:00")
         #expect(abs(snapshot.currentSession.progressFraction - 0.94) < 0.001)
+        #expect(snapshot.currentSession.titleText == "🔥 CURRENT SESSION")
+        #expect(snapshot.currentSession.isWarningState)
+    }
+
+    @Test
+    @MainActor
+    func refreshingCurrentSessionKeepsNormalStateAtExactlyEightHours() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let baseNow = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")
+        )
+        let now = baseNow.addingTimeInterval(0.2)
+        let controller = makeController(currentTimeProvider: { now })
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: startTime, endTime: nil)
+        let snapshot = controller.snapshot
+
+        #expect(snapshot.currentSession.valueText == "08:00:00")
+        #expect(snapshot.currentSession.titleText == "CURRENT SESSION")
+        #expect(snapshot.currentSession.isWarningState == false)
     }
 
     @Test
@@ -532,6 +556,7 @@ struct MainPopoverViewStateFactoryTests {
             timePlaceholderText: "--.--",
             totalPlaceholderText: "n/a",
             currentSessionTitle: "SESSION",
+            currentSessionWarningTitle: "🔥 SESSION",
             currentSessionLeadingCaption: "0H",
             startTimeTitle: "In",
             endTimeTitle: "Out",

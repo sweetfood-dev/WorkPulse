@@ -7,6 +7,7 @@ struct MainPopoverCopy {
     let timePlaceholderText: String
     let totalPlaceholderText: String
     let currentSessionTitle: String
+    let currentSessionWarningTitle: String
     let currentSessionLeadingCaption: String
     let startTimeTitle: String
     let endTimeTitle: String
@@ -22,6 +23,7 @@ struct MainPopoverCopy {
         timePlaceholderText: "--:--",
         totalPlaceholderText: "--",
         currentSessionTitle: "CURRENT SESSION",
+        currentSessionWarningTitle: "🔥 CURRENT SESSION",
         currentSessionLeadingCaption: "0H",
         startTimeTitle: "Start Time",
         endTimeTitle: "End Time",

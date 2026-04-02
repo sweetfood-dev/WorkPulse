@@ -57,14 +57,16 @@ final class MainPopoverCurrentSessionBinder {
     }
 
     func makeRenderModel() -> MainPopoverCurrentSessionRenderModel {
-        MainPopoverCurrentSessionRenderModel(
-            titleText: copy.currentSessionTitle,
+        let isWarningState = progressPolicy.isOverGoal(currentSessionDuration)
+        return MainPopoverCurrentSessionRenderModel(
+            titleText: isWarningState ? copy.currentSessionWarningTitle : copy.currentSessionTitle,
             valueText: currentSessionText,
             leadingCaptionText: copy.currentSessionLeadingCaption,
             trailingCaptionText: copy.currentSessionTrailingCaption(
                 goalDuration: progressPolicy.goalDuration
             ),
-            progressFraction: progressPolicy.fraction(for: currentSessionDuration)
+            progressFraction: progressPolicy.fraction(for: currentSessionDuration),
+            visualState: isWarningState ? .warning : .normal
         )
     }
 

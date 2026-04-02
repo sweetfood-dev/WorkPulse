@@ -1,6 +1,11 @@
 import CoreGraphics
 import Foundation
 
+enum MainPopoverCurrentSessionVisualState {
+    case normal
+    case warning
+}
+
 struct MainPopoverHeaderRenderModel {
     let dateText: String
     let checkedInSummaryText: String
@@ -12,6 +17,7 @@ struct MainPopoverCurrentSessionRenderModel {
     let leadingCaptionText: String
     let trailingCaptionText: String
     let progressFraction: CGFloat
+    let visualState: MainPopoverCurrentSessionVisualState
 }
 
 struct MainPopoverTimeRowRenderModel {

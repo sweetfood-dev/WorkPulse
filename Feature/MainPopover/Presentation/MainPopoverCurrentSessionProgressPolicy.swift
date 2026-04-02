@@ -26,4 +26,13 @@ struct MainPopoverCurrentSessionProgressPolicy {
 
         return max(0, rawFraction)
     }
+
+    func isOverGoal(_ duration: TimeInterval?) -> Bool {
+        guard let duration else { return false }
+        return displayedWholeSeconds(duration) > goalDuration
+    }
+
+    private func displayedWholeSeconds(_ duration: TimeInterval) -> TimeInterval {
+        TimeInterval(max(0, Int(duration.rounded(.down))))
+    }
 }
