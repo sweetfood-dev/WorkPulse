@@ -33,9 +33,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
 
             do {
-                return try SwiftDataAttendanceRecordStore(
+                let swiftDataStore = try SwiftDataAttendanceRecordStore(
                     calendar: runtimeDependencies.calendar,
                     legacyRecords: legacyStore.loadRecords()
+                )
+                return MirroredAttendanceRecordStore(
+                    primary: swiftDataStore,
+                    fallback: legacyStore
                 )
             } catch {
                 assertionFailure("Failed to create SwiftData attendance store: \(error)")

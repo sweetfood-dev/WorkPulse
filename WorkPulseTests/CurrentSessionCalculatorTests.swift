@@ -732,6 +732,71 @@ struct SwiftDataAttendanceRecordStoreTests {
     }
 }
 
+@Suite("MirroredAttendanceRecordStore")
+struct MirroredAttendanceRecordStoreTests {
+    @Test
+    func upsertRecordKeepsLegacyFallbackSynchronizedAfterMigration() throws {
+        let originalRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+        let editedRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+        )
+        let legacyUserDefaults = try makeUserDefaults()
+        defer { legacyUserDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let legacyStore = UserDefaultsAttendanceRecordStore(
+            userDefaults: legacyUserDefaults,
+            calendar: Self.seoulCalendar
+        )
+        legacyStore.upsertRecord(originalRecord)
+
+        let configuration = ModelConfiguration(
+            for: AttendanceRecordEntity.self,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(
+            for: AttendanceRecordEntity.self,
+            configurations: configuration
+        )
+        let primaryStore = SwiftDataAttendanceRecordStore(
+            modelContainer: container,
+            calendar: Self.seoulCalendar,
+            legacyRecords: legacyStore.loadRecords()
+        )
+        let store = MirroredAttendanceRecordStore(
+            primary: primaryStore,
+            fallback: legacyStore
+        )
+
+        store.upsertRecord(editedRecord)
+
+        #expect(primaryStore.loadRecords() == [editedRecord])
+        #expect(legacyStore.loadRecords() == [editedRecord])
+    }
+
+    private func makeUserDefaults() throws -> UserDefaults {
+        let suiteName = try #require(userDefaultsSuiteName)
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
+        userDefaults.removePersistentDomain(forName: suiteName)
+        return userDefaults
+    }
+
+    private var userDefaultsSuiteName: String? {
+        "MirroredAttendanceRecordStoreTests.\(UUID().uuidString)"
+    }
+
+    private static var seoulCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+        return calendar
+    }
+}
+
 @Suite("AppDelegate")
 struct AppDelegateTests {
     @Test

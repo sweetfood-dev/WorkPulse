@@ -12,6 +12,32 @@ protocol AttendanceRecordWriting {
 
 protocol AttendanceRecordStore: AttendanceRecordQuerying, AttendanceRecordWriting {}
 
+struct MirroredAttendanceRecordStore: AttendanceRecordStore {
+    private let primary: any AttendanceRecordStore
+    private let fallback: any AttendanceRecordStore
+
+    init(
+        primary: any AttendanceRecordStore,
+        fallback: any AttendanceRecordStore
+    ) {
+        self.primary = primary
+        self.fallback = fallback
+    }
+
+    func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
+        primary.record(on: date, calendar: calendar)
+    }
+
+    func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord] {
+        primary.records(equalTo: date, toGranularity: granularity, calendar: calendar)
+    }
+
+    func upsertRecord(_ record: AttendanceRecord) {
+        primary.upsertRecord(record)
+        fallback.upsertRecord(record)
+    }
+}
+
 @Model
 final class AttendanceRecordEntity {
     var date: Date
