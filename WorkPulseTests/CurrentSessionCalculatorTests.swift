@@ -778,11 +778,94 @@ struct MirroredAttendanceRecordStoreTests {
         #expect(legacyStore.loadRecords() == [editedRecord])
     }
 
+    @Test
+    func recordFallsBackWhenPrimaryHasNoMatchingDay() throws {
+        let fallbackRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+        )
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let legacyUserDefaults = try makeUserDefaults()
+        defer { legacyUserDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let legacyStore = UserDefaultsAttendanceRecordStore(
+            userDefaults: legacyUserDefaults,
+            calendar: Self.seoulCalendar
+        )
+        legacyStore.upsertRecord(fallbackRecord)
+
+        let store = MirroredAttendanceRecordStore(
+            primary: try makePrimaryStore(),
+            fallback: legacyStore
+        )
+
+        #expect(
+            store.record(on: referenceDate, calendar: Self.seoulCalendar) == fallbackRecord
+        )
+    }
+
+    @Test
+    func recordsFallBackWhenPrimaryReturnsNoMatches() throws {
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
+        )
+        let weeklyRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-03-30T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-30T18:00:00+09:00"))
+        )
+        let nextMonthRecord = AttendanceRecord(
+            date: try #require(ISO8601DateFormatter().date(from: "2026-04-01T00:00:00+09:00")),
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T09:00:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-04-01T18:00:00+09:00"))
+        )
+        let legacyUserDefaults = try makeUserDefaults()
+        defer { legacyUserDefaults.removePersistentDomain(forName: try! #require(userDefaultsSuiteName)) }
+        let legacyStore = UserDefaultsAttendanceRecordStore(
+            userDefaults: legacyUserDefaults,
+            calendar: Self.seoulCalendar
+        )
+        legacyStore.upsertRecord(weeklyRecord)
+        legacyStore.upsertRecord(nextMonthRecord)
+
+        let store = MirroredAttendanceRecordStore(
+            primary: try makePrimaryStore(),
+            fallback: legacyStore
+        )
+
+        let weeklyRecords = store.records(
+            equalTo: referenceDate,
+            toGranularity: .weekOfYear,
+            calendar: Self.seoulCalendar
+        )
+
+        #expect(weeklyRecords.count == 2)
+        #expect(weeklyRecords.contains { $0 == weeklyRecord })
+        #expect(weeklyRecords.contains { $0 == nextMonthRecord })
+    }
+
     private func makeUserDefaults() throws -> UserDefaults {
         let suiteName = try #require(userDefaultsSuiteName)
         let userDefaults = try #require(UserDefaults(suiteName: suiteName))
         userDefaults.removePersistentDomain(forName: suiteName)
         return userDefaults
+    }
+
+    private func makePrimaryStore() throws -> SwiftDataAttendanceRecordStore {
+        let configuration = ModelConfiguration(
+            for: AttendanceRecordEntity.self,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(
+            for: AttendanceRecordEntity.self,
+            configurations: configuration
+        )
+        return SwiftDataAttendanceRecordStore(
+            modelContainer: container,
+            calendar: Self.seoulCalendar
+        )
     }
 
     private var userDefaultsSuiteName: String? {

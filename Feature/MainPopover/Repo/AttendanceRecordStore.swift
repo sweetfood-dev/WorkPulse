@@ -26,10 +26,19 @@ struct MirroredAttendanceRecordStore: AttendanceRecordStore {
 
     func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
         primary.record(on: date, calendar: calendar)
+            ?? fallback.record(on: date, calendar: calendar)
     }
 
     func records(equalTo date: Date, toGranularity granularity: Calendar.Component, calendar: Calendar) -> [AttendanceRecord] {
-        primary.records(equalTo: date, toGranularity: granularity, calendar: calendar)
+        let primaryRecords = primary.records(
+            equalTo: date,
+            toGranularity: granularity,
+            calendar: calendar
+        )
+
+        return primaryRecords.isEmpty
+            ? fallback.records(equalTo: date, toGranularity: granularity, calendar: calendar)
+            : primaryRecords
     }
 
     func upsertRecord(_ record: AttendanceRecord) {
