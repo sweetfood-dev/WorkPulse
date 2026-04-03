@@ -18,6 +18,11 @@ private enum MainPopoverRoute {
 }
 
 final class MainPopoverViewController: NSViewController {
+    private enum LayoutMetrics {
+        static let monthlyDetailTopInset: CGFloat = 18
+        static let monthlyDetailSpacingAfterBackButton: CGFloat = 12
+    }
+
     private var state: MainPopoverViewState
     private let copy: MainPopoverCopy
     private let currentTimeProvider: () -> Date
@@ -117,6 +122,7 @@ final class MainPopoverViewController: NSViewController {
         )
         rootView.wantsLayer = true
         rootView.layer?.backgroundColor = MainPopoverStyle.Colors.popoverBackground.cgColor
+        preferredContentSize = MainPopoverStyle.Metrics.popoverSize
 
         let contentStack = NSStackView()
         contentStack.orientation = .vertical
@@ -180,10 +186,10 @@ final class MainPopoverViewController: NSViewController {
             monthlyDetailContainerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             monthlyDetailContainerView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
 
-            monthlyDetailBackButton.topAnchor.constraint(equalTo: monthlyDetailContainerView.topAnchor, constant: 18),
+            monthlyDetailBackButton.topAnchor.constraint(equalTo: monthlyDetailContainerView.topAnchor, constant: LayoutMetrics.monthlyDetailTopInset),
             monthlyDetailBackButton.leadingAnchor.constraint(equalTo: monthlyDetailContainerView.leadingAnchor, constant: 20),
 
-            monthlyDetailView.topAnchor.constraint(equalTo: monthlyDetailBackButton.bottomAnchor, constant: 12),
+            monthlyDetailView.topAnchor.constraint(equalTo: monthlyDetailBackButton.bottomAnchor, constant: LayoutMetrics.monthlyDetailSpacingAfterBackButton),
             monthlyDetailView.leadingAnchor.constraint(equalTo: monthlyDetailContainerView.leadingAnchor),
             monthlyDetailView.trailingAnchor.constraint(equalTo: monthlyDetailContainerView.trailingAnchor),
             monthlyDetailView.bottomAnchor.constraint(equalTo: monthlyDetailContainerView.bottomAnchor),
@@ -224,6 +230,7 @@ final class MainPopoverViewController: NSViewController {
     func showWeeklyDetail(_ state: MainPopoverWeeklyProgressViewState) {
         route = .weeklyDetail
         updateRoute()
+        applyPreferredPopoverSize(MainPopoverStyle.Metrics.popoverSize)
         weeklyDetailSectionView.apply(state)
         weeklyDetailSectionView.layoutSubtreeIfNeeded()
     }
@@ -232,12 +239,14 @@ final class MainPopoverViewController: NSViewController {
         route = .monthlyDetail
         updateRoute()
         monthlyHistoryViewController.apply(state)
+        applyPreferredPopoverSize(monthlyHistoryPopoverSize(for: state))
         monthlyHistoryViewController.view.layoutSubtreeIfNeeded()
     }
 
     func showMainView() {
         route = .main
         updateRoute()
+        applyPreferredPopoverSize(MainPopoverStyle.Metrics.popoverSize)
     }
 
     func simulateMonthlyNavigatePrevious() {
@@ -314,6 +323,26 @@ final class MainPopoverViewController: NSViewController {
         mainContentView.isHidden = route != .main
         weeklyDetailSectionView.isHidden = route != .weeklyDetail
         monthlyDetailContainerView.isHidden = route != .monthlyDetail
+    }
+
+    private func applyPreferredPopoverSize(_ size: NSSize) {
+        preferredContentSize = size
+        guard isViewLoaded else { return }
+        view.setFrameSize(size)
+        view.layoutSubtreeIfNeeded()
+    }
+
+    private func monthlyHistoryPopoverSize(for state: MonthlyHistoryViewState) -> NSSize {
+        let rowCount = max(state.cells.count / 7, 1)
+        let chromeHeight = LayoutMetrics.monthlyDetailTopInset
+            + monthlyDetailBackButton.fittingSize.height
+            + LayoutMetrics.monthlyDetailSpacingAfterBackButton
+        let monthlyDetailHeight = chromeHeight + MonthlyHistoryViewController.requiredHeight(forRowCount: rowCount)
+
+        return NSSize(
+            width: MainPopoverStyle.Metrics.popoverSize.width,
+            height: max(MainPopoverStyle.Metrics.popoverSize.height, monthlyDetailHeight)
+        )
     }
 
     @objc

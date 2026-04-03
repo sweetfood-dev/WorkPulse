@@ -60,7 +60,7 @@ enum MainPopoverStyle {
         static let monthlyHistoryCardCornerRadius: CGFloat = 14
         static let monthlyHistoryCellCornerRadius: CGFloat = 8
         static let monthlyHistoryGridSpacing: CGFloat = 6
-        static let monthlyHistoryCellHeight: CGFloat = 44
+        static let monthlyHistoryCellHeight: CGFloat = 50
 
         static let shadowOpacity: Float = 0.08
         static let shadowRadius: CGFloat = 10
@@ -86,6 +86,9 @@ enum MainPopoverStyle {
         static var currentSessionWarningAccentStart: NSColor { Tokens.Semantic.currentSessionWarningLeading }
         static var currentSessionWarningAccentEnd: NSColor { Tokens.Semantic.currentSessionWarningTrailing }
         static var checkInAccent: NSColor { .systemGreen }
+        static var weekendAccent: NSColor { .systemTeal }
+        static var holidayAccent: NSColor { .systemRed }
+        static var substituteHolidayAccent: NSColor { .systemOrange }
         static var progressTrackBackground: NSColor { .secondarySystemFill }
         static var progressTrackBorder: NSColor { .separatorColor }
         static var weeklyProgressTrackBackground: NSColor { .black.withAlphaComponent(0.05) }

@@ -6,6 +6,7 @@ struct MainPopoverWeeklyProgressSectionSnapshot {
     let statusText: String
     let progressFraction: CGFloat
     let dayCount: Int
+    let annotationTexts: [String]
     let isShowingBackButton: Bool
     let isWarningState: Bool
 }
@@ -14,8 +15,10 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     private let dayLabel = NSTextField(labelWithString: "")
     private let timeRangeLabel = NSTextField(labelWithString: "")
     private let workedLabel = NSTextField(labelWithString: "")
+    private let annotationLabel = NSTextField(labelWithString: "")
     private let progressBar = CurrentSessionProgressBarView()
     private let row = NSStackView()
+    private let contentStack = NSStackView()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -31,6 +34,9 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
         workedLabel.font = MainPopoverStyle.Typography.progressCaption
         workedLabel.textColor = MainPopoverStyle.Colors.secondaryText
         workedLabel.alignment = .right
+
+        annotationLabel.font = .systemFont(ofSize: 10, weight: .medium)
+        annotationLabel.lineBreakMode = .byTruncatingTail
 
         progressBar.preferredHeight = 8
         progressBar.applyVisualState(.normal)
@@ -49,13 +55,20 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
         row.addArrangedSubview(progressBar)
         row.addArrangedSubview(workedLabel)
 
-        addSubview(row)
+        contentStack.orientation = .vertical
+        contentStack.alignment = .leading
+        contentStack.spacing = 4
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        contentStack.addArrangedSubview(row)
+        contentStack.addArrangedSubview(annotationLabel)
+
+        addSubview(contentStack)
 
         NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: topAnchor),
-            row.leadingAnchor.constraint(equalTo: leadingAnchor),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor),
-            row.bottomAnchor.constraint(equalTo: bottomAnchor),
+            contentStack.topAnchor.constraint(equalTo: topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor),
             dayLabel.widthAnchor.constraint(equalToConstant: 44),
             timeRangeLabel.widthAnchor.constraint(equalToConstant: 86),
             progressBar.widthAnchor.constraint(greaterThanOrEqualToConstant: 90),
@@ -70,12 +83,42 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
 
     func apply(_ state: MainPopoverWeeklyProgressDayViewState) {
         dayLabel.stringValue = state.dayText
-        dayLabel.textColor = state.isToday
-            ? MainPopoverStyle.Colors.currentSessionValue
-            : MainPopoverStyle.Colors.primaryText
+        annotationLabel.stringValue = state.annotationText ?? ""
+        annotationLabel.isHidden = state.annotationText == nil
         timeRangeLabel.stringValue = state.timeRangeText
         workedLabel.stringValue = state.workedText
         progressBar.progressFraction = state.progressFraction
+
+        let accentColor = accentColor(for: state.dayCategory)
+        dayLabel.font = .systemFont(
+            ofSize: 13,
+            weight: state.isToday ? .bold : .semibold
+        )
+        dayLabel.textColor = accentColor
+            ?? (state.isToday ? MainPopoverStyle.Colors.currentSessionValue : MainPopoverStyle.Colors.primaryText)
+        timeRangeLabel.textColor = accentColor?.withAlphaComponent(0.8)
+            ?? MainPopoverStyle.Colors.secondaryText
+        workedLabel.textColor = accentColor?.withAlphaComponent(0.95)
+            ?? MainPopoverStyle.Colors.secondaryText
+        annotationLabel.textColor = accentColor?.withAlphaComponent(0.9)
+            ?? MainPopoverStyle.Colors.secondaryText
+    }
+
+    private func accentColor(for category: CalendarDayCategory) -> NSColor? {
+        switch category {
+        case .weekday:
+            return nil
+        case .weekend:
+            return MainPopoverStyle.Colors.weekendAccent
+        case .holiday:
+            return MainPopoverStyle.Colors.holidayAccent
+        case .substituteHoliday:
+            return MainPopoverStyle.Colors.substituteHolidayAccent
+        }
+    }
+
+    var annotationText: String {
+        annotationLabel.stringValue
     }
 }
 
@@ -131,6 +174,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             statusText: statusLabel.stringValue,
             progressFraction: progressBar.progressFraction,
             dayCount: rowViews.count,
+            annotationTexts: rowViews.map(\.annotationText).filter { $0.isEmpty == false },
             isShowingBackButton: backButton.isHidden == false,
             isWarningState: isWarningState
         )

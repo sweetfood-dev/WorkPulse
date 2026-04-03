@@ -7,13 +7,16 @@ struct MonthlyHistoryViewControllerSnapshot {
     let cellCount: Int
     let workedCellCount: Int
     let activeCellCount: Int
+    let annotationTexts: [String]
     let rowWidths: [CGFloat]
+    let hasOverflowingAnnotationLayout: Bool
 }
 
 private final class MonthlyHistoryDayCellView: NSView {
     private let dayLabel = NSTextField(labelWithString: "")
-    private let detailLabel = NSTextField(labelWithString: "")
-    private var kind: MonthlyHistoryDayCellKind = .outsideMonth
+    private let statusLabel = NSTextField(labelWithString: "")
+    private let annotationLabel = NSTextField(labelWithString: "")
+    private var activity: MonthlyHistoryDayCellActivity = .outsideMonth
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -23,13 +26,25 @@ private final class MonthlyHistoryDayCellView: NSView {
         layer?.borderWidth = 1
 
         dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
-        detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
-        detailLabel.alignment = .right
+        statusLabel.font = .systemFont(ofSize: 9, weight: .semibold)
+        statusLabel.maximumNumberOfLines = 1
+        statusLabel.lineBreakMode = .byTruncatingTail
+        annotationLabel.font = .systemFont(ofSize: 8, weight: .medium)
+        annotationLabel.maximumNumberOfLines = 1
+        annotationLabel.lineBreakMode = .byTruncatingTail
 
-        let stack = NSStackView(views: [dayLabel, NSView(), detailLabel])
+        for label in [statusLabel, annotationLabel] {
+            label.cell?.wraps = false
+            label.cell?.usesSingleLineMode = true
+            label.cell?.truncatesLastVisibleLine = true
+            label.cell?.lineBreakMode = .byTruncatingTail
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        }
+
+        let stack = NSStackView(views: [dayLabel, statusLabel, annotationLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 0
+        stack.spacing = 2
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(stack)
@@ -49,68 +64,140 @@ private final class MonthlyHistoryDayCellView: NSView {
     }
 
     func apply(_ state: MonthlyHistoryDayCellViewState) {
-        kind = state.kind
+        activity = state.activity
         dayLabel.stringValue = state.dayText
-        detailLabel.stringValue = state.detailText
+        statusLabel.stringValue = state.statusText
+        annotationLabel.stringValue = state.annotationText ?? ""
+        annotationLabel.isHidden = state.annotationText == nil
         alphaValue = 1
 
-        switch state.kind {
+        switch state.activity {
         case .outsideMonth:
             layer?.backgroundColor = NSColor.clear.cgColor
             layer?.borderColor = NSColor.clear.cgColor
             dayLabel.textColor = .clear
-            detailLabel.textColor = .clear
+            statusLabel.textColor = .clear
+            annotationLabel.textColor = .clear
         case .worked:
+            applyWorkedPalette(for: state.dayCategory)
+            alphaValue = state.isDimmed ? 0.55 : 1
+        case .active:
+            applyActivePalette(for: state.dayCategory)
+            alphaValue = state.isDimmed ? 0.55 : 1
+        case .empty:
+            applyEmptyPalette(for: state.dayCategory)
+            alphaValue = state.isDimmed ? 0.55 : 0.78
+        }
+
+        annotationLabel.textColor = accentColor(for: state.dayCategory)?
+            .withAlphaComponent(0.92)
+            ?? MainPopoverStyle.Colors.secondaryText.withAlphaComponent(0.78)
+
+        switch state.activity {
+        case .worked:
+            dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+            statusLabel.font = .systemFont(ofSize: 9, weight: .bold)
+        case .active:
+            dayLabel.font = .systemFont(ofSize: 10, weight: .bold)
+            statusLabel.font = .systemFont(ofSize: 9, weight: .bold)
+        case .empty:
+            dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+            statusLabel.font = .systemFont(ofSize: 9, weight: .medium)
+        case .outsideMonth:
+            dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+            statusLabel.font = .systemFont(ofSize: 9, weight: .semibold)
+        }
+    }
+
+    private func applyWorkedPalette(for category: CalendarDayCategory) {
+        if let accent = accentColor(for: category) {
+            layer?.backgroundColor = accent.withAlphaComponent(0.10).cgColor
+            layer?.borderColor = accent.withAlphaComponent(0.20).cgColor
+            dayLabel.textColor = accent
+            statusLabel.textColor = accent
+        } else {
             layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryWorkedCellBackground.cgColor
             layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryWorkedCellBorder.cgColor
             dayLabel.textColor = MainPopoverStyle.Colors.primaryText
-            detailLabel.textColor = MainPopoverStyle.Colors.monthlyHistoryWorkedText
-        case .active:
+            statusLabel.textColor = MainPopoverStyle.Colors.monthlyHistoryWorkedText
+        }
+    }
+
+    private func applyActivePalette(for category: CalendarDayCategory) {
+        if let accent = accentColor(for: category) {
+            layer?.backgroundColor = accent.withAlphaComponent(0.14).cgColor
+            layer?.borderColor = accent.withAlphaComponent(0.24).cgColor
+            dayLabel.textColor = accent
+            statusLabel.textColor = accent
+        } else {
             layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryActiveCellBackground.cgColor
             layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryActiveCellBorder.cgColor
             dayLabel.textColor = MainPopoverStyle.Colors.currentSessionValue
-            dayLabel.font = .systemFont(ofSize: 10, weight: .bold)
-            detailLabel.textColor = MainPopoverStyle.Colors.currentSessionValue
-        case .off(let isDimmed):
-            layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryOffCellBackground.cgColor
-            layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryOffCellBorder.cgColor
-            dayLabel.textColor = MainPopoverStyle.Colors.secondaryText
-            detailLabel.textColor = MainPopoverStyle.Colors.secondaryText.withAlphaComponent(0.7)
-            detailLabel.font = .systemFont(ofSize: 8, weight: .regular)
-            alphaValue = isDimmed ? 0.55 : 1
-        case .empty(let isDimmed):
+            statusLabel.textColor = MainPopoverStyle.Colors.currentSessionValue
+        }
+    }
+
+    private func applyEmptyPalette(for category: CalendarDayCategory) {
+        if let accent = accentColor(for: category) {
+            layer?.backgroundColor = accent.withAlphaComponent(0.07).cgColor
+            layer?.borderColor = accent.withAlphaComponent(0.16).cgColor
+            dayLabel.textColor = accent
+            statusLabel.textColor = accent.withAlphaComponent(0.9)
+        } else {
             layer?.backgroundColor = MainPopoverStyle.Colors.monthlyHistoryPlaceholderCellBackground.cgColor
             layer?.borderColor = MainPopoverStyle.Colors.monthlyHistoryPlaceholderCellBorder.cgColor
             dayLabel.textColor = MainPopoverStyle.Colors.secondaryText
-            detailLabel.textColor = MainPopoverStyle.Colors.secondaryText.withAlphaComponent(0.65)
-            detailLabel.font = .systemFont(ofSize: 8, weight: .regular)
-            alphaValue = isDimmed ? 0.55 : 0.75
+            statusLabel.textColor = MainPopoverStyle.Colors.secondaryText.withAlphaComponent(0.65)
         }
+    }
 
-        if case .worked = state.kind {
-            dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
-            detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
-        } else if case .active = state.kind {
-            detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
-        } else if case .outsideMonth = state.kind {
-            dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
-            detailLabel.font = .systemFont(ofSize: 8, weight: .bold)
+    private func accentColor(for category: CalendarDayCategory) -> NSColor? {
+        switch category {
+        case .weekday:
+            return nil
+        case .weekend:
+            return MainPopoverStyle.Colors.weekendAccent
+        case .holiday:
+            return MainPopoverStyle.Colors.holidayAccent
+        case .substituteHoliday:
+            return MainPopoverStyle.Colors.substituteHolidayAccent
         }
+    }
+
+    var annotationText: String {
+        annotationLabel.stringValue
     }
 
     var isWorked: Bool {
-        if case .worked = kind { return true }
-        return false
+        activity == .worked
     }
 
     var isActive: Bool {
-        if case .active = kind { return true }
-        return false
+        activity == .active
+    }
+
+    var hasOverflowingAnnotationLayout: Bool {
+        guard annotationLabel.isHidden == false else {
+            return false
+        }
+
+        layoutSubtreeIfNeeded()
+        return annotationLabel.frame.maxX > bounds.maxX - 6
+            || annotationLabel.frame.maxY > bounds.maxY - 6
     }
 }
 
 @MainActor
 final class MonthlyHistoryViewController: NSViewController {
+    private enum LayoutMetrics {
+        static let headerHeight: CGFloat = 54
+        static let footerHeight: CGFloat = 48
+        static let contentTopInset: CGFloat = 8
+        static let contentBottomInset: CGFloat = 8
+        static let weekdayToGridSpacing: CGFloat = 4
+        static let weekdayRowHeight: CGFloat = 12
+    }
+
     var onNavigatePrevious: (() -> Void)?
     var onNavigateNext: (() -> Void)?
 
@@ -126,13 +213,27 @@ final class MonthlyHistoryViewController: NSViewController {
     private var weekdayLabels: [NSTextField] = []
     private var dayCellViews: [MonthlyHistoryDayCellView] = []
 
+    static func requiredHeight(forRowCount rowCount: Int) -> CGFloat {
+        let safeRowCount = max(rowCount, 1)
+        let gridHeight = CGFloat(safeRowCount) * MainPopoverStyle.Metrics.monthlyHistoryCellHeight
+            + CGFloat(safeRowCount - 1) * MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
+
+        return LayoutMetrics.headerHeight
+            + LayoutMetrics.footerHeight
+            + LayoutMetrics.contentTopInset
+            + LayoutMetrics.weekdayRowHeight
+            + LayoutMetrics.weekdayToGridSpacing
+            + gridHeight
+            + LayoutMetrics.contentBottomInset
+    }
+
     override func loadView() {
         let rootView = NSView(
             frame: NSRect(
                 x: 0,
                 y: 0,
                 width: MainPopoverStyle.Metrics.monthlyHistoryWindowSize.width,
-                height: MainPopoverStyle.Metrics.monthlyHistoryWindowSize.height
+                height: Self.requiredHeight(forRowCount: 5)
             )
         )
         rootView.wantsLayer = true
@@ -223,7 +324,7 @@ final class MonthlyHistoryViewController: NSViewController {
             headerView.topAnchor.constraint(equalTo: rootView.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             headerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            headerView.heightAnchor.constraint(equalToConstant: 54),
+            headerView.heightAnchor.constraint(equalToConstant: LayoutMetrics.headerHeight),
 
             previousButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 14),
             previousButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
@@ -236,20 +337,21 @@ final class MonthlyHistoryViewController: NSViewController {
             contentView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 12),
             contentView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -12),
 
-            weekdayRow.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            weekdayRow.topAnchor.constraint(equalTo: contentView.topAnchor, constant: LayoutMetrics.contentTopInset),
             weekdayRow.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             weekdayRow.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            weekdayRow.heightAnchor.constraint(equalToConstant: LayoutMetrics.weekdayRowHeight),
 
-            gridRows.topAnchor.constraint(equalTo: weekdayRow.bottomAnchor, constant: 4),
+            gridRows.topAnchor.constraint(equalTo: weekdayRow.bottomAnchor, constant: LayoutMetrics.weekdayToGridSpacing),
             gridRows.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             gridRows.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            gridRows.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            gridRows.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -LayoutMetrics.contentBottomInset),
 
             footerView.topAnchor.constraint(equalTo: contentView.bottomAnchor),
             footerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             footerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             footerView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
-            footerView.heightAnchor.constraint(equalToConstant: 48),
+            footerView.heightAnchor.constraint(equalToConstant: LayoutMetrics.footerHeight),
 
             footerRow.leadingAnchor.constraint(equalTo: footerView.leadingAnchor, constant: 16),
             footerRow.trailingAnchor.constraint(equalTo: footerView.trailingAnchor, constant: -16),
@@ -283,7 +385,9 @@ final class MonthlyHistoryViewController: NSViewController {
             cellCount: dayCellViews.count,
             workedCellCount: dayCellViews.filter(\.isWorked).count,
             activeCellCount: dayCellViews.filter(\.isActive).count,
-            rowWidths: gridRows.arrangedSubviews.map(\.frame.width)
+            annotationTexts: dayCellViews.map(\.annotationText).filter { $0.isEmpty == false },
+            rowWidths: gridRows.arrangedSubviews.map(\.frame.width),
+            hasOverflowingAnnotationLayout: dayCellViews.contains { $0.hasOverflowingAnnotationLayout }
         )
     }
 

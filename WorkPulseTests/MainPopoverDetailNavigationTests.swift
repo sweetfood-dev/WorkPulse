@@ -38,6 +38,8 @@ struct MainPopoverDetailNavigationTests {
                     dayText: "Mon 30",
                     timeRangeText: "09:00 - 18:00",
                     workedText: "08:00",
+                    annotationText: nil,
+                    dayCategory: .weekday,
                     progressFraction: 1,
                     isToday: false
                 )
@@ -80,13 +82,13 @@ struct MainPopoverDetailNavigationTests {
                 totalLabelText: "Monthly Total",
                 totalDurationText: "7h 51m",
                 cells: [
-                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
-                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
-                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
-                    MonthlyHistoryDayCellViewState(dayText: "1", detailText: "7h 51m", kind: .worked),
-                    MonthlyHistoryDayCellViewState(dayText: "2", detailText: "Active", kind: .active),
-                    MonthlyHistoryDayCellViewState(dayText: "3", detailText: "—", kind: .empty(isDimmed: true)),
-                    MonthlyHistoryDayCellViewState(dayText: "4", detailText: "Off", kind: .off(isDimmed: true)),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "1", statusText: "7h 51m", annotationText: nil, activity: .worked, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "2", statusText: "Active", annotationText: "어린이날", activity: .active, dayCategory: .holiday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "3", statusText: "—", annotationText: nil, activity: .empty, dayCategory: .weekday, isDimmed: true),
+                    MonthlyHistoryDayCellViewState(dayText: "4", statusText: "Off", annotationText: nil, activity: .empty, dayCategory: .weekend, isDimmed: true),
                 ]
             )
         )
@@ -94,6 +96,7 @@ struct MainPopoverDetailNavigationTests {
         #expect(controller.snapshot.isShowingMonthlyDetail)
         #expect(controller.snapshot.monthlyDetail.monthText == "April 2026")
         #expect(controller.snapshot.monthlyDetail.activeCellCount == 1)
+        #expect(controller.snapshot.monthlyDetail.annotationTexts == ["어린이날"])
 
         controller.simulateMonthlyNavigatePrevious()
         controller.simulateMonthlyNavigateNext()
@@ -101,6 +104,42 @@ struct MainPopoverDetailNavigationTests {
 
         controller.showMainView()
         #expect(controller.snapshot.isShowingMonthlyDetail == false)
+    }
+
+    @Test
+    @MainActor
+    func viewControllerExpandsPopoverForSixWeekMonthlyDetail() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showMonthlyHistory(
+            MonthlyHistoryViewState(
+                referenceDate: try #require(makeDate("2026-05-01T00:00:00+09:00")),
+                titleText: "MONTHLY HISTORY",
+                monthText: "May 2026",
+                weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                totalLabelText: "Monthly Total",
+                totalDurationText: "0h 00m",
+                cells: Array(
+                    repeating: MonthlyHistoryDayCellViewState(
+                        dayText: "1",
+                        statusText: "—",
+                        annotationText: nil,
+                        activity: .empty,
+                        dayCategory: .weekday,
+                        isDimmed: false
+                    ),
+                    count: 42
+                )
+            )
+        )
+
+        #expect(controller.snapshot.isShowingMonthlyDetail)
+        #expect(controller.snapshot.monthlyDetail.cellCount == 42)
+        #expect(controller.view.frame.height > MainPopoverStyle.Metrics.popoverSize.height)
     }
 }
 
@@ -214,10 +253,110 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.totalDurationText == "0h 00m")
         #expect(state.weekdayTexts == ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
         #expect(state.cells.count == 35)
-        #expect(state.cells.first(where: { $0.dayText == "1" })?.kind == .empty(isDimmed: false))
-        #expect(state.cells.first(where: { $0.dayText == "2" })?.kind == .active)
-        #expect(state.cells.first(where: { $0.dayText == "2" })?.detailText == "Active")
-        #expect(state.cells.first(where: { $0.dayText == "4" })?.kind == .off(isDimmed: true))
+        #expect(state.cells.first(where: { $0.dayText == "1" })?.activity == .empty)
+        #expect(state.cells.first(where: { $0.dayText == "2" })?.activity == .active)
+        #expect(state.cells.first(where: { $0.dayText == "2" })?.statusText == "Active")
+        #expect(state.cells.first(where: { $0.dayText == "4" })?.dayCategory == .weekend)
+    }
+
+    @Test
+    func monthlyHistoryLoaderKeepsWeekendWorkAndAddsHolidayAnnotations() throws {
+        let referenceDate = try #require(
+            makeDate("2025-05-06T10:00:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2025-05-03T00:00:00+09:00")),
+                startTime: try #require(makeDate("2025-05-03T09:00:00+09:00")),
+                endTime: try #require(makeDate("2025-05-03T18:00:00+09:00"))
+            )
+        ])
+        let loader = MonthlyHistoryLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        let weekendWorkedCell = try #require(state.cells.first(where: { $0.dayText == "3" }))
+        let holidayCell = try #require(state.cells.first(where: { $0.dayText == "5" }))
+        let substituteCell = try #require(state.cells.first(where: { $0.dayText == "6" }))
+
+        #expect(weekendWorkedCell.activity == .worked)
+        #expect(weekendWorkedCell.dayCategory == .weekend)
+        #expect(holidayCell.dayCategory == .holiday)
+        #expect(holidayCell.annotationText?.contains("어린이날") == true)
+        #expect(substituteCell.dayCategory == .substituteHoliday)
+        #expect(substituteCell.annotationText?.contains("대체공휴일") == true)
+    }
+
+    @Test
+    func monthlyHistoryLoaderUsesRuntimeTimezoneForHolidayMetadata() throws {
+        let referenceDate = try #require(
+            makeDate("2026-03-02T12:00:00+11:00")
+        )
+        let sydneyTimeZone = try #require(TimeZone(identifier: "Australia/Sydney"))
+        let loader = MonthlyHistoryLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: []),
+            calendar: makeCalendar(timeZone: sydneyTimeZone),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: sydneyTimeZone,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+        let substituteCell = try #require(state.cells.first(where: { $0.dayText == "2" }))
+
+        #expect(substituteCell.dayCategory == .substituteHoliday)
+        #expect(substituteCell.annotationText?.contains("대체공휴일") == true)
+        #expect(substituteCell.annotationText?.contains("3·1절") == true)
+    }
+
+    @Test
+    func weeklyProgressLoaderAnnotatesHolidayRowsWithoutChangingTotals() throws {
+        let referenceDate = try #require(
+            makeDate("2026-03-02T12:00:00+09:00")
+        )
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: []),
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.totalDurationText == "00:00")
+        #expect(state.days.first(where: { $0.annotationText?.contains("3·1절") == true })?.dayCategory == .holiday)
+        #expect(state.days.first(where: { $0.annotationText?.contains("대체공휴일") == true })?.dayCategory == .substituteHoliday)
+    }
+
+    @Test
+    func weeklyProgressLoaderUsesRuntimeTimezoneForHolidayMetadata() throws {
+        let referenceDate = try #require(
+            makeDate("2026-03-02T12:00:00+11:00")
+        )
+        let sydneyTimeZone = try #require(TimeZone(identifier: "Australia/Sydney"))
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: []),
+            calendar: makeCalendar(timeZone: sydneyTimeZone),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: sydneyTimeZone,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+        let mondayState = try #require(state.days.first(where: { $0.dayText.contains("Mon 2") }))
+
+        #expect(mondayState.dayCategory == .substituteHoliday)
+        #expect(mondayState.annotationText?.contains("대체공휴일") == true)
+        #expect(mondayState.annotationText?.contains("3·1절") == true)
     }
 
     @Test
@@ -225,6 +364,7 @@ struct MainPopoverDetailLoadersTests {
     func monthlyHistoryViewControllerAppliesCalendarGridAndNavigation() throws {
         let controller = MonthlyHistoryViewController()
         var navigations: [Int] = []
+        let longHolidayName = "부처님오신날 대체공휴일"
 
         controller.onNavigatePrevious = { navigations.append(-1) }
         controller.onNavigateNext = { navigations.append(1) }
@@ -238,13 +378,13 @@ struct MainPopoverDetailLoadersTests {
                 totalLabelText: "Monthly Total",
                 totalDurationText: "9h 06m",
                 cells: [
-                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
-                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
-                    MonthlyHistoryDayCellViewState(dayText: "", detailText: "", kind: .outsideMonth),
-                    MonthlyHistoryDayCellViewState(dayText: "1", detailText: "7h 51m", kind: .worked),
-                    MonthlyHistoryDayCellViewState(dayText: "2", detailText: "Active", kind: .active),
-                    MonthlyHistoryDayCellViewState(dayText: "3", detailText: "—", kind: .empty(isDimmed: true)),
-                    MonthlyHistoryDayCellViewState(dayText: "4", detailText: "Off", kind: .off(isDimmed: true)),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "1", statusText: "7h 51m", annotationText: nil, activity: .worked, dayCategory: .weekday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "2", statusText: "Active", annotationText: longHolidayName, activity: .active, dayCategory: .holiday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "3", statusText: "—", annotationText: nil, activity: .empty, dayCategory: .weekday, isDimmed: true),
+                    MonthlyHistoryDayCellViewState(dayText: "4", statusText: "Off", annotationText: nil, activity: .empty, dayCategory: .weekend, isDimmed: true),
                 ]
             )
         )
@@ -258,8 +398,10 @@ struct MainPopoverDetailLoadersTests {
         #expect(controller.snapshot.cellCount == 7)
         #expect(controller.snapshot.workedCellCount == 1)
         #expect(controller.snapshot.activeCellCount == 1)
+        #expect(controller.snapshot.annotationTexts == [longHolidayName])
         #expect(controller.snapshot.rowWidths.count == 1)
         #expect(controller.snapshot.rowWidths.first ?? 0 > 0)
+        #expect(controller.snapshot.hasOverflowingAnnotationLayout == false)
         #expect(navigations == [-1, 1])
     }
 }
@@ -285,8 +427,12 @@ private func makeDate(_ value: String) -> Date? {
 }
 
 private func makeSeoulCalendar() -> Calendar {
+    makeCalendar(timeZone: TimeZone(identifier: "Asia/Seoul")!)
+}
+
+private func makeCalendar(timeZone: TimeZone) -> Calendar {
     var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+    calendar.timeZone = timeZone
     calendar.locale = Locale(identifier: "ko_KR")
     return calendar
 }

@@ -1,17 +1,19 @@
 import Foundation
 
-enum MonthlyHistoryDayCellKind: Equatable {
+enum MonthlyHistoryDayCellActivity: Equatable {
     case outsideMonth
+    case empty
     case worked
     case active
-    case off(isDimmed: Bool)
-    case empty(isDimmed: Bool)
 }
 
 struct MonthlyHistoryDayCellViewState: Equatable {
     let dayText: String
-    let detailText: String
-    let kind: MonthlyHistoryDayCellKind
+    let statusText: String
+    let annotationText: String?
+    let activity: MonthlyHistoryDayCellActivity
+    let dayCategory: CalendarDayCategory
+    let isDimmed: Bool
 }
 
 struct MonthlyHistoryViewState {
@@ -29,6 +31,7 @@ struct MonthlyHistoryLoader {
     private let totalsCalculator: AttendanceRecordTotalsCalculator
     private let workedDurationCalculator: WorkedDurationCalculator
     private let calendar: Calendar
+    private let calendarDayMetadataProvider: any CalendarDayMetadataProviding
     private let currentDateProvider: () -> Date
     private let copy: MainPopoverCopy
     private let monthFormatter: DateFormatter
@@ -39,6 +42,7 @@ struct MonthlyHistoryLoader {
         calendar: Calendar = .current,
         locale: Locale = .current,
         timeZone: TimeZone = .current,
+        calendarDayMetadataProvider: (any CalendarDayMetadataProviding)? = nil,
         currentDateProvider: @escaping () -> Date,
         copy: MainPopoverCopy = .english
     ) {
@@ -46,6 +50,8 @@ struct MonthlyHistoryLoader {
         self.totalsCalculator = totalsCalculator
         self.workedDurationCalculator = WorkedDurationCalculator(calendar: calendar)
         self.calendar = calendar
+        self.calendarDayMetadataProvider = calendarDayMetadataProvider
+            ?? KoreanCalendarDayMetadataProvider(timeZone: timeZone)
         self.currentDateProvider = currentDateProvider
         self.copy = copy
 
@@ -104,8 +110,11 @@ struct MonthlyHistoryLoader {
         var cells = Array(
             repeating: MonthlyHistoryDayCellViewState(
                 dayText: "",
-                detailText: "",
-                kind: .outsideMonth
+                statusText: "",
+                annotationText: nil,
+                activity: .outsideMonth,
+                dayCategory: .weekday,
+                isDimmed: false
             ),
             count: leadingPlaceholderCount
         )
@@ -119,29 +128,30 @@ struct MonthlyHistoryLoader {
             let isFuture = calendar.startOfDay(for: date) > currentDayStart
             let isToday = calendar.isDate(date, inSameDayAs: currentDate)
             let workedDuration = workedDuration(for: record, date: date, currentDate: currentDate)
+            let metadata = calendarDayMetadataProvider.metadata(for: date)
 
-            let kind: MonthlyHistoryDayCellKind
-            let detailText: String
+            let activity: MonthlyHistoryDayCellActivity
+            let cellStatusText: String
 
             if isToday, record?.startTime != nil, record?.endTime == nil {
-                kind = .active
-                detailText = copy.monthlyHistoryActiveText
+                activity = .active
+                cellStatusText = copy.monthlyHistoryActiveText
             } else if let workedDuration, workedDuration > 0 {
-                kind = .worked
-                detailText = formatWorkedDuration(workedDuration)
-            } else if calendar.isDateInWeekend(date) {
-                kind = .off(isDimmed: isFuture)
-                detailText = copy.monthlyHistoryOffText
+                activity = .worked
+                cellStatusText = formatWorkedDuration(workedDuration)
             } else {
-                kind = .empty(isDimmed: isFuture)
-                detailText = "—"
+                activity = .empty
+                cellStatusText = statusText(for: metadata)
             }
 
             cells.append(
                 MonthlyHistoryDayCellViewState(
                     dayText: "\(day)",
-                    detailText: detailText,
-                    kind: kind
+                    statusText: cellStatusText,
+                    annotationText: metadata.holiday?.annotationText,
+                    activity: activity,
+                    dayCategory: metadata.category,
+                    isDimmed: isFuture
                 )
             )
         }
@@ -150,8 +160,11 @@ struct MonthlyHistoryLoader {
             cells.append(
                 MonthlyHistoryDayCellViewState(
                     dayText: "",
-                    detailText: "",
-                    kind: .outsideMonth
+                    statusText: "",
+                    annotationText: nil,
+                    activity: .outsideMonth,
+                    dayCategory: .weekday,
+                    isDimmed: false
                 )
             )
         }
@@ -178,6 +191,17 @@ struct MonthlyHistoryLoader {
         }
 
         return formatWorkedDuration(duration)
+    }
+
+    private func statusText(for metadata: CalendarDayMetadata) -> String {
+        switch metadata.category {
+        case .weekday:
+            return "—"
+        case .weekend:
+            return copy.monthlyHistoryOffText
+        case .holiday, .substituteHoliday:
+            return copy.monthlyHistoryHolidayText
+        }
     }
 
     private func workedDuration(

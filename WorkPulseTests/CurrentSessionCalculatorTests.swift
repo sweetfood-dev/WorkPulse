@@ -943,6 +943,7 @@ struct AppDelegateTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
                 currentDateProvider: { referenceDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
@@ -1005,6 +1006,7 @@ struct AppDelegateTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
                 currentDateProvider: { referenceDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
@@ -1045,6 +1047,7 @@ struct AppDelegateTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: seoulTimeZone,
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
                 currentDateProvider: { referenceDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
@@ -1092,6 +1095,7 @@ struct AppDelegateTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
                 currentDateProvider: { currentDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
@@ -1156,6 +1160,7 @@ struct AppDelegateTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
                 currentDateProvider: { currentDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
@@ -1214,6 +1219,7 @@ struct AppDelegateTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
                 currentDateProvider: { currentDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
@@ -1261,6 +1267,7 @@ struct AppDelegateTests {
                 calendar: Self.seoulCalendar,
                 locale: Locale(identifier: "en_US_POSIX"),
                 timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
                 currentDateProvider: { referenceDate },
                 currentSessionScheduler: FakeRepeatingScheduler()
             ),
