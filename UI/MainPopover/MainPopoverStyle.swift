@@ -101,6 +101,9 @@ enum MainPopoverStyle {
         static var weeklyProgressWarningStatusBackground: NSColor { .systemOrange.withAlphaComponent(0.10) }
         static var weeklyProgressWarningStatusBorder: NSColor { .systemOrange.withAlphaComponent(0.16) }
         static var weeklyProgressWarningStatusText: NSColor { .systemOrange }
+        static var detailOvertimeAccent: NSColor { .systemOrange }
+        static var detailOvertimeBackground: NSColor { .systemOrange.withAlphaComponent(0.10) }
+        static var detailOvertimeBorder: NSColor { .systemOrange.withAlphaComponent(0.18) }
         static var monthlyHistoryHeaderBackground: NSColor { .white.withAlphaComponent(0.84) }
         static var monthlyHistoryFooterBackground: NSColor { .windowBackgroundColor.withAlphaComponent(0.9) }
         static var monthlyHistoryCardBorder: NSColor { .black.withAlphaComponent(0.05) }

@@ -103,6 +103,29 @@ struct MainPopoverDetailNavigationTests {
 
     @Test
     @MainActor
+    func weeklyDetailSnapshotCountsOvertimeDays() {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "33:35",
+            statusText: "1h 01m remaining to 40h",
+            progressFraction: 0.97,
+            visualState: .normal,
+            days: makeWeeklyProgressDays()
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showWeeklyDetail(weeklyState)
+
+        #expect(controller.snapshot.weeklyDetail.overtimeDayCount == 2)
+    }
+
+    @Test
+    @MainActor
     func routeTransitionsUpdatePreferredSize() {
         let controller = MainPopoverViewController(
             state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
@@ -156,15 +179,22 @@ struct MainPopoverDetailNavigationTests {
         )
 
         controller.loadViewIfNeeded()
-        #expect(controller.routeConstraintCountForTesting == 0)
+        let mainConstraintCount = controller.routeConstraintCountForTesting
+        controller.showWeeklyDetail(weeklyState)
+        let weeklyConstraintCount = controller.routeConstraintCountForTesting
+        controller.showMonthlyHistory(monthlyState)
+        let monthlyConstraintCount = controller.routeConstraintCountForTesting
+        controller.showMainView()
+
+        #expect(controller.routeConstraintCountForTesting == mainConstraintCount)
 
         for _ in 0..<4 {
             controller.showWeeklyDetail(weeklyState)
-            #expect(controller.routeConstraintCountForTesting == 0)
+            #expect(controller.routeConstraintCountForTesting == weeklyConstraintCount)
             controller.showMonthlyHistory(monthlyState)
-            #expect(controller.routeConstraintCountForTesting == 0)
+            #expect(controller.routeConstraintCountForTesting == monthlyConstraintCount)
             controller.showMainView()
-            #expect(controller.routeConstraintCountForTesting == 0)
+            #expect(controller.routeConstraintCountForTesting == mainConstraintCount)
         }
     }
 
@@ -762,6 +792,33 @@ struct MainPopoverDetailLoadersTests {
     }
 
     @Test
+    func monthlyHistoryLoaderMarksEightHourDaysAsOvertime() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-02T12:00:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-02T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-02T08:22:00+09:00")),
+                endTime: try #require(makeDate("2026-04-02T18:31:00+09:00"))
+            ),
+        ])
+        let loader = MonthlyHistoryLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+        let overtimeCell = try #require(state.cells.first(where: { $0.dayText == "2" }))
+
+        #expect(overtimeCell.isOvertime)
+    }
+
+    @Test
     func weeklyProgressLoaderAnnotatesHolidayRowsWithoutChangingTotals() throws {
         let referenceDate = try #require(
             makeDate("2026-03-02T12:00:00+09:00")
@@ -805,6 +862,33 @@ struct MainPopoverDetailLoadersTests {
     }
 
     @Test
+    func weeklyProgressLoaderMarksEightHourDaysAsOvertime() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-02T12:00:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-02T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-02T08:22:00+09:00")),
+                endTime: try #require(makeDate("2026-04-02T18:31:00+09:00"))
+            ),
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+        let overtimeDay = try #require(state.days.first(where: { $0.dayText == "Thu 2" }))
+
+        #expect(overtimeDay.isOvertime)
+    }
+
+    @Test
     @MainActor
     func monthlyHistoryViewControllerAppliesCalendarGridAndNavigation() throws {
         let controller = MonthlyHistoryViewController()
@@ -843,6 +927,7 @@ struct MainPopoverDetailLoadersTests {
         #expect(controller.snapshot.cellCount == 7)
         #expect(controller.snapshot.workedCellCount == 1)
         #expect(controller.snapshot.activeCellCount == 1)
+        #expect(controller.snapshot.overtimeCellCount == 1)
         #expect(controller.snapshot.annotationTexts == [longHolidayName])
         #expect(controller.snapshot.rowWidths.count == 1)
         #expect(controller.snapshot.rowWidths.first ?? 0 > 0)
@@ -902,6 +987,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             workedText: "08:29",
             annotationText: nil,
             dayCategory: .weekday,
+            isOvertime: true,
             progressFraction: 1,
             isToday: false,
             isSelectable: true
@@ -913,6 +999,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             workedText: "08:05",
             annotationText: nil,
             dayCategory: .weekday,
+            isOvertime: true,
             progressFraction: 1,
             isToday: false,
             isSelectable: true
@@ -973,6 +1060,7 @@ private func makeMonthlyHistoryCells(dayCount: Int) -> [MonthlyHistoryDayCellVie
             annotationText: nil,
             activity: index == 2 ? .active : (index == 3 ? .worked : .empty),
             dayCategory: .weekday,
+            isOvertime: index == 3,
             isDimmed: index > 7,
             isSelectable: true
         )
