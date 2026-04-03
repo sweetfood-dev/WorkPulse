@@ -374,10 +374,14 @@ struct MainPopoverDetailDayEditorSnapshot {
 
 @MainActor
 final class MainPopoverDetailDayEditorView: NSView {
+    private static let isGeometryDebugEnabled =
+        ProcessInfo.processInfo.environment["WORKPULSE_DEBUG_POPOVER_GEOMETRY"] == "1"
+
     private let dateLabel = NSTextField(labelWithString: "")
     private let contentStack = NSStackView()
     private let todayTimesSectionView = MainPopoverTodayTimesSectionView()
     private let binder: MainPopoverTodayTimesBinder
+    private lazy var collapsedHeightConstraint = heightAnchor.constraint(equalToConstant: 0)
     private var editingState: MainPopoverDetailDayEditingState?
 
     var onApplyEditedTimes: ((Date, Date?, Date?) -> Void)?
@@ -397,10 +401,17 @@ final class MainPopoverDetailDayEditorView: NSView {
     func apply(_ editingState: MainPopoverDetailDayEditingState?) {
         self.editingState = editingState
         guard let editingState else {
+            collapsedHeightConstraint.isActive = true
             isHidden = true
+            invalidateIntrinsicContentSize()
+            superview?.needsLayout = true
+            layoutSubtreeIfNeeded()
+            superview?.layoutSubtreeIfNeeded()
+            logGeometry(reason: "apply[nil]")
             return
         }
 
+        collapsedHeightConstraint.isActive = false
         isHidden = false
         dateLabel.stringValue = editingState.dateText
         binder.loadSavedTimes(
@@ -409,6 +420,11 @@ final class MainPopoverDetailDayEditorView: NSView {
             forceReload: true
         )
         render()
+        invalidateIntrinsicContentSize()
+        superview?.needsLayout = true
+        layoutSubtreeIfNeeded()
+        superview?.layoutSubtreeIfNeeded()
+        logGeometry(reason: "apply[state]")
     }
 
     func beginEditing(_ field: TodayTimeField) {
@@ -430,6 +446,7 @@ final class MainPopoverDetailDayEditorView: NSView {
     }
 
     func applyEditing() {
+        logGeometry(reason: "applyEditing")
         binder.applyEditing()
     }
 
@@ -438,6 +455,7 @@ final class MainPopoverDetailDayEditorView: NSView {
     }
 
     func deleteEndTime() {
+        logGeometry(reason: "deleteEndTime")
         binder.deleteEndTime()
     }
 
@@ -465,7 +483,9 @@ final class MainPopoverDetailDayEditorView: NSView {
 
     private func configure() {
         translatesAutoresizingMaskIntoConstraints = false
+        collapsedHeightConstraint.priority = .required
         isHidden = true
+        collapsedHeightConstraint.isActive = true
 
         dateLabel.font = MainPopoverStyle.Typography.sectionTitle
         dateLabel.textColor = MainPopoverStyle.Colors.primaryText
@@ -500,6 +520,13 @@ final class MainPopoverDetailDayEditorView: NSView {
                 fallbackStartTime: editingState.fallbackStartTime,
                 fallbackEndTime: editingState.fallbackEndTime
             )
+        )
+    }
+
+    private func logGeometry(reason: String) {
+        guard Self.isGeometryDebugEnabled else { return }
+        print(
+            "[DetailEditorGeometry] reason=\(reason) frame=\(NSStringFromRect(frame)) bounds=\(NSStringFromRect(bounds)) hidden=\(isHidden) collapsed=\(collapsedHeightConstraint.isActive) date=\(dateLabel.stringValue)"
         )
     }
 }

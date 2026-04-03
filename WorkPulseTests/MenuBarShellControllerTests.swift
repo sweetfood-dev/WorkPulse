@@ -10,6 +10,7 @@ struct MenuBarShellControllerTests {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let popover = FakePopoverController()
         let contentViewController = NSViewController()
+        contentViewController.preferredContentSize = NSSize(width: 396, height: 456)
         withExtendedLifetime(
             MenuBarShellController(
                 statusItem: statusItem,
@@ -20,9 +21,58 @@ struct MenuBarShellControllerTests {
             let button = try! #require(statusItem.button)
             #expect(button.title == "WP")
             #expect(popover.contentViewController === contentViewController)
+            #expect(popover.contentSize == contentViewController.preferredContentSize)
+            #expect(contentViewController.view.frame.size == contentViewController.preferredContentSize)
             #expect(popover.behavior == .transient)
             #expect(popover.animates)
         }
+    }
+
+    @Test
+    @MainActor
+    func updatingPreferredContentSizeUpdatesPopoverContentSize() {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let popover = FakePopoverController()
+        let contentViewController = NSViewController()
+        contentViewController.preferredContentSize = NSSize(width: 396, height: 456)
+
+        withExtendedLifetime(
+            MenuBarShellController(
+                statusItem: statusItem,
+                popover: popover,
+                popoverViewController: contentViewController
+            )
+        ) {
+            contentViewController.preferredContentSize = NSSize(width: 396, height: 620)
+            #expect(popover.contentSize == NSSize(width: 396, height: 620))
+            #expect(contentViewController.view.frame.size == NSSize(width: 396, height: 620))
+        }
+    }
+
+    @Test
+    @MainActor
+    func openingPopoverAppliesLatestPreferredContentSizeBeforeShow() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let popover = FakePopoverController()
+        let contentViewController = NSViewController()
+        contentViewController.preferredContentSize = NSSize(width: 392, height: 488)
+        var controller: MenuBarShellController? = MenuBarShellController(
+            statusItem: statusItem,
+            popover: popover,
+            popoverViewController: contentViewController
+        )
+        controller?.onWillOpenPopover = {
+            contentViewController.preferredContentSize = NSSize(width: 392, height: 620)
+        }
+
+        defer { controller = nil }
+
+        let button = try #require(statusItem.button)
+        button.performClick(nil)
+
+        #expect(popover.contentSize == NSSize(width: 392, height: 620))
+        #expect(popover.lastContentSizeAtShow == NSSize(width: 392, height: 620))
+        #expect(contentViewController.view.frame.size == NSSize(width: 392, height: 620))
     }
 
     @Test
@@ -108,6 +158,7 @@ struct MenuBarShellControllerTests {
 @MainActor
 private final class FakePopoverController: MenuBarPopoverControlling {
     var contentViewController: NSViewController?
+    var contentSize: NSSize = .zero
     var behavior: NSPopover.Behavior = .applicationDefined
     var animates = false
     var isShown = false
@@ -117,6 +168,7 @@ private final class FakePopoverController: MenuBarPopoverControlling {
     private(set) var lastShownRect: NSRect = .zero
     private(set) weak var lastShownView: NSView?
     private(set) var lastPreferredEdge: NSRectEdge?
+    private(set) var lastContentSizeAtShow: NSSize = .zero
 
     func show(relativeTo positioningRect: NSRect, of positioningView: NSView, preferredEdge: NSRectEdge) {
         showCallCount += 1
@@ -124,6 +176,7 @@ private final class FakePopoverController: MenuBarPopoverControlling {
         lastShownRect = positioningRect
         lastShownView = positioningView
         lastPreferredEdge = preferredEdge
+        lastContentSizeAtShow = contentSize
     }
 
     func performClose(_ sender: Any?) {

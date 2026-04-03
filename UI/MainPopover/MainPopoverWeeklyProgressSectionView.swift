@@ -145,6 +145,9 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
 
 @MainActor
 final class MainPopoverWeeklyProgressSectionView: NSView {
+    private static let isGeometryDebugEnabled =
+        ProcessInfo.processInfo.environment["WORKPULSE_DEBUG_POPOVER_GEOMETRY"] == "1"
+
     private enum LayoutMetrics {
         static let topInset: CGFloat = 18
         static let backToCardSpacing: CGFloat = 12
@@ -174,6 +177,9 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
     private var isWarningState = false
     private var rowViews: [MainPopoverWeeklyProgressDayRowView] = []
     private var detailEditorTopConstraint: NSLayoutConstraint?
+    private var detailEditorBottomConstraint: NSLayoutConstraint?
+    private var rowsBottomConstraint: NSLayoutConstraint?
+    private var isEditorVisible = false
 
     init(copy: MainPopoverCopy = .english) {
         super.init(frame: .zero)
@@ -203,8 +209,9 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             }
             row.apply(day)
         }
-        detailEditorTopConstraint?.constant = editorState == nil ? 0 : 16
         detailEditorView.apply(editorState)
+        applyEditorLayout(isVisible: editorState != nil)
+        logGeometry(reason: "apply")
     }
 
     var snapshot: MainPopoverWeeklyProgressSectionSnapshot {
@@ -217,7 +224,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             annotationTexts: rowViews.map(\.annotationText).filter { $0.isEmpty == false },
             isShowingBackButton: backButton.isHidden == false,
             isWarningState: isWarningState,
-            isShowingEditor: detailEditorView.snapshot.isVisible,
+            isShowingEditor: isEditorVisible,
             editorDateText: detailEditorView.snapshot.dateText
         )
     }
@@ -243,7 +250,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         layoutSubtreeIfNeeded()
 
         let editorHeight: CGFloat
-        if detailEditorView.snapshot.isVisible {
+        if isEditorVisible {
             editorHeight = (detailEditorTopConstraint?.constant ?? 0)
                 + ceil(detailEditorView.fittingSize.height)
         } else {
@@ -361,6 +368,10 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         let detailEditorTopConstraint = detailEditorView.topAnchor.constraint(equalTo: rowsStack.bottomAnchor, constant: 0)
         self.detailEditorTopConstraint = detailEditorTopConstraint
+        let detailEditorBottomConstraint = detailEditorView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -LayoutMetrics.bottomInset)
+        self.detailEditorBottomConstraint = detailEditorBottomConstraint
+        let rowsBottomConstraint = rowsStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -LayoutMetrics.bottomInset)
+        self.rowsBottomConstraint = rowsBottomConstraint
 
         NSLayoutConstraint.activate([
             backButton.topAnchor.constraint(equalTo: topAnchor, constant: LayoutMetrics.topInset),
@@ -372,10 +383,9 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             rowsStack.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: LayoutMetrics.cardToRowsSpacing),
             rowsStack.centerXAnchor.constraint(equalTo: centerXAnchor),
             rowsStack.widthAnchor.constraint(equalTo: cardView.widthAnchor),
-            detailEditorTopConstraint,
             detailEditorView.centerXAnchor.constraint(equalTo: centerXAnchor),
             detailEditorView.widthAnchor.constraint(equalTo: cardView.widthAnchor),
-            detailEditorView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -LayoutMetrics.bottomInset),
+            rowsBottomConstraint,
 
             cardContent.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 24),
             cardContent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 24),
@@ -389,6 +399,27 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             statusRow.centerXAnchor.constraint(equalTo: statusContainer.centerXAnchor),
             statusRow.bottomAnchor.constraint(equalTo: statusContainer.bottomAnchor, constant: -11),
         ])
+
+        applyEditorLayout(isVisible: false)
+    }
+
+    private func applyEditorLayout(isVisible: Bool) {
+        isEditorVisible = isVisible
+        detailEditorView.isHidden = !isVisible
+        detailEditorTopConstraint?.constant = isVisible ? 16 : 0
+        rowsBottomConstraint?.isActive = !isVisible
+        detailEditorTopConstraint?.isActive = isVisible
+        detailEditorBottomConstraint?.isActive = isVisible
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+        logGeometry(reason: "applyEditorLayout[\(isVisible)]")
+    }
+
+    private func logGeometry(reason: String) {
+        guard Self.isGeometryDebugEnabled else { return }
+        print(
+            "[WeeklyDetailGeometry] reason=\(reason) frame=\(NSStringFromRect(frame)) bounds=\(NSStringFromRect(bounds)) card=\(NSStringFromRect(cardView.frame)) rows=\(NSStringFromRect(rowsStack.frame)) editor=\(NSStringFromRect(detailEditorView.frame)) editorHidden=\(detailEditorView.isHidden) editorVisibleState=\(isEditorVisible) requiredHeight=\(requiredHeight())"
+        )
     }
 
     private func applyVisualState(_ state: MainPopoverCurrentSessionVisualState) {

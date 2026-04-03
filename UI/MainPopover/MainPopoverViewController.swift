@@ -18,6 +18,9 @@ private enum MainPopoverRoute {
 }
 
 final class MainPopoverViewController: NSViewController {
+    private static let isGeometryDebugEnabled =
+        ProcessInfo.processInfo.environment["WORKPULSE_DEBUG_POPOVER_GEOMETRY"] == "1"
+
     private enum LayoutMetrics {
         static let monthlyDetailTopInset: CGFloat = 18
         static let monthlyDetailSpacingAfterBackButton: CGFloat = 12
@@ -43,8 +46,10 @@ final class MainPopoverViewController: NSViewController {
     private let monthlyDetailContainerView = NSView()
     private let monthlyDetailBackButton = NSButton(title: "", target: nil, action: nil)
     private let monthlyHistoryViewController = MonthlyHistoryViewController()
+    private let routeContainerView = NSView()
     private let mainContentView = NSView()
     private var route: MainPopoverRoute = .main
+    private var activeRouteView: NSView?
     var onNavigateMonthlyHistory: ((Int) -> Void)?
 
     private lazy var currentSessionBinder: MainPopoverCurrentSessionBinder = {
@@ -156,13 +161,11 @@ final class MainPopoverViewController: NSViewController {
 
         mainContentView.translatesAutoresizingMaskIntoConstraints = false
         mainContentView.addSubview(contentStack)
-        rootView.addSubview(mainContentView)
-        rootView.addSubview(weeklyDetailSectionView)
-        rootView.addSubview(monthlyDetailContainerView)
+        routeContainerView.frame = rootView.bounds
+        routeContainerView.autoresizingMask = [.width, .height]
+        rootView.addSubview(routeContainerView)
         weeklyDetailSectionView.translatesAutoresizingMaskIntoConstraints = false
-        weeklyDetailSectionView.isHidden = true
         monthlyDetailContainerView.translatesAutoresizingMaskIntoConstraints = false
-        monthlyDetailContainerView.isHidden = true
 
         monthlyDetailBackButton.title = copy.backActionTitle
         monthlyDetailBackButton.bezelStyle = .rounded
@@ -176,12 +179,7 @@ final class MainPopoverViewController: NSViewController {
         monthlyDetailView.translatesAutoresizingMaskIntoConstraints = false
         monthlyDetailContainerView.addSubview(monthlyDetailBackButton)
         monthlyDetailContainerView.addSubview(monthlyDetailView)
-
         NSLayoutConstraint.activate([
-            mainContentView.topAnchor.constraint(equalTo: rootView.topAnchor),
-            mainContentView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            mainContentView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            mainContentView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
             contentStack.topAnchor.constraint(equalTo: mainContentView.topAnchor),
             contentStack.leadingAnchor.constraint(equalTo: mainContentView.leadingAnchor),
             contentStack.trailingAnchor.constraint(equalTo: mainContentView.trailingAnchor),
@@ -190,16 +188,6 @@ final class MainPopoverViewController: NSViewController {
             currentSessionSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             todayTimesSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             summarySectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            weeklyDetailSectionView.topAnchor.constraint(equalTo: rootView.topAnchor),
-            weeklyDetailSectionView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            weeklyDetailSectionView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            weeklyDetailSectionView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
-
-            monthlyDetailContainerView.topAnchor.constraint(equalTo: rootView.topAnchor),
-            monthlyDetailContainerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            monthlyDetailContainerView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            monthlyDetailContainerView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
-
             monthlyDetailBackButton.topAnchor.constraint(equalTo: monthlyDetailContainerView.topAnchor, constant: LayoutMetrics.monthlyDetailTopInset),
             monthlyDetailBackButton.leadingAnchor.constraint(equalTo: monthlyDetailContainerView.leadingAnchor, constant: 20),
 
@@ -210,7 +198,9 @@ final class MainPopoverViewController: NSViewController {
         ])
 
         view = rootView
+        installRouteView(mainContentView)
         render()
+        applyPreferredPopoverSize(mainPopoverSize())
     }
 
     func apply(state: MainPopoverViewState) {
@@ -259,6 +249,7 @@ final class MainPopoverViewController: NSViewController {
         weeklyDetailSectionView.apply(state, editorState: editorState)
         weeklyDetailSectionView.layoutSubtreeIfNeeded()
         applyPreferredPopoverSize(weeklyDetailPopoverSize())
+        logGeometry(reason: "showWeeklyDetail")
     }
 
     func showMonthlyHistory(
@@ -270,12 +261,14 @@ final class MainPopoverViewController: NSViewController {
         monthlyHistoryViewController.apply(state, editorState: editorState)
         monthlyHistoryViewController.view.layoutSubtreeIfNeeded()
         applyPreferredPopoverSize(monthlyHistoryPopoverSize())
+        logGeometry(reason: "showMonthlyHistory")
     }
 
     func showMainView() {
         route = .main
         updateRoute()
-        applyPreferredPopoverSize(MainPopoverStyle.Metrics.popoverSize)
+        applyPreferredPopoverSize(mainPopoverSize())
+        logGeometry(reason: "showMainView")
     }
 
     func simulateMonthlyNavigatePrevious() {
@@ -340,6 +333,12 @@ final class MainPopoverViewController: NSViewController {
         stopCurrentSessionUpdates()
     }
 
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        layoutRouteFrames()
+        logGeometry(reason: "viewDidLayout")
+    }
+
     func beginEditing(_ field: TodayTimeField) {
         todayTimesBinder.beginEditing(field)
     }
@@ -394,19 +393,49 @@ final class MainPopoverViewController: NSViewController {
 
     private func updateRoute() {
         guard isViewLoaded else { return }
-        mainContentView.isHidden = route != .main
-        weeklyDetailSectionView.isHidden = route != .weeklyDetail
-        monthlyDetailContainerView.isHidden = route != .monthlyDetail
+        let targetView: NSView
+        switch route {
+        case .main:
+            targetView = mainContentView
+        case .weeklyDetail:
+            targetView = weeklyDetailSectionView
+        case .monthlyDetail:
+            targetView = monthlyDetailContainerView
+        }
+        installRouteView(targetView)
     }
 
     private func applyPreferredPopoverSize(_ size: NSSize) {
         preferredContentSize = size
         guard isViewLoaded else { return }
-        if view.superview == nil {
-            view.frame = NSRect(origin: .zero, size: size)
+        if view.window == nil {
+            var frame = view.frame
+            frame.size = size
+            view.frame = frame
         }
-        view.bounds = NSRect(origin: .zero, size: view.bounds.size)
+        layoutRouteFrames()
+        view.invalidateIntrinsicContentSize()
+        view.needsLayout = true
         view.layoutSubtreeIfNeeded()
+        logGeometry(reason: "applyPreferredPopoverSize")
+    }
+
+    private func installRouteView(_ routeView: NSView) {
+        guard activeRouteView !== routeView else { return }
+        activeRouteView?.removeFromSuperview()
+        routeView.translatesAutoresizingMaskIntoConstraints = true
+        routeView.autoresizingMask = [.width, .height]
+        routeView.frame = routeContainerView.bounds
+        routeContainerView.addSubview(routeView)
+        activeRouteView = routeView
+        layoutRouteFrames()
+        logGeometry(reason: "installRouteView")
+    }
+
+    private func layoutRouteFrames() {
+        guard isViewLoaded else { return }
+        routeContainerView.frame = view.bounds
+        activeRouteView?.frame = routeContainerView.bounds
     }
 
     private func weeklyDetailPopoverSize() -> NSSize {
@@ -415,6 +444,17 @@ final class MainPopoverViewController: NSViewController {
             height: max(
                 MainPopoverStyle.Metrics.popoverSize.height,
                 ceil(weeklyDetailSectionView.requiredHeight())
+            )
+        )
+    }
+
+    private func mainPopoverSize() -> NSSize {
+        mainContentView.layoutSubtreeIfNeeded()
+        return NSSize(
+            width: MainPopoverStyle.Metrics.popoverSize.width,
+            height: max(
+                MainPopoverStyle.Metrics.popoverSize.height,
+                ceil(mainContentView.fittingSize.height)
             )
         )
     }
@@ -439,6 +479,26 @@ final class MainPopoverViewController: NSViewController {
         showMainView()
     }
 
+    private func logGeometry(reason: String) {
+        guard Self.isGeometryDebugEnabled else { return }
+
+        let routeName: String = switch route {
+        case .main: "main"
+        case .weeklyDetail: "weekly"
+        case .monthlyDetail: "monthly"
+        }
+
+        let rootFrame = NSStringFromRect(view.frame)
+        let rootBounds = NSStringFromRect(view.bounds)
+        let containerFrame = NSStringFromRect(routeContainerView.frame)
+        let containerBounds = NSStringFromRect(routeContainerView.bounds)
+        let activeFrame = activeRouteView.map { NSStringFromRect($0.frame) } ?? "nil"
+        let activeBounds = activeRouteView.map { NSStringFromRect($0.bounds) } ?? "nil"
+
+        print(
+            "[PopoverGeometry] reason=\(reason) route=\(routeName) preferred=\(preferredContentSize) rootFrame=\(rootFrame) rootBounds=\(rootBounds) containerFrame=\(containerFrame) containerBounds=\(containerBounds) activeFrame=\(activeFrame) activeBounds=\(activeBounds)"
+        )
+    }
     var snapshot: MainPopoverViewSnapshot {
         MainPopoverViewSnapshot(
             header: headerSectionView.snapshot,
@@ -450,5 +510,9 @@ final class MainPopoverViewController: NSViewController {
             isShowingWeeklyDetail: isShowingWeeklyDetail,
             isShowingMonthlyDetail: isShowingMonthlyDetail
         )
+    }
+
+    var routeConstraintCountForTesting: Int {
+        0
     }
 }

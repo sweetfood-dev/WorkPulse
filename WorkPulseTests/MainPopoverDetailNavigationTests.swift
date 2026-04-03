@@ -90,14 +90,158 @@ struct MainPopoverDetailNavigationTests {
         )
 
         controller.loadViewIfNeeded()
+        let initialSize = controller.preferredContentSize
 
         for _ in 0..<3 {
             controller.showWeeklyDetail(weeklyState)
             controller.showMainView()
         }
 
-        #expect(controller.preferredContentSize == MainPopoverStyle.Metrics.popoverSize)
+        #expect(controller.preferredContentSize == initialSize)
         #expect(controller.snapshot.isShowingWeeklyDetail == false)
+    }
+
+    @Test
+    @MainActor
+    func routeTransitionsUpdatePreferredSize() {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "16:00",
+            statusText: "8h 45m remaining to 40h",
+            progressFraction: 0.4,
+            visualState: .normal,
+            days: makeWeeklyProgressDays()
+        )
+
+        controller.loadViewIfNeeded()
+        let initialSize = controller.preferredContentSize
+        #expect(initialSize.height >= MainPopoverStyle.Metrics.popoverSize.height)
+
+        controller.showWeeklyDetail(weeklyState)
+        #expect(controller.preferredContentSize.height >= MainPopoverStyle.Metrics.popoverSize.height)
+
+        controller.showMainView()
+        #expect(controller.preferredContentSize == initialSize)
+    }
+
+    @Test
+    @MainActor
+    func routeTransitionsDoNotAccumulateContainerConstraints() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "16:00",
+            statusText: "8h 45m remaining to 40h",
+            progressFraction: 0.4,
+            visualState: .normal,
+            days: makeWeeklyProgressDays()
+        )
+        let monthlyState = MonthlyHistoryViewState(
+            referenceDate: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+            titleText: "MONTHLY HISTORY",
+            monthText: "April 2026",
+            weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+            totalLabelText: "Monthly Total",
+            totalDurationText: "7h 51m",
+            cells: makeMonthlyHistoryCells(dayCount: 35)
+        )
+
+        controller.loadViewIfNeeded()
+        #expect(controller.routeConstraintCountForTesting == 0)
+
+        for _ in 0..<4 {
+            controller.showWeeklyDetail(weeklyState)
+            #expect(controller.routeConstraintCountForTesting == 0)
+            controller.showMonthlyHistory(monthlyState)
+            #expect(controller.routeConstraintCountForTesting == 0)
+            controller.showMainView()
+            #expect(controller.routeConstraintCountForTesting == 0)
+        }
+    }
+
+    @Test
+    @MainActor
+    func returningToMainAfterTallWeeklyEditorRestoresBaseHeight() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "16:00",
+            statusText: "8h 45m remaining to 40h",
+            progressFraction: 0.4,
+            visualState: .normal,
+            days: makeWeeklyProgressDays()
+        )
+        let editorState = MainPopoverDetailDayEditingState(
+            referenceDate: try #require(makeDate("2026-03-31T00:00:00+09:00")),
+            dateText: "Tuesday, Mar 31",
+            startTimeText: "08:24",
+            endTimeText: "17:30",
+            startTime: try #require(makeDate("2026-03-31T08:24:00+09:00")),
+            endTime: try #require(makeDate("2026-03-31T17:30:00+09:00")),
+            fallbackStartTime: try #require(makeDate("2026-03-31T08:24:00+09:00")),
+            fallbackEndTime: try #require(makeDate("2026-03-31T17:30:00+09:00"))
+        )
+
+        controller.loadViewIfNeeded()
+        let initialSize = controller.preferredContentSize
+        controller.showWeeklyDetail(weeklyState, editorState: editorState)
+        #expect(controller.preferredContentSize.height > MainPopoverStyle.Metrics.popoverSize.height)
+
+        controller.showMainView()
+
+        #expect(controller.preferredContentSize == initialSize)
+        #expect(controller.view.frame.size == initialSize)
+    }
+
+    @Test
+    @MainActor
+    func returningToMainAfterTallMonthlyEditorRestoresBaseHeight() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let monthlyState = MonthlyHistoryViewState(
+            referenceDate: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+            titleText: "MONTHLY HISTORY",
+            monthText: "April 2026",
+            weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+            totalLabelText: "Monthly Total",
+            totalDurationText: "7h 51m",
+            cells: makeMonthlyHistoryCells(dayCount: 35)
+        )
+        let editorState = MainPopoverDetailDayEditingState(
+            referenceDate: try #require(makeDate("2026-04-02T00:00:00+09:00")),
+            dateText: "Thursday, Apr 2",
+            startTimeText: "08:10",
+            endTimeText: "--:--",
+            startTime: try #require(makeDate("2026-04-02T08:10:00+09:00")),
+            endTime: nil,
+            fallbackStartTime: try #require(makeDate("2026-04-02T08:10:00+09:00")),
+            fallbackEndTime: try #require(makeDate("2026-04-02T18:00:00+09:00"))
+        )
+
+        controller.loadViewIfNeeded()
+        let initialSize = controller.preferredContentSize
+        controller.showMonthlyHistory(monthlyState, editorState: editorState)
+        #expect(controller.preferredContentSize.height > MainPopoverStyle.Metrics.popoverSize.height)
+
+        controller.showMainView()
+
+        #expect(controller.preferredContentSize == initialSize)
+        #expect(controller.view.frame.size == initialSize)
     }
 
     @Test
