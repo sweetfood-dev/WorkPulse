@@ -6,6 +6,7 @@ struct MainPopoverWeeklyProgressSectionSnapshot {
     let statusText: String
     let progressFraction: CGFloat
     let dayCount: Int
+    let overtimeDayCount: Int
     let annotationTexts: [String]
     let isShowingBackButton: Bool
     let isWarningState: Bool
@@ -23,6 +24,7 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     private let contentStack = NSStackView()
     private var selectedDate: Date?
     private var isSelectable = false
+    private var isOvertime = false
     var onSelect: ((Date) -> Void)?
 
     override init(frame frameRect: NSRect) {
@@ -95,8 +97,12 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
         timeRangeLabel.stringValue = state.timeRangeText
         workedLabel.stringValue = state.workedText
         progressBar.progressFraction = state.progressFraction
+        isOvertime = state.isOvertime
+        progressBar.applyVisualState(state.isOvertime ? .warning : .normal)
 
-        let accentColor = accentColor(for: state.dayCategory)
+        let accentColor = state.isOvertime
+            ? MainPopoverStyle.Colors.detailOvertimeAccent
+            : accentColor(for: state.dayCategory)
         dayLabel.font = .systemFont(
             ofSize: 13,
             weight: state.isToday ? .bold : .semibold
@@ -140,6 +146,10 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
 
     var annotationText: String {
         annotationLabel.stringValue
+    }
+
+    var isOvertimeState: Bool {
+        isOvertime
     }
 }
 
@@ -226,6 +236,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             statusText: statusLabel.stringValue,
             progressFraction: progressBar.progressFraction,
             dayCount: rowViews.count,
+            overtimeDayCount: rowViews.filter(\.isOvertimeState).count,
             annotationTexts: rowViews.map(\.annotationText).filter { $0.isEmpty == false },
             isShowingBackButton: backButton.isHidden == false,
             isWarningState: isWarningState,

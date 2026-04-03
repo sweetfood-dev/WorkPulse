@@ -14,6 +14,7 @@ struct MonthlyHistoryDayCellViewState: Equatable {
     let annotationText: String?
     let activity: MonthlyHistoryDayCellActivity
     let dayCategory: CalendarDayCategory
+    let isOvertime: Bool
     let isDimmed: Bool
     let isSelectable: Bool
 
@@ -24,6 +25,7 @@ struct MonthlyHistoryDayCellViewState: Equatable {
         annotationText: String?,
         activity: MonthlyHistoryDayCellActivity,
         dayCategory: CalendarDayCategory,
+        isOvertime: Bool = false,
         isDimmed: Bool,
         isSelectable: Bool? = nil
     ) {
@@ -33,6 +35,7 @@ struct MonthlyHistoryDayCellViewState: Equatable {
         self.annotationText = annotationText
         self.activity = activity
         self.dayCategory = dayCategory
+        self.isOvertime = isOvertime
         self.isDimmed = isDimmed
         self.isSelectable = isSelectable ?? (date != nil && isDimmed == false)
     }
@@ -152,6 +155,7 @@ struct MonthlyHistoryLoader {
             let isFuture = calendar.startOfDay(for: date) > currentDayStart
             let isToday = calendar.isDate(date, inSameDayAs: currentDate)
             let workedDuration = workedDuration(for: record, date: date, currentDate: currentDate)
+            let isOvertime = isOvertime(workedDuration)
             let metadata = calendarDayMetadataProvider.metadata(for: date)
 
             let activity: MonthlyHistoryDayCellActivity
@@ -176,6 +180,7 @@ struct MonthlyHistoryLoader {
                     annotationText: metadata.holiday?.annotationText,
                     activity: activity,
                     dayCategory: metadata.category,
+                    isOvertime: isOvertime,
                     isDimmed: isFuture,
                     isSelectable: isFuture == false
                 )
@@ -191,6 +196,7 @@ struct MonthlyHistoryLoader {
                     annotationText: nil,
                     activity: .outsideMonth,
                     dayCategory: .weekday,
+                    isOvertime: false,
                     isDimmed: false,
                     isSelectable: false
                 )
@@ -254,5 +260,10 @@ struct MonthlyHistoryLoader {
             startTime: startTime,
             endTime: effectiveEndTime
         )
+    }
+
+    private func isOvertime(_ duration: TimeInterval?) -> Bool {
+        guard let duration else { return false }
+        return duration >= MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
     }
 }
