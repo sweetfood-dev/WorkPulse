@@ -249,7 +249,17 @@ final class MainPopoverCoordinator {
             NSLog("Failed to save detail attendance record: %@", String(describing: error))
         }
 
+        refreshMainRouteIfNeeded(for: referenceDate)
         selectDetailDate(surface: surface, selectedDate: referenceDate)
+    }
+
+    private func refreshMainRouteIfNeeded(for referenceDate: Date) {
+        guard let displayedReferenceDate else { return }
+        guard runtimeDependencies.calendar.isDate(displayedReferenceDate, inSameDayAs: referenceDate) else {
+            return
+        }
+
+        refreshPopover(referenceDate: displayedReferenceDate)
     }
 
     private func selectDetailDate(

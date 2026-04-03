@@ -1386,6 +1386,75 @@ struct AppDelegateTests {
 
     @Test
     @MainActor
+    func editingCurrentDayFromWeeklyDetailRefreshesMainRouteBeforeReturning() throws {
+        let currentDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-03T20:00:00+09:00")
+        )
+        let currentDayStart = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-03T08:10:00+09:00")
+        )
+        let editedCurrentDayEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-03T17:30:00+09:00")
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-04-03T00:00:00+09:00")),
+                startTime: currentDayStart,
+                endTime: nil
+            ),
+        ])
+        let scheduler = FakeRepeatingScheduler()
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: Self.seoulCalendar)
+            ),
+            currentTimeProvider: { currentDate },
+            currentSessionScheduler: scheduler
+        )
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+                currentDateProvider: { currentDate },
+                currentSessionScheduler: scheduler
+            ),
+            recordStore: store
+        )
+        let weeklyState = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: Self.seoulCalendar,
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+            calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+            currentDateProvider: { currentDate }
+        ).load(referenceDate: currentDate)
+        let selectedIndex = try #require(
+            weeklyState.days.firstIndex(where: {
+                Self.seoulCalendar.isDate($0.date, inSameDayAs: currentDate)
+            })
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: currentDate)
+        controller.showWeeklyDetail(weeklyState)
+        controller.simulateSelectWeeklyDetailDay(at: selectedIndex)
+        controller.beginEditingSelectedDetailDay(.endTime)
+        controller.setSelectedDetailPickerDate(editedCurrentDayEndTime, for: .endTime)
+        controller.applySelectedDetailEditing()
+        controller.showMainView()
+
+        let snapshot = controller.snapshot
+        #expect(snapshot.todayTimes.endRow.valueText == "17:30")
+        #expect(snapshot.currentSession.valueText == "08:20:00")
+        #expect(scheduler.scheduleCallCount == 1)
+        #expect(scheduler.cancellable.cancelCallCount == 1)
+    }
+
+    @Test
+    @MainActor
     func selectingPastDayFromMonthlyDetailEditsThatDayWithoutLeavingMonthlyDetail() throws {
         let currentDate = try #require(
             ISO8601DateFormatter().date(from: "2026-04-03T12:00:00+09:00")
