@@ -64,6 +64,44 @@ struct MainPopoverDetailNavigationTests {
 
     @Test
     @MainActor
+    func repeatedWeeklyDetailTransitionsDoNotAccumulateTopInset() {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "16:00",
+            statusText: "8h 45m remaining to 40h",
+            progressFraction: 0.4,
+            visualState: .normal,
+            days: [
+                MainPopoverWeeklyProgressDayViewState(
+                    dayText: "Mon 30",
+                    timeRangeText: "09:00 - 18:00",
+                    workedText: "08:00",
+                    annotationText: nil,
+                    dayCategory: .weekday,
+                    progressFraction: 1,
+                    isToday: false
+                )
+            ]
+        )
+
+        controller.loadViewIfNeeded()
+
+        for _ in 0..<3 {
+            controller.showWeeklyDetail(weeklyState)
+            controller.showMainView()
+        }
+
+        #expect(controller.preferredContentSize == MainPopoverStyle.Metrics.popoverSize)
+        #expect(controller.snapshot.isShowingWeeklyDetail == false)
+    }
+
+    @Test
+    @MainActor
     func viewControllerEmitsSelectedReferenceDateFromWeeklyDetail() throws {
         let controller = MainPopoverViewController(
             state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
@@ -234,7 +272,7 @@ struct MainPopoverDetailNavigationTests {
 
         #expect(controller.snapshot.isShowingMonthlyDetail)
         #expect(controller.snapshot.monthlyDetail.cellCount == 42)
-        #expect(controller.view.frame.height > MainPopoverStyle.Metrics.popoverSize.height)
+        #expect(controller.preferredContentSize.height > MainPopoverStyle.Metrics.popoverSize.height)
     }
 }
 

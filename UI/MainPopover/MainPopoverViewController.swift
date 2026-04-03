@@ -352,7 +352,6 @@ final class MainPopoverViewController: NSViewController {
     private func applyPreferredPopoverSize(_ size: NSSize) {
         preferredContentSize = size
         guard isViewLoaded else { return }
-        view.setFrameSize(size)
         view.layoutSubtreeIfNeeded()
     }
 
