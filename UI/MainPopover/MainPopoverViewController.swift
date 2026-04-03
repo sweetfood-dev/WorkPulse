@@ -30,9 +30,10 @@ final class MainPopoverViewController: NSViewController {
     private let currentSessionScheduler: any CurrentSessionScheduling
     private let renderModelFactory: MainPopoverRenderModelFactory
     var onApplyEditedTimes: ((Date?, Date?) -> Void)?
+    var onApplyEditedDetailTimes: ((MainPopoverDetailSurface, Date, Date?, Date?) -> Void)?
     var onOpenWeeklyProgress: (() -> Void)?
     var onOpenMonthlyHistory: (() -> Void)?
-    var onOpenReferenceDate: ((Date) -> Void)?
+    var onSelectDetailDate: ((MainPopoverDetailSurface, Date) -> Void)?
 
     private let headerSectionView = MainPopoverHeaderSectionView()
     private let currentSessionSectionView = MainPopoverCurrentSessionSectionView()
@@ -100,7 +101,10 @@ final class MainPopoverViewController: NSViewController {
             self?.showMainView()
         }
         weeklyDetailSectionView.onSelectDay = { [weak self] selectedDate in
-            self?.onOpenReferenceDate?(selectedDate)
+            self?.onSelectDetailDate?(.weekly, selectedDate)
+        }
+        weeklyDetailSectionView.onApplyEditedDayTimes = { [weak self] date, startTime, endTime in
+            self?.onApplyEditedDetailTimes?(.weekly, date, startTime, endTime)
         }
         monthlyHistoryViewController.onNavigatePrevious = { [weak self] in
             self?.onNavigateMonthlyHistory?(-1)
@@ -109,7 +113,10 @@ final class MainPopoverViewController: NSViewController {
             self?.onNavigateMonthlyHistory?(1)
         }
         monthlyHistoryViewController.onSelectDay = { [weak self] selectedDate in
-            self?.onOpenReferenceDate?(selectedDate)
+            self?.onSelectDetailDate?(.monthly, selectedDate)
+        }
+        monthlyHistoryViewController.onApplyEditedDayTimes = { [weak self] date, startTime, endTime in
+            self?.onApplyEditedDetailTimes?(.monthly, date, startTime, endTime)
         }
     }
 
@@ -243,20 +250,26 @@ final class MainPopoverViewController: NSViewController {
         currentSessionBinder.stop()
     }
 
-    func showWeeklyDetail(_ state: MainPopoverWeeklyProgressViewState) {
+    func showWeeklyDetail(
+        _ state: MainPopoverWeeklyProgressViewState,
+        editorState: MainPopoverDetailDayEditingState? = nil
+    ) {
         route = .weeklyDetail
         updateRoute()
-        applyPreferredPopoverSize(MainPopoverStyle.Metrics.popoverSize)
-        weeklyDetailSectionView.apply(state)
+        weeklyDetailSectionView.apply(state, editorState: editorState)
         weeklyDetailSectionView.layoutSubtreeIfNeeded()
+        applyPreferredPopoverSize(weeklyDetailPopoverSize())
     }
 
-    func showMonthlyHistory(_ state: MonthlyHistoryViewState) {
+    func showMonthlyHistory(
+        _ state: MonthlyHistoryViewState,
+        editorState: MainPopoverDetailDayEditingState? = nil
+    ) {
         route = .monthlyDetail
         updateRoute()
-        monthlyHistoryViewController.apply(state)
-        applyPreferredPopoverSize(monthlyHistoryPopoverSize(for: state))
+        monthlyHistoryViewController.apply(state, editorState: editorState)
         monthlyHistoryViewController.view.layoutSubtreeIfNeeded()
+        applyPreferredPopoverSize(monthlyHistoryPopoverSize())
     }
 
     func showMainView() {
@@ -279,6 +292,39 @@ final class MainPopoverViewController: NSViewController {
 
     func simulateSelectMonthlyDetailDay(at index: Int) {
         monthlyHistoryViewController.simulateSelectDay(at: index)
+    }
+
+    func beginEditingSelectedDetailDay(_ field: TodayTimeField) {
+        switch route {
+        case .weeklyDetail:
+            weeklyDetailSectionView.beginEditingSelectedDay(field)
+        case .monthlyDetail:
+            monthlyHistoryViewController.beginEditingSelectedDay(field)
+        case .main:
+            return
+        }
+    }
+
+    func setSelectedDetailPickerDate(_ date: Date, for field: TodayTimeField) {
+        switch route {
+        case .weeklyDetail:
+            weeklyDetailSectionView.setEditingPickerDate(date, for: field)
+        case .monthlyDetail:
+            monthlyHistoryViewController.setEditingPickerDate(date, for: field)
+        case .main:
+            return
+        }
+    }
+
+    func applySelectedDetailEditing() {
+        switch route {
+        case .weeklyDetail:
+            weeklyDetailSectionView.applyEditingSelectedDay()
+        case .monthlyDetail:
+            monthlyHistoryViewController.applyEditingSelectedDay()
+        case .main:
+            return
+        }
     }
 
     var isShowingWeeklyDetail: Bool {
@@ -331,8 +377,12 @@ final class MainPopoverViewController: NSViewController {
             viewState: state,
             currentSession: currentSessionBinder.makeRenderModel(),
             todayTimes: todayTimesBinder.makeRenderModel(
-                viewState: state,
-                fallbackTime: currentTimeProvider()
+                displayState: MainPopoverTodayTimesDisplayState(
+                    startTimeText: state.startTimeText,
+                    endTimeText: state.endTimeText
+                ),
+                fallbackStartTime: currentTimeProvider(),
+                fallbackEndTime: currentTimeProvider()
             )
         )
 
@@ -352,19 +402,29 @@ final class MainPopoverViewController: NSViewController {
     private func applyPreferredPopoverSize(_ size: NSSize) {
         preferredContentSize = size
         guard isViewLoaded else { return }
+        view.frame = NSRect(origin: .zero, size: size)
+        view.bounds = NSRect(origin: .zero, size: size)
         view.layoutSubtreeIfNeeded()
     }
 
-    private func monthlyHistoryPopoverSize(for state: MonthlyHistoryViewState) -> NSSize {
-        let rowCount = max(state.cells.count / 7, 1)
-        let chromeHeight = LayoutMetrics.monthlyDetailTopInset
-            + monthlyDetailBackButton.fittingSize.height
-            + LayoutMetrics.monthlyDetailSpacingAfterBackButton
-        let monthlyDetailHeight = chromeHeight + MonthlyHistoryViewController.requiredHeight(forRowCount: rowCount)
-
+    private func weeklyDetailPopoverSize() -> NSSize {
         return NSSize(
             width: MainPopoverStyle.Metrics.popoverSize.width,
-            height: max(MainPopoverStyle.Metrics.popoverSize.height, monthlyDetailHeight)
+            height: max(
+                MainPopoverStyle.Metrics.popoverSize.height,
+                ceil(weeklyDetailSectionView.fittingSize.height)
+            )
+        )
+    }
+
+    private func monthlyHistoryPopoverSize() -> NSSize {
+        monthlyDetailContainerView.layoutSubtreeIfNeeded()
+        return NSSize(
+            width: MainPopoverStyle.Metrics.popoverSize.width,
+            height: max(
+                MainPopoverStyle.Metrics.popoverSize.height,
+                ceil(monthlyDetailContainerView.fittingSize.height)
+            )
         )
     }
 

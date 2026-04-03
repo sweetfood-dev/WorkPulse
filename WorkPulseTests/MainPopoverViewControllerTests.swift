@@ -233,8 +233,9 @@ struct MainPopoverTodayTimesBinderTests {
         binder.beginEditing(.startTime)
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
-                fallbackTime: Date(timeIntervalSince1970: 0)
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: Date(timeIntervalSince1970: 0),
+                fallbackEndTime: Date(timeIntervalSince1970: 0)
             )
         )
         let snapshot = section.snapshot
@@ -261,8 +262,9 @@ struct MainPopoverTodayTimesBinderTests {
         binder.cancelEditing()
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
-                fallbackTime: Date(timeIntervalSince1970: 0)
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: Date(timeIntervalSince1970: 0),
+                fallbackEndTime: Date(timeIntervalSince1970: 0)
             )
         )
         let snapshot = section.snapshot
@@ -299,8 +301,9 @@ struct MainPopoverTodayTimesBinderTests {
         binder.applyEditing()
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "08:30", endTimeText: "--:--"),
-                fallbackTime: editedStartTime
+                displayState: makeDisplayState(startTimeText: "08:30", endTimeText: "--:--"),
+                fallbackStartTime: editedStartTime,
+                fallbackEndTime: editedStartTime
             )
         )
         let snapshot = section.snapshot
@@ -341,8 +344,9 @@ struct MainPopoverTodayTimesBinderTests {
         binder.applyEditing()
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "17:45"),
-                fallbackTime: editedEndTime
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "17:45"),
+                fallbackStartTime: editedEndTime,
+                fallbackEndTime: editedEndTime
             )
         )
         let snapshot = section.snapshot
@@ -374,8 +378,9 @@ struct MainPopoverTodayTimesBinderTests {
         binder.deleteEndTime()
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
-                fallbackTime: startTime
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: startTime,
+                fallbackEndTime: startTime
             )
         )
         let snapshot = section.snapshot
@@ -414,8 +419,9 @@ struct MainPopoverTodayTimesBinderTests {
         binder.applyEditing()
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
-                fallbackTime: invalidEndTime
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: invalidEndTime,
+                fallbackEndTime: invalidEndTime
             )
         )
         let snapshot = section.snapshot
@@ -446,8 +452,9 @@ struct MainPopoverTodayTimesBinderTests {
         binder.beginEditing(.endTime)
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
-                fallbackTime: currentTime
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: currentTime,
+                fallbackEndTime: currentTime
             )
         )
 
@@ -469,16 +476,18 @@ struct MainPopoverTodayTimesBinderTests {
         binder.beginEditing(.startTime)
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
-                fallbackTime: startTime
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: startTime,
+                fallbackEndTime: startTime
             )
         )
 
         section.sectionView.simulatePickerChange(editedStartTime, for: .startTime)
         section.sectionView.apply(
             binder.makeRenderModel(
-                viewState: makeViewState(startTimeText: "09:00", endTimeText: "--:--"),
-                fallbackTime: startTime
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: startTime,
+                fallbackEndTime: startTime
             )
         )
 
@@ -496,18 +505,13 @@ struct MainPopoverTodayTimesBinderTests {
         return (binder, section)
     }
 
-    private func makeViewState(
+    private func makeDisplayState(
         startTimeText: String,
         endTimeText: String
-    ) -> MainPopoverViewState {
-        MainPopoverViewState(
-            dateText: "Wednesday, Apr 1",
-            checkedInSummaryText: "Checked in at 08:45",
-            currentSessionText: "--:--:--",
+    ) -> MainPopoverTodayTimesDisplayState {
+        MainPopoverTodayTimesDisplayState(
             startTimeText: startTimeText,
-            endTimeText: endTimeText,
-            weeklyTotalText: "09:05",
-            monthlyTotalText: "--"
+            endTimeText: endTimeText
         )
     }
 }

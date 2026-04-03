@@ -1,5 +1,21 @@
 import Foundation
 
+enum MainPopoverDetailSurface: Equatable {
+    case weekly
+    case monthly
+}
+
+struct MainPopoverDetailDayEditingState {
+    let referenceDate: Date
+    let dateText: String
+    let startTimeText: String
+    let endTimeText: String
+    let startTime: Date?
+    let endTime: Date?
+    let fallbackStartTime: Date
+    let fallbackEndTime: Date
+}
+
 struct MainPopoverDisplayIntent {
     let viewState: MainPopoverViewState
     let startTime: Date?

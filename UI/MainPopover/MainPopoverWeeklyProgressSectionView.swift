@@ -9,6 +9,8 @@ struct MainPopoverWeeklyProgressSectionSnapshot {
     let annotationTexts: [String]
     let isShowingBackButton: Bool
     let isWarningState: Bool
+    let isShowingEditor: Bool
+    let editorDateText: String
 }
 
 private final class MainPopoverWeeklyProgressDayRowView: NSView {
@@ -145,6 +147,7 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
 final class MainPopoverWeeklyProgressSectionView: NSView {
     var onBack: (() -> Void)?
     var onSelectDay: ((Date) -> Void)?
+    var onApplyEditedDayTimes: ((Date, Date?, Date?) -> Void)?
 
     private let backButton = NSButton(title: "", target: nil, action: nil)
     private let cardView = NSView()
@@ -159,9 +162,11 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
     private let statusContainer = NSView()
     private let statusRow = NSStackView()
     private let rowsStack = NSStackView()
+    private let detailEditorView = MainPopoverDetailDayEditorView()
 
     private var isWarningState = false
     private var rowViews: [MainPopoverWeeklyProgressDayRowView] = []
+    private var detailEditorTopConstraint: NSLayoutConstraint?
 
     init(copy: MainPopoverCopy = .english) {
         super.init(frame: .zero)
@@ -174,7 +179,10 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func apply(_ state: MainPopoverWeeklyProgressViewState) {
+    func apply(
+        _ state: MainPopoverWeeklyProgressViewState,
+        editorState: MainPopoverDetailDayEditingState? = nil
+    ) {
         titleLabel.stringValue = state.titleText
         weekLabel.stringValue = state.weekText
         statusLabel.stringValue = state.statusText
@@ -188,6 +196,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             }
             row.apply(day)
         }
+        detailEditorTopConstraint?.constant = editorState == nil ? 0 : 16
+        detailEditorView.apply(editorState)
     }
 
     var snapshot: MainPopoverWeeklyProgressSectionSnapshot {
@@ -199,13 +209,27 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             dayCount: rowViews.count,
             annotationTexts: rowViews.map(\.annotationText).filter { $0.isEmpty == false },
             isShowingBackButton: backButton.isHidden == false,
-            isWarningState: isWarningState
+            isWarningState: isWarningState,
+            isShowingEditor: detailEditorView.snapshot.isVisible,
+            editorDateText: detailEditorView.snapshot.dateText
         )
     }
 
     func simulateSelectDay(at index: Int) {
         guard rowViews.indices.contains(index) else { return }
         rowViews[index].simulateSelect()
+    }
+
+    func beginEditingSelectedDay(_ field: TodayTimeField) {
+        detailEditorView.beginEditing(field)
+    }
+
+    func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
+        detailEditorView.setEditingPickerDate(date, for: field)
+    }
+
+    func applyEditingSelectedDay() {
+        detailEditorView.applyEditing()
     }
 
     @objc
@@ -298,9 +322,17 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         rowsStack.spacing = MainPopoverStyle.Metrics.weeklyDetailRowSpacing
         rowsStack.translatesAutoresizingMaskIntoConstraints = false
 
+        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime in
+            self?.onApplyEditedDayTimes?(date, startTime, endTime)
+        }
+
         addSubview(backButton)
         addSubview(cardView)
         addSubview(rowsStack)
+        addSubview(detailEditorView)
+
+        let detailEditorTopConstraint = detailEditorView.topAnchor.constraint(equalTo: rowsStack.bottomAnchor, constant: 0)
+        self.detailEditorTopConstraint = detailEditorTopConstraint
 
         NSLayoutConstraint.activate([
             backButton.topAnchor.constraint(equalTo: topAnchor, constant: 18),
@@ -312,7 +344,10 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             rowsStack.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: 18),
             rowsStack.centerXAnchor.constraint(equalTo: centerXAnchor),
             rowsStack.widthAnchor.constraint(equalTo: cardView.widthAnchor),
-            rowsStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -20),
+            detailEditorTopConstraint,
+            detailEditorView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            detailEditorView.widthAnchor.constraint(equalTo: cardView.widthAnchor),
+            detailEditorView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -20),
 
             cardContent.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 24),
             cardContent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 24),

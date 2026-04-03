@@ -1289,7 +1289,7 @@ struct AppDelegateTests {
 
     @Test
     @MainActor
-    func selectingPastDayFromWeeklyDetailLoadsPastRecordAndSavesBackToThatDay() throws {
+    func selectingPastDayFromWeeklyDetailEditsThatDayWithoutLeavingWeeklyDetail() throws {
         let currentDate = try #require(
             ISO8601DateFormatter().date(from: "2026-04-03T12:00:00+09:00")
         )
@@ -1357,19 +1357,13 @@ struct AppDelegateTests {
         controller.simulateSelectWeeklyDetailDay(at: selectedIndex)
 
         let selectedSnapshot = controller.snapshot
-        #expect(selectedSnapshot.isShowingWeeklyDetail == false)
-        #expect(selectedSnapshot.header.dateText == "Wednesday, Apr 1")
-        #expect(selectedSnapshot.todayTimes.startRow.valueText == "08:30")
-        #expect(selectedSnapshot.todayTimes.endRow.valueText == "--:--")
-        #expect(selectedSnapshot.currentSession.valueText == "--:--:--")
+        #expect(selectedSnapshot.isShowingWeeklyDetail)
+        #expect(selectedSnapshot.weeklyDetail.isShowingEditor)
+        #expect(selectedSnapshot.weeklyDetail.editorDateText == "Wednesday, Apr 1")
 
-        scheduler.fire()
-
-        #expect(controller.snapshot.currentSession.valueText == "--:--:--")
-
-        controller.beginEditing(.endTime)
-        controller.setEditingPickerDate(editedPastEndTime, for: .endTime)
-        controller.applyEditing()
+        controller.beginEditingSelectedDetailDay(.endTime)
+        controller.setSelectedDetailPickerDate(editedPastEndTime, for: .endTime)
+        controller.applySelectedDetailEditing()
 
         let persistedPastRecord = try #require(
             store.loadRecords().last(where: {
@@ -1385,8 +1379,106 @@ struct AppDelegateTests {
         #expect(persistedPastRecord.endTime == editedPastEndTime)
         #expect(persistedCurrentRecord.startTime == currentDayStart)
         #expect(persistedCurrentRecord.endTime == nil)
-        #expect(controller.snapshot.header.dateText == "Wednesday, Apr 1")
-        #expect(controller.snapshot.currentSession.valueText == "08:15:00")
+        #expect(controller.snapshot.isShowingWeeklyDetail)
+        #expect(controller.snapshot.weeklyDetail.isShowingEditor)
+        #expect(controller.snapshot.weeklyDetail.editorDateText == "Wednesday, Apr 1")
+    }
+
+    @Test
+    @MainActor
+    func selectingPastDayFromMonthlyDetailEditsThatDayWithoutLeavingMonthlyDetail() throws {
+        let currentDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-03T12:00:00+09:00")
+        )
+        let selectedPastDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T12:00:00+09:00")
+        )
+        let pastStartTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T08:30:00+09:00")
+        )
+        let editedPastEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-01T17:45:00+09:00")
+        )
+        let currentDayStart = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-03T09:00:00+09:00")
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-04-01T00:00:00+09:00")),
+                startTime: pastStartTime,
+                endTime: nil
+            ),
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-04-03T00:00:00+09:00")),
+                startTime: currentDayStart,
+                endTime: nil
+            ),
+        ])
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentSessionCalculator: CurrentSessionCalculator(
+                workedDurationCalculator: WorkedDurationCalculator(calendar: Self.seoulCalendar)
+            ),
+            currentTimeProvider: { currentDate },
+            currentSessionScheduler: FakeRepeatingScheduler()
+        )
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+                currentDateProvider: { currentDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: store
+        )
+        let monthlyState = MonthlyHistoryLoader(
+            recordStore: store,
+            calendar: Self.seoulCalendar,
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+            calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+            currentDateProvider: { currentDate }
+        ).load(referenceDate: currentDate)
+        let selectedIndex = try #require(
+            monthlyState.cells.firstIndex(where: { cell in
+                guard let date = cell.date else { return false }
+                return Self.seoulCalendar.isDate(date, inSameDayAs: selectedPastDate)
+            })
+        )
+
+        controller.loadViewIfNeeded()
+        appDelegate.configurePopoverViewController(controller, referenceDate: currentDate)
+        controller.showMonthlyHistory(monthlyState)
+        controller.simulateSelectMonthlyDetailDay(at: selectedIndex)
+
+        let selectedSnapshot = controller.snapshot
+        #expect(selectedSnapshot.isShowingMonthlyDetail)
+        #expect(selectedSnapshot.monthlyDetail.isShowingEditor)
+        #expect(selectedSnapshot.monthlyDetail.editorDateText == "Wednesday, Apr 1")
+
+        controller.beginEditingSelectedDetailDay(.endTime)
+        controller.setSelectedDetailPickerDate(editedPastEndTime, for: .endTime)
+        controller.applySelectedDetailEditing()
+
+        let persistedPastRecord = try #require(
+            store.loadRecords().last(where: {
+                Self.seoulCalendar.isDate($0.date, inSameDayAs: selectedPastDate)
+            })
+        )
+        let persistedCurrentRecord = try #require(
+            store.loadRecords().last(where: {
+                Self.seoulCalendar.isDate($0.date, inSameDayAs: currentDate)
+            })
+        )
+        #expect(persistedPastRecord.startTime == pastStartTime)
+        #expect(persistedPastRecord.endTime == editedPastEndTime)
+        #expect(persistedCurrentRecord.startTime == currentDayStart)
+        #expect(persistedCurrentRecord.endTime == nil)
+        #expect(controller.snapshot.isShowingMonthlyDetail)
+        #expect(controller.snapshot.monthlyDetail.isShowingEditor)
+        #expect(controller.snapshot.monthlyDetail.editorDateText == "Wednesday, Apr 1")
     }
 
     private static var seoulCalendar: Calendar {

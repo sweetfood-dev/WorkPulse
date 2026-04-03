@@ -4,8 +4,8 @@ import AppKit
 final class MainPopoverCoordinator {
     private weak var popoverViewController: MainPopoverViewController?
     private var displayedReferenceDate: Date?
+    private var displayedWeeklyProgressReferenceDate: Date?
     private var displayedMonthlyHistoryReferenceDate: Date?
-    private var isPinnedReferenceDate = false
     private let runtimeDependencies: MainPopoverRuntimeDependencies
     private let recordStore: any AttendanceRecordStore
     private let viewStateFactory: MainPopoverViewStateFactory
@@ -76,12 +76,16 @@ final class MainPopoverCoordinator {
     ) {
         self.popoverViewController = popoverViewController
         displayedReferenceDate = referenceDate
-        isPinnedReferenceDate = runtimeDependencies.calendar.isDate(
-            referenceDate,
-            inSameDayAs: runtimeDependencies.currentDateProvider()
-        ) == false
         popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime in
             self?.handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
+        }
+        popoverViewController.onApplyEditedDetailTimes = { [weak self] surface, referenceDate, startTime, endTime in
+            self?.handleAppliedDetailTimes(
+                surface: surface,
+                referenceDate: referenceDate,
+                startTime: startTime,
+                endTime: endTime
+            )
         }
         popoverViewController.onOpenWeeklyProgress = { [weak self] in
             self?.showWeeklyProgress()
@@ -89,8 +93,8 @@ final class MainPopoverCoordinator {
         popoverViewController.onOpenMonthlyHistory = { [weak self] in
             self?.showMonthlyHistory()
         }
-        popoverViewController.onOpenReferenceDate = { [weak self] selectedDate in
-            self?.openReferenceDate(selectedDate)
+        popoverViewController.onSelectDetailDate = { [weak self] surface, selectedDate in
+            self?.selectDetailDate(surface: surface, selectedDate: selectedDate)
         }
         popoverViewController.onNavigateMonthlyHistory = { [weak self] monthOffset in
             self?.navigateMonthlyHistory(by: monthOffset)
@@ -100,8 +104,8 @@ final class MainPopoverCoordinator {
 
     func handlePopoverWillOpen() {
         let referenceDate = currentReferenceDateForPopoverOpen()
-        isPinnedReferenceDate = false
         popoverViewController?.showMainView()
+        displayedWeeklyProgressReferenceDate = nil
         displayedMonthlyHistoryReferenceDate = nil
 
         if shouldResetEditingForReferenceDate(referenceDate) {
@@ -120,7 +124,7 @@ final class MainPopoverCoordinator {
     }
 
     private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
-        let referenceDate = selectedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
         do {
             try recordStore.upsertRecord(
                 AttendanceRecord(
@@ -133,14 +137,6 @@ final class MainPopoverCoordinator {
             NSLog("Failed to save attendance record: %@", String(describing: error))
         }
         refreshPopover(referenceDate: referenceDate)
-    }
-
-    private func selectedReferenceDate() -> Date {
-        if isPinnedReferenceDate {
-            return displayedReferenceDate ?? runtimeDependencies.currentDateProvider()
-        }
-
-        return currentReferenceDateForPopoverOpen()
     }
 
     private func currentReferenceDateForPopoverOpen() -> Date {
@@ -174,14 +170,15 @@ final class MainPopoverCoordinator {
     }
 
     private func showWeeklyProgress() {
-        let referenceDate = selectedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
+        displayedWeeklyProgressReferenceDate = referenceDate
         popoverViewController?.showWeeklyDetail(
             weeklyProgressLoader.load(referenceDate: referenceDate)
         )
     }
 
     private func showMonthlyHistory() {
-        let referenceDate = selectedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
         let state = loadMonthlyHistory(referenceDate: referenceDate)
         displayedMonthlyHistoryReferenceDate = state.referenceDate
         popoverViewController?.showMonthlyHistory(state)
@@ -215,18 +212,6 @@ final class MainPopoverCoordinator {
         popoverViewController?.showMonthlyHistory(state)
     }
 
-    private func openReferenceDate(_ selectedDate: Date) {
-        let currentDate = runtimeDependencies.currentDateProvider()
-        isPinnedReferenceDate = runtimeDependencies.calendar.isDate(
-            selectedDate,
-            inSameDayAs: currentDate
-        ) == false
-        displayedMonthlyHistoryReferenceDate = nil
-        popoverViewController?.cancelEditing()
-        popoverViewController?.showMainView()
-        refreshPopover(referenceDate: selectedDate)
-    }
-
     private func shouldResetEditingForReferenceDate(_ referenceDate: Date) -> Bool {
         guard let displayedReferenceDate else { return false }
 
@@ -234,5 +219,83 @@ final class MainPopoverCoordinator {
             displayedReferenceDate,
             inSameDayAs: referenceDate
         ) == false
+    }
+
+    private func handleAppliedDetailTimes(
+        surface: MainPopoverDetailSurface,
+        referenceDate: Date,
+        startTime: Date?,
+        endTime: Date?
+    ) {
+        do {
+            try recordStore.upsertRecord(
+                AttendanceRecord(
+                    date: referenceDate,
+                    startTime: startTime,
+                    endTime: endTime
+                )
+            )
+        } catch {
+            NSLog("Failed to save detail attendance record: %@", String(describing: error))
+        }
+
+        selectDetailDate(surface: surface, selectedDate: referenceDate)
+    }
+
+    private func selectDetailDate(
+        surface: MainPopoverDetailSurface,
+        selectedDate: Date
+    ) {
+        let editorState = makeDetailDayEditingState(referenceDate: selectedDate)
+
+        switch surface {
+        case .weekly:
+            let referenceDate = displayedWeeklyProgressReferenceDate ?? currentReferenceDateForPopoverOpen()
+            displayedWeeklyProgressReferenceDate = referenceDate
+            popoverViewController?.showWeeklyDetail(
+                weeklyProgressLoader.load(referenceDate: referenceDate),
+                editorState: editorState
+            )
+        case .monthly:
+            let referenceDate = displayedMonthlyHistoryReferenceDate ?? currentReferenceDateForPopoverOpen()
+            let state = loadMonthlyHistory(referenceDate: referenceDate)
+            displayedMonthlyHistoryReferenceDate = state.referenceDate
+            popoverViewController?.showMonthlyHistory(
+                state,
+                editorState: editorState
+            )
+        }
+    }
+
+    private func makeDetailDayEditingState(referenceDate: Date) -> MainPopoverDetailDayEditingState {
+        let loadedState = stateLoader.load(referenceDate: referenceDate)
+        let fallbackStartTime = fallbackTime(on: referenceDate, hour: 9, minute: 0)
+        let fallbackEndTime = loadedState.todayRecord?.startTime
+            ?? fallbackTime(on: referenceDate, hour: 18, minute: 0)
+
+        return MainPopoverDetailDayEditingState(
+            referenceDate: referenceDate,
+            dateText: loadedState.viewState.dateText,
+            startTimeText: loadedState.viewState.startTimeText,
+            endTimeText: loadedState.viewState.endTimeText,
+            startTime: loadedState.todayRecord?.startTime,
+            endTime: loadedState.todayRecord?.endTime,
+            fallbackStartTime: loadedState.todayRecord?.startTime ?? fallbackStartTime,
+            fallbackEndTime: loadedState.todayRecord?.endTime ?? fallbackEndTime
+        )
+    }
+
+    private func fallbackTime(
+        on referenceDate: Date,
+        hour: Int,
+        minute: Int
+    ) -> Date {
+        let dayStart = runtimeDependencies.calendar.startOfDay(for: referenceDate)
+        return runtimeDependencies.calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: dayStart
+        ) ?? dayStart
     }
 }

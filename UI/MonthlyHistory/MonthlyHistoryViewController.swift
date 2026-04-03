@@ -10,6 +10,8 @@ struct MonthlyHistoryViewControllerSnapshot {
     let annotationTexts: [String]
     let rowWidths: [CGFloat]
     let hasOverflowingAnnotationLayout: Bool
+    let isShowingEditor: Bool
+    let editorDateText: String
 }
 
 private final class MonthlyHistoryDayCellView: NSView {
@@ -220,6 +222,7 @@ final class MonthlyHistoryViewController: NSViewController {
     var onNavigatePrevious: (() -> Void)?
     var onNavigateNext: (() -> Void)?
     var onSelectDay: ((Date) -> Void)?
+    var onApplyEditedDayTimes: ((Date, Date?, Date?) -> Void)?
 
     private let previousButton = NSButton(title: "", target: nil, action: nil)
     private let nextButton = NSButton(title: "", target: nil, action: nil)
@@ -229,9 +232,11 @@ final class MonthlyHistoryViewController: NSViewController {
     private let totalDurationLabel = NSTextField(labelWithString: "")
     private let weekdayRow = NSStackView()
     private let gridRows = NSStackView()
+    private let detailEditorView = MainPopoverDetailDayEditorView()
 
     private var weekdayLabels: [NSTextField] = []
     private var dayCellViews: [MonthlyHistoryDayCellView] = []
+    private var detailEditorTopConstraint: NSLayoutConstraint?
 
     static func requiredHeight(forRowCount rowCount: Int) -> CGFloat {
         let safeRowCount = max(rowCount, 1)
@@ -314,6 +319,7 @@ final class MonthlyHistoryViewController: NSViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(weekdayRow)
         contentView.addSubview(gridRows)
+        contentView.addSubview(detailEditorView)
 
         totalLabel.font = .systemFont(ofSize: 10, weight: .bold)
         totalLabel.textColor = MainPopoverStyle.Colors.secondaryText
@@ -336,9 +342,19 @@ final class MonthlyHistoryViewController: NSViewController {
 
         footerView.addSubview(footerRow)
 
+        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime in
+            self?.onApplyEditedDayTimes?(date, startTime, endTime)
+        }
+
         rootView.addSubview(headerView)
         rootView.addSubview(contentView)
         rootView.addSubview(footerView)
+
+        let detailEditorTopConstraint = detailEditorView.topAnchor.constraint(
+            equalTo: gridRows.bottomAnchor,
+            constant: 0
+        )
+        self.detailEditorTopConstraint = detailEditorTopConstraint
 
         NSLayoutConstraint.activate([
             headerView.topAnchor.constraint(equalTo: rootView.topAnchor),
@@ -365,7 +381,10 @@ final class MonthlyHistoryViewController: NSViewController {
             gridRows.topAnchor.constraint(equalTo: weekdayRow.bottomAnchor, constant: LayoutMetrics.weekdayToGridSpacing),
             gridRows.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             gridRows.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            gridRows.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -LayoutMetrics.contentBottomInset),
+            detailEditorTopConstraint,
+            detailEditorView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            detailEditorView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            detailEditorView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -LayoutMetrics.contentBottomInset),
 
             footerView.topAnchor.constraint(equalTo: contentView.bottomAnchor),
             footerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
@@ -381,7 +400,10 @@ final class MonthlyHistoryViewController: NSViewController {
         view = rootView
     }
 
-    func apply(_ state: MonthlyHistoryViewState) {
+    func apply(
+        _ state: MonthlyHistoryViewState,
+        editorState: MainPopoverDetailDayEditingState? = nil
+    ) {
         loadViewIfNeeded()
         monthLabel.stringValue = state.monthText
         totalLabel.stringValue = state.totalLabelText.uppercased()
@@ -397,6 +419,8 @@ final class MonthlyHistoryViewController: NSViewController {
             }
             cellView.apply(cellState)
         }
+        detailEditorTopConstraint?.constant = editorState == nil ? 0 : 16
+        detailEditorView.apply(editorState)
     }
 
     var snapshot: MonthlyHistoryViewControllerSnapshot {
@@ -410,7 +434,9 @@ final class MonthlyHistoryViewController: NSViewController {
             activeCellCount: dayCellViews.filter(\.isActive).count,
             annotationTexts: dayCellViews.map(\.annotationText).filter { $0.isEmpty == false },
             rowWidths: gridRows.arrangedSubviews.map(\.frame.width),
-            hasOverflowingAnnotationLayout: dayCellViews.contains { $0.hasOverflowingAnnotationLayout }
+            hasOverflowingAnnotationLayout: dayCellViews.contains { $0.hasOverflowingAnnotationLayout },
+            isShowingEditor: detailEditorView.snapshot.isVisible,
+            editorDateText: detailEditorView.snapshot.dateText
         )
     }
 
@@ -425,6 +451,18 @@ final class MonthlyHistoryViewController: NSViewController {
     func simulateSelectDay(at index: Int) {
         guard dayCellViews.indices.contains(index) else { return }
         dayCellViews[index].simulateSelect()
+    }
+
+    func beginEditingSelectedDay(_ field: TodayTimeField) {
+        detailEditorView.beginEditing(field)
+    }
+
+    func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
+        detailEditorView.setEditingPickerDate(date, for: field)
+    }
+
+    func applyEditingSelectedDay() {
+        detailEditorView.applyEditing()
     }
 
     @objc

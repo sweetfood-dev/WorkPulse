@@ -1,5 +1,10 @@
 import Foundation
 
+struct MainPopoverTodayTimesDisplayState {
+    let startTimeText: String
+    let endTimeText: String
+}
+
 struct MainPopoverAppliedTodayTimes {
     let startTime: Date?
     let endTime: Date?
@@ -24,7 +29,10 @@ final class MainPopoverTodayTimesBinder {
         bindSectionEvents()
     }
 
-    func loadSavedTimes(startTime: Date?, endTime: Date?) {
+    func loadSavedTimes(startTime: Date?, endTime: Date?, forceReload: Bool = false) {
+        if forceReload {
+            editModeState = TodayTimeEditModeState()
+        }
         editModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
     }
 
@@ -82,23 +90,24 @@ final class MainPopoverTodayTimesBinder {
     }
 
     func makeRenderModel(
-        viewState: MainPopoverViewState,
-        fallbackTime: Date
+        displayState: MainPopoverTodayTimesDisplayState,
+        fallbackStartTime: Date,
+        fallbackEndTime: Date
     ) -> MainPopoverTodayTimesRenderModel {
         MainPopoverTodayTimesRenderModel(
             startRow: makeTimeRow(
                 titleText: copy.startTimeTitle,
-                valueText: viewState.startTimeText,
+                valueText: displayState.startTimeText,
                 isEditing: editModeState.isEditingStartTime,
                 draftTime: editModeState.draftStartTime,
-                fallbackTime: fallbackTime
+                fallbackTime: fallbackStartTime
             ),
             endRow: makeTimeRow(
                 titleText: copy.endTimeTitle,
-                valueText: viewState.endTimeText,
+                valueText: displayState.endTimeText,
                 isEditing: editModeState.isEditingEndTime,
                 draftTime: editModeState.draftEndTime,
-                fallbackTime: fallbackTime
+                fallbackTime: fallbackEndTime
             ),
             showsEditingActions: editModeState.editingField != nil,
             showsStartActions: editModeState.isEditingStartTime,

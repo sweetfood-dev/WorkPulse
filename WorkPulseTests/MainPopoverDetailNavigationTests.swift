@@ -102,15 +102,15 @@ struct MainPopoverDetailNavigationTests {
 
     @Test
     @MainActor
-    func viewControllerEmitsSelectedReferenceDateFromWeeklyDetail() throws {
+    func viewControllerEmitsSelectedDetailDateFromWeeklyDetail() throws {
         let controller = MainPopoverViewController(
             state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
             currentTimeProvider: { Date(timeIntervalSince1970: 0) }
         )
         let selectedDate = try #require(makeDate("2026-03-31T00:00:00+09:00"))
-        var openedDate: Date?
+        var selection: (surface: MainPopoverDetailSurface, date: Date)?
 
-        controller.onOpenReferenceDate = { openedDate = $0 }
+        controller.onSelectDetailDate = { selection = ($0, $1) }
         controller.loadViewIfNeeded()
         controller.showWeeklyDetail(
             MainPopoverWeeklyProgressViewState(
@@ -138,7 +138,44 @@ struct MainPopoverDetailNavigationTests {
 
         controller.simulateSelectWeeklyDetailDay(at: 0)
 
-        #expect(openedDate == selectedDate)
+        #expect(selection?.surface == .weekly)
+        #expect(selection?.date == selectedDate)
+    }
+
+    @Test
+    @MainActor
+    func viewControllerShowsInlineEditorWithinWeeklyDetail() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showWeeklyDetail(
+            MainPopoverWeeklyProgressViewState(
+                titleText: "Weekly Progress",
+                weekText: "Week 14",
+                totalDurationText: "16:00",
+                statusText: "24h 00m remaining to 40h",
+                progressFraction: 0.4,
+                visualState: .normal,
+                days: []
+            ),
+            editorState: MainPopoverDetailDayEditingState(
+                referenceDate: try #require(makeDate("2026-03-31T00:00:00+09:00")),
+                dateText: "Tuesday, Mar 31",
+                startTimeText: "09:00",
+                endTimeText: "--:--",
+                startTime: try #require(makeDate("2026-03-31T09:00:00+09:00")),
+                endTime: nil,
+                fallbackStartTime: try #require(makeDate("2026-03-31T09:00:00+09:00")),
+                fallbackEndTime: try #require(makeDate("2026-03-31T18:00:00+09:00"))
+            )
+        )
+
+        #expect(controller.snapshot.isShowingWeeklyDetail)
+        #expect(controller.snapshot.weeklyDetail.isShowingEditor)
+        #expect(controller.snapshot.weeklyDetail.editorDateText == "Tuesday, Mar 31")
     }
 
     @Test
@@ -187,15 +224,15 @@ struct MainPopoverDetailNavigationTests {
 
     @Test
     @MainActor
-    func viewControllerEmitsSelectedReferenceDateFromMonthlyDetail() throws {
+    func viewControllerEmitsSelectedDetailDateFromMonthlyDetail() throws {
         let controller = MainPopoverViewController(
             state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
             currentTimeProvider: { Date(timeIntervalSince1970: 0) }
         )
         let selectedDate = try #require(makeDate("2026-04-02T00:00:00+09:00"))
-        var openedDate: Date?
+        var selection: (surface: MainPopoverDetailSurface, date: Date)?
 
-        controller.onOpenReferenceDate = { openedDate = $0 }
+        controller.onSelectDetailDate = { selection = ($0, $1) }
         controller.loadViewIfNeeded()
         controller.showMonthlyHistory(
             MonthlyHistoryViewState(
@@ -236,7 +273,44 @@ struct MainPopoverDetailNavigationTests {
 
         controller.simulateSelectMonthlyDetailDay(at: 1)
 
-        #expect(openedDate == selectedDate)
+        #expect(selection?.surface == .monthly)
+        #expect(selection?.date == selectedDate)
+    }
+
+    @Test
+    @MainActor
+    func viewControllerShowsInlineEditorWithinMonthlyDetail() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showMonthlyHistory(
+            MonthlyHistoryViewState(
+                referenceDate: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+                titleText: "MONTHLY HISTORY",
+                monthText: "April 2026",
+                weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                totalLabelText: "Monthly Total",
+                totalDurationText: "7h 51m",
+                cells: []
+            ),
+            editorState: MainPopoverDetailDayEditingState(
+                referenceDate: try #require(makeDate("2026-04-02T00:00:00+09:00")),
+                dateText: "Thursday, Apr 2",
+                startTimeText: "08:10",
+                endTimeText: "--:--",
+                startTime: try #require(makeDate("2026-04-02T08:10:00+09:00")),
+                endTime: nil,
+                fallbackStartTime: try #require(makeDate("2026-04-02T08:10:00+09:00")),
+                fallbackEndTime: try #require(makeDate("2026-04-02T18:00:00+09:00"))
+            )
+        )
+
+        #expect(controller.snapshot.isShowingMonthlyDetail)
+        #expect(controller.snapshot.monthlyDetail.isShowingEditor)
+        #expect(controller.snapshot.monthlyDetail.editorDateText == "Thursday, Apr 2")
     }
 
     @Test
