@@ -19,6 +19,9 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     private let progressBar = CurrentSessionProgressBarView()
     private let row = NSStackView()
     private let contentStack = NSStackView()
+    private var selectedDate: Date?
+    private var isSelectable = false
+    var onSelect: ((Date) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -82,6 +85,8 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     }
 
     func apply(_ state: MainPopoverWeeklyProgressDayViewState) {
+        selectedDate = state.date
+        isSelectable = state.isSelectable
         dayLabel.stringValue = state.dayText
         annotationLabel.stringValue = state.annotationText ?? ""
         annotationLabel.isHidden = state.annotationText == nil
@@ -102,6 +107,20 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
             ?? MainPopoverStyle.Colors.secondaryText
         annotationLabel.textColor = accentColor?.withAlphaComponent(0.9)
             ?? MainPopoverStyle.Colors.secondaryText
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isSelectable, let selectedDate else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        onSelect?(selectedDate)
+    }
+
+    func simulateSelect() {
+        guard isSelectable, let selectedDate else { return }
+        onSelect?(selectedDate)
     }
 
     private func accentColor(for category: CalendarDayCategory) -> NSColor? {
@@ -125,6 +144,7 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
 @MainActor
 final class MainPopoverWeeklyProgressSectionView: NSView {
     var onBack: (() -> Void)?
+    var onSelectDay: ((Date) -> Void)?
 
     private let backButton = NSButton(title: "", target: nil, action: nil)
     private let cardView = NSView()
@@ -163,6 +183,9 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         syncRows(count: state.days.count)
 
         zip(rowViews, state.days).forEach { row, day in
+            row.onSelect = { [weak self] selectedDate in
+                self?.onSelectDay?(selectedDate)
+            }
             row.apply(day)
         }
     }
@@ -178,6 +201,11 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             isShowingBackButton: backButton.isHidden == false,
             isWarningState: isWarningState
         )
+    }
+
+    func simulateSelectDay(at index: Int) {
+        guard rowViews.indices.contains(index) else { return }
+        rowViews[index].simulateSelect()
     }
 
     @objc

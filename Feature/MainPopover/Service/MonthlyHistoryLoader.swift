@@ -8,12 +8,34 @@ enum MonthlyHistoryDayCellActivity: Equatable {
 }
 
 struct MonthlyHistoryDayCellViewState: Equatable {
+    let date: Date?
     let dayText: String
     let statusText: String
     let annotationText: String?
     let activity: MonthlyHistoryDayCellActivity
     let dayCategory: CalendarDayCategory
     let isDimmed: Bool
+    let isSelectable: Bool
+
+    init(
+        date: Date? = nil,
+        dayText: String,
+        statusText: String,
+        annotationText: String?,
+        activity: MonthlyHistoryDayCellActivity,
+        dayCategory: CalendarDayCategory,
+        isDimmed: Bool,
+        isSelectable: Bool? = nil
+    ) {
+        self.date = date
+        self.dayText = dayText
+        self.statusText = statusText
+        self.annotationText = annotationText
+        self.activity = activity
+        self.dayCategory = dayCategory
+        self.isDimmed = isDimmed
+        self.isSelectable = isSelectable ?? (date != nil && isDimmed == false)
+    }
 }
 
 struct MonthlyHistoryViewState {
@@ -109,12 +131,14 @@ struct MonthlyHistoryLoader {
         let leadingPlaceholderCount = calendar.component(.weekday, from: monthStart) - 1
         var cells = Array(
             repeating: MonthlyHistoryDayCellViewState(
+                date: nil,
                 dayText: "",
                 statusText: "",
                 annotationText: nil,
                 activity: .outsideMonth,
                 dayCategory: .weekday,
-                isDimmed: false
+                isDimmed: false,
+                isSelectable: false
             ),
             count: leadingPlaceholderCount
         )
@@ -146,12 +170,14 @@ struct MonthlyHistoryLoader {
 
             cells.append(
                 MonthlyHistoryDayCellViewState(
+                    date: date,
                     dayText: "\(day)",
                     statusText: cellStatusText,
                     annotationText: metadata.holiday?.annotationText,
                     activity: activity,
                     dayCategory: metadata.category,
-                    isDimmed: isFuture
+                    isDimmed: isFuture,
+                    isSelectable: isFuture == false
                 )
             )
         }
@@ -159,12 +185,14 @@ struct MonthlyHistoryLoader {
         while cells.count.isMultiple(of: 7) == false {
             cells.append(
                 MonthlyHistoryDayCellViewState(
+                    date: nil,
                     dayText: "",
                     statusText: "",
                     annotationText: nil,
                     activity: .outsideMonth,
                     dayCategory: .weekday,
-                    isDimmed: false
+                    isDimmed: false,
+                    isSelectable: false
                 )
             )
         }

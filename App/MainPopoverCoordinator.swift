@@ -5,6 +5,7 @@ final class MainPopoverCoordinator {
     private weak var popoverViewController: MainPopoverViewController?
     private var displayedReferenceDate: Date?
     private var displayedMonthlyHistoryReferenceDate: Date?
+    private var isPinnedReferenceDate = false
     private let runtimeDependencies: MainPopoverRuntimeDependencies
     private let recordStore: any AttendanceRecordStore
     private let viewStateFactory: MainPopoverViewStateFactory
@@ -75,6 +76,10 @@ final class MainPopoverCoordinator {
     ) {
         self.popoverViewController = popoverViewController
         displayedReferenceDate = referenceDate
+        isPinnedReferenceDate = runtimeDependencies.calendar.isDate(
+            referenceDate,
+            inSameDayAs: runtimeDependencies.currentDateProvider()
+        ) == false
         popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime in
             self?.handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
         }
@@ -84,6 +89,9 @@ final class MainPopoverCoordinator {
         popoverViewController.onOpenMonthlyHistory = { [weak self] in
             self?.showMonthlyHistory()
         }
+        popoverViewController.onOpenReferenceDate = { [weak self] selectedDate in
+            self?.openReferenceDate(selectedDate)
+        }
         popoverViewController.onNavigateMonthlyHistory = { [weak self] monthOffset in
             self?.navigateMonthlyHistory(by: monthOffset)
         }
@@ -91,7 +99,8 @@ final class MainPopoverCoordinator {
     }
 
     func handlePopoverWillOpen() {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
+        isPinnedReferenceDate = false
         popoverViewController?.showMainView()
         displayedMonthlyHistoryReferenceDate = nil
 
@@ -111,7 +120,7 @@ final class MainPopoverCoordinator {
     }
 
     private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = editableReferenceDate()
         do {
             try recordStore.upsertRecord(
                 AttendanceRecord(
@@ -126,42 +135,61 @@ final class MainPopoverCoordinator {
         refreshPopover(referenceDate: referenceDate)
     }
 
-    private func resolvedReferenceDate(from candidateReferenceDate: Date? = nil) -> Date {
+    private func selectedReferenceDate() -> Date {
+        if isPinnedReferenceDate {
+            return displayedReferenceDate ?? runtimeDependencies.currentDateProvider()
+        }
+
+        return currentReferenceDateForPopoverOpen()
+    }
+
+    private func editableReferenceDate() -> Date {
+        if isPinnedReferenceDate {
+            return displayedReferenceDate ?? runtimeDependencies.currentDateProvider()
+        }
+
+        return currentReferenceDateForPopoverOpen()
+    }
+
+    private func currentReferenceDateForPopoverOpen() -> Date {
         let currentDate = runtimeDependencies.currentDateProvider()
-        guard let candidateReferenceDate = candidateReferenceDate ?? displayedReferenceDate else {
+        guard let displayedReferenceDate else { return currentDate }
+
+        guard runtimeDependencies.calendar.isDate(displayedReferenceDate, inSameDayAs: currentDate) else {
             return currentDate
         }
 
-        guard runtimeDependencies.calendar.isDate(candidateReferenceDate, inSameDayAs: currentDate) else {
-            return currentDate
-        }
-
-        return candidateReferenceDate
+        return displayedReferenceDate
     }
 
     private func refreshPopover(referenceDate: Date) {
         guard let popoverViewController else { return }
         displayedReferenceDate = referenceDate
+        let currentDate = runtimeDependencies.currentDateProvider()
 
         let loadedState = stateLoader.load(referenceDate: referenceDate)
         popoverViewController.display(
             MainPopoverDisplayIntent(
                 viewState: loadedState.viewState,
                 startTime: loadedState.todayRecord?.startTime,
-                endTime: loadedState.todayRecord?.endTime
+                endTime: loadedState.todayRecord?.endTime,
+                allowsLiveCurrentSessionUpdates: runtimeDependencies.calendar.isDate(
+                    referenceDate,
+                    inSameDayAs: currentDate
+                )
             )
         )
     }
 
     private func showWeeklyProgress() {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = selectedReferenceDate()
         popoverViewController?.showWeeklyDetail(
             weeklyProgressLoader.load(referenceDate: referenceDate)
         )
     }
 
     private func showMonthlyHistory() {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = selectedReferenceDate()
         let state = loadMonthlyHistory(referenceDate: referenceDate)
         displayedMonthlyHistoryReferenceDate = state.referenceDate
         popoverViewController?.showMonthlyHistory(state)
@@ -193,6 +221,18 @@ final class MainPopoverCoordinator {
 
         displayedMonthlyHistoryReferenceDate = state.referenceDate
         popoverViewController?.showMonthlyHistory(state)
+    }
+
+    private func openReferenceDate(_ selectedDate: Date) {
+        let currentDate = runtimeDependencies.currentDateProvider()
+        isPinnedReferenceDate = runtimeDependencies.calendar.isDate(
+            selectedDate,
+            inSameDayAs: currentDate
+        ) == false
+        displayedMonthlyHistoryReferenceDate = nil
+        popoverViewController?.cancelEditing()
+        popoverViewController?.showMainView()
+        refreshPopover(referenceDate: selectedDate)
     }
 
     private func shouldResetEditingForReferenceDate(_ referenceDate: Date) -> Bool {

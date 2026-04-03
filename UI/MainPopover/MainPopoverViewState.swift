@@ -4,6 +4,7 @@ struct MainPopoverDisplayIntent {
     let viewState: MainPopoverViewState
     let startTime: Date?
     let endTime: Date?
+    let allowsLiveCurrentSessionUpdates: Bool
 }
 
 struct MainPopoverViewState {

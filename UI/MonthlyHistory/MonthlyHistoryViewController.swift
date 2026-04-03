@@ -17,6 +17,9 @@ private final class MonthlyHistoryDayCellView: NSView {
     private let statusLabel = NSTextField(labelWithString: "")
     private let annotationLabel = NSTextField(labelWithString: "")
     private var activity: MonthlyHistoryDayCellActivity = .outsideMonth
+    private var selectedDate: Date?
+    private var isSelectable = false
+    var onSelect: ((Date) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -64,6 +67,8 @@ private final class MonthlyHistoryDayCellView: NSView {
     }
 
     func apply(_ state: MonthlyHistoryDayCellViewState) {
+        selectedDate = state.date
+        isSelectable = state.isSelectable
         activity = state.activity
         dayLabel.stringValue = state.dayText
         statusLabel.stringValue = state.statusText
@@ -185,6 +190,20 @@ private final class MonthlyHistoryDayCellView: NSView {
         return annotationLabel.frame.maxX > bounds.maxX - 6
             || annotationLabel.frame.maxY > bounds.maxY - 6
     }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isSelectable, let selectedDate else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        onSelect?(selectedDate)
+    }
+
+    func simulateSelect() {
+        guard isSelectable, let selectedDate else { return }
+        onSelect?(selectedDate)
+    }
 }
 
 @MainActor
@@ -200,6 +219,7 @@ final class MonthlyHistoryViewController: NSViewController {
 
     var onNavigatePrevious: (() -> Void)?
     var onNavigateNext: (() -> Void)?
+    var onSelectDay: ((Date) -> Void)?
 
     private let previousButton = NSButton(title: "", target: nil, action: nil)
     private let nextButton = NSButton(title: "", target: nil, action: nil)
@@ -372,6 +392,9 @@ final class MonthlyHistoryViewController: NSViewController {
         }
         syncCells(count: state.cells.count)
         zip(dayCellViews, state.cells).forEach { cellView, cellState in
+            cellView.onSelect = { [weak self] selectedDate in
+                self?.onSelectDay?(selectedDate)
+            }
             cellView.apply(cellState)
         }
     }
@@ -397,6 +420,11 @@ final class MonthlyHistoryViewController: NSViewController {
 
     func simulateNavigateNext() {
         handleNavigateNext()
+    }
+
+    func simulateSelectDay(at index: Int) {
+        guard dayCellViews.indices.contains(index) else { return }
+        dayCellViews[index].simulateSelect()
     }
 
     @objc

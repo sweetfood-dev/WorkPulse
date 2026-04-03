@@ -64,6 +64,47 @@ struct MainPopoverDetailNavigationTests {
 
     @Test
     @MainActor
+    func viewControllerEmitsSelectedReferenceDateFromWeeklyDetail() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let selectedDate = try #require(makeDate("2026-03-31T00:00:00+09:00"))
+        var openedDate: Date?
+
+        controller.onOpenReferenceDate = { openedDate = $0 }
+        controller.loadViewIfNeeded()
+        controller.showWeeklyDetail(
+            MainPopoverWeeklyProgressViewState(
+                titleText: "Weekly Progress",
+                weekText: "Week 14",
+                totalDurationText: "16:00",
+                statusText: "24h 00m remaining to 40h",
+                progressFraction: 0.4,
+                visualState: .normal,
+                days: [
+                    MainPopoverWeeklyProgressDayViewState(
+                        date: selectedDate,
+                        dayText: "Tue 31",
+                        timeRangeText: "09:00 - 18:00",
+                        workedText: "08:00",
+                        annotationText: nil,
+                        dayCategory: .weekday,
+                        progressFraction: 1,
+                        isToday: false,
+                        isSelectable: true
+                    )
+                ]
+            )
+        )
+
+        controller.simulateSelectWeeklyDetailDay(at: 0)
+
+        #expect(openedDate == selectedDate)
+    }
+
+    @Test
+    @MainActor
     func viewControllerShowsMonthlyDetailNavigatesMonthsAndReturnsToMain() throws {
         let controller = MainPopoverViewController(
             state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
@@ -104,6 +145,60 @@ struct MainPopoverDetailNavigationTests {
 
         controller.showMainView()
         #expect(controller.snapshot.isShowingMonthlyDetail == false)
+    }
+
+    @Test
+    @MainActor
+    func viewControllerEmitsSelectedReferenceDateFromMonthlyDetail() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let selectedDate = try #require(makeDate("2026-04-02T00:00:00+09:00"))
+        var openedDate: Date?
+
+        controller.onOpenReferenceDate = { openedDate = $0 }
+        controller.loadViewIfNeeded()
+        controller.showMonthlyHistory(
+            MonthlyHistoryViewState(
+                referenceDate: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+                titleText: "MONTHLY HISTORY",
+                monthText: "April 2026",
+                weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                totalLabelText: "Monthly Total",
+                totalDurationText: "7h 51m",
+                cells: [
+                    MonthlyHistoryDayCellViewState(
+                        dayText: "",
+                        statusText: "",
+                        annotationText: nil,
+                        activity: .outsideMonth,
+                        dayCategory: .weekday,
+                        isDimmed: false,
+                        isSelectable: false
+                    ),
+                    MonthlyHistoryDayCellViewState(
+                        date: selectedDate,
+                        dayText: "2",
+                        statusText: "Active",
+                        annotationText: nil,
+                        activity: .active,
+                        dayCategory: .weekday,
+                        isDimmed: false,
+                        isSelectable: true
+                    ),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false, isSelectable: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false, isSelectable: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false, isSelectable: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false, isSelectable: false),
+                    MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false, isSelectable: false),
+                ]
+            )
+        )
+
+        controller.simulateSelectMonthlyDetailDay(at: 1)
+
+        #expect(openedDate == selectedDate)
     }
 
     @Test

@@ -32,6 +32,7 @@ final class MainPopoverViewController: NSViewController {
     var onApplyEditedTimes: ((Date?, Date?) -> Void)?
     var onOpenWeeklyProgress: (() -> Void)?
     var onOpenMonthlyHistory: (() -> Void)?
+    var onOpenReferenceDate: ((Date) -> Void)?
 
     private let headerSectionView = MainPopoverHeaderSectionView()
     private let currentSessionSectionView = MainPopoverCurrentSessionSectionView()
@@ -98,11 +99,17 @@ final class MainPopoverViewController: NSViewController {
         weeklyDetailSectionView.onBack = { [weak self] in
             self?.showMainView()
         }
+        weeklyDetailSectionView.onSelectDay = { [weak self] selectedDate in
+            self?.onOpenReferenceDate?(selectedDate)
+        }
         monthlyHistoryViewController.onNavigatePrevious = { [weak self] in
             self?.onNavigateMonthlyHistory?(-1)
         }
         monthlyHistoryViewController.onNavigateNext = { [weak self] in
             self?.onNavigateMonthlyHistory?(1)
+        }
+        monthlyHistoryViewController.onSelectDay = { [weak self] selectedDate in
+            self?.onOpenReferenceDate?(selectedDate)
         }
     }
 
@@ -209,7 +216,16 @@ final class MainPopoverViewController: NSViewController {
         state = intent.viewState
         todayTimesBinder.loadSavedTimes(startTime: intent.startTime, endTime: intent.endTime)
         currentSessionBinder.load(viewState: intent.viewState)
-        currentSessionBinder.begin(startTime: intent.startTime, endTime: intent.endTime)
+
+        if intent.allowsLiveCurrentSessionUpdates {
+            currentSessionBinder.begin(startTime: intent.startTime, endTime: intent.endTime)
+        } else if intent.endTime != nil {
+            currentSessionBinder.stop()
+            currentSessionBinder.apply(startTime: intent.startTime, endTime: intent.endTime)
+        } else {
+            currentSessionBinder.stop()
+        }
+
         render()
     }
 
@@ -255,6 +271,14 @@ final class MainPopoverViewController: NSViewController {
 
     func simulateMonthlyNavigateNext() {
         monthlyHistoryViewController.simulateNavigateNext()
+    }
+
+    func simulateSelectWeeklyDetailDay(at index: Int) {
+        weeklyDetailSectionView.simulateSelectDay(at: index)
+    }
+
+    func simulateSelectMonthlyDetailDay(at index: Int) {
+        monthlyHistoryViewController.simulateSelectDay(at: index)
     }
 
     var isShowingWeeklyDetail: Bool {
