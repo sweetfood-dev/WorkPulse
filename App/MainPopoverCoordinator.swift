@@ -120,7 +120,7 @@ final class MainPopoverCoordinator {
     }
 
     private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
-        let referenceDate = editableReferenceDate()
+        let referenceDate = selectedReferenceDate()
         do {
             try recordStore.upsertRecord(
                 AttendanceRecord(
@@ -136,14 +136,6 @@ final class MainPopoverCoordinator {
     }
 
     private func selectedReferenceDate() -> Date {
-        if isPinnedReferenceDate {
-            return displayedReferenceDate ?? runtimeDependencies.currentDateProvider()
-        }
-
-        return currentReferenceDateForPopoverOpen()
-    }
-
-    private func editableReferenceDate() -> Date {
         if isPinnedReferenceDate {
             return displayedReferenceDate ?? runtimeDependencies.currentDateProvider()
         }
