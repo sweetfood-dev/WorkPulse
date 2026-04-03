@@ -150,9 +150,12 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
     private enum LayoutMetrics {
         static let topInset: CGFloat = 18
-        static let backToCardSpacing: CGFloat = 12
-        static let cardToRowsSpacing: CGFloat = 18
+        static let backToCardSpacing: CGFloat = 10
+        static let cardToRowsSpacing: CGFloat = 14
         static let bottomInset: CGFloat = 20
+        static let cardPadding: CGFloat = 18
+        static let cardContentSpacing: CGFloat = 14
+        static let statusVerticalPadding: CGFloat = 8
     }
 
     var onBack: (() -> Void)?
@@ -179,6 +182,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
     private var detailEditorTopConstraint: NSLayoutConstraint?
     private var detailEditorBottomConstraint: NSLayoutConstraint?
     private var rowsBottomConstraint: NSLayoutConstraint?
+    private var cardHeightConstraint: NSLayoutConstraint?
     private var isEditorVisible = false
 
     init(copy: MainPopoverCopy = .english) {
@@ -211,6 +215,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         }
         detailEditorView.apply(editorState)
         applyEditorLayout(isVisible: editorState != nil)
+        updateCardHeight()
         logGeometry(reason: "apply")
     }
 
@@ -283,6 +288,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
         cardView.wantsLayer = true
+        cardView.setContentHuggingPriority(.required, for: .vertical)
+        cardView.setContentCompressionResistancePriority(.required, for: .vertical)
         cardView.layer?.backgroundColor = MainPopoverStyle.Colors.weeklyProgressCardBackground.cgColor
         cardView.layer?.cornerRadius = MainPopoverStyle.Metrics.weeklyProgressCardCornerRadius
         cardView.layer?.borderWidth = 1
@@ -295,7 +302,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         let cardContent = NSStackView()
         cardContent.orientation = .vertical
         cardContent.alignment = .leading
-        cardContent.spacing = 20
+        cardContent.spacing = LayoutMetrics.cardContentSpacing
         cardContent.translatesAutoresizingMaskIntoConstraints = false
 
         titleIconView.image = NSImage(systemSymbolName: "chart.line.uptrend.xyaxis", accessibilityDescription: nil)
@@ -331,6 +338,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         statusContainer.translatesAutoresizingMaskIntoConstraints = false
         statusContainer.wantsLayer = true
+        statusContainer.setContentHuggingPriority(.required, for: .vertical)
+        statusContainer.setContentCompressionResistancePriority(.required, for: .vertical)
         statusContainer.layer?.cornerRadius = MainPopoverStyle.Metrics.weeklyProgressStatusCornerRadius
         statusContainer.layer?.borderWidth = 1
 
@@ -356,6 +365,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         rowsStack.alignment = .leading
         rowsStack.spacing = MainPopoverStyle.Metrics.weeklyDetailRowSpacing
         rowsStack.translatesAutoresizingMaskIntoConstraints = false
+        rowsStack.setContentHuggingPriority(.required, for: .vertical)
+        rowsStack.setContentCompressionResistancePriority(.required, for: .vertical)
 
         detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime in
             self?.onApplyEditedDayTimes?(date, startTime, endTime)
@@ -370,8 +381,10 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         self.detailEditorTopConstraint = detailEditorTopConstraint
         let detailEditorBottomConstraint = detailEditorView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -LayoutMetrics.bottomInset)
         self.detailEditorBottomConstraint = detailEditorBottomConstraint
-        let rowsBottomConstraint = rowsStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -LayoutMetrics.bottomInset)
+        let rowsBottomConstraint = rowsStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -LayoutMetrics.bottomInset)
         self.rowsBottomConstraint = rowsBottomConstraint
+        let cardHeightConstraint = cardView.heightAnchor.constraint(equalToConstant: 0)
+        self.cardHeightConstraint = cardHeightConstraint
 
         NSLayoutConstraint.activate([
             backButton.topAnchor.constraint(equalTo: topAnchor, constant: LayoutMetrics.topInset),
@@ -380,6 +393,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             cardView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: LayoutMetrics.backToCardSpacing),
             cardView.centerXAnchor.constraint(equalTo: centerXAnchor),
             cardView.widthAnchor.constraint(equalToConstant: MainPopoverStyle.Metrics.weeklyProgressCardWidth),
+            cardHeightConstraint,
             rowsStack.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: LayoutMetrics.cardToRowsSpacing),
             rowsStack.centerXAnchor.constraint(equalTo: centerXAnchor),
             rowsStack.widthAnchor.constraint(equalTo: cardView.widthAnchor),
@@ -387,20 +401,21 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             detailEditorView.widthAnchor.constraint(equalTo: cardView.widthAnchor),
             rowsBottomConstraint,
 
-            cardContent.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 24),
-            cardContent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 24),
-            cardContent.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -24),
-            cardContent.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -24),
+            cardContent.topAnchor.constraint(equalTo: cardView.topAnchor, constant: LayoutMetrics.cardPadding),
+            cardContent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: LayoutMetrics.cardPadding),
+            cardContent.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -LayoutMetrics.cardPadding),
+            cardContent.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -LayoutMetrics.cardPadding),
 
             progressBar.widthAnchor.constraint(equalTo: cardContent.widthAnchor),
             statusContainer.widthAnchor.constraint(equalTo: cardContent.widthAnchor),
 
-            statusRow.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: 11),
+            statusRow.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: LayoutMetrics.statusVerticalPadding),
             statusRow.centerXAnchor.constraint(equalTo: statusContainer.centerXAnchor),
-            statusRow.bottomAnchor.constraint(equalTo: statusContainer.bottomAnchor, constant: -11),
+            statusRow.bottomAnchor.constraint(equalTo: statusContainer.bottomAnchor, constant: -LayoutMetrics.statusVerticalPadding),
         ])
 
         applyEditorLayout(isVisible: false)
+        updateCardHeight()
     }
 
     private func applyEditorLayout(isVisible: Bool) {
@@ -444,6 +459,20 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             statusContainer.layer?.backgroundColor = MainPopoverStyle.Colors.weeklyProgressWarningStatusBackground.cgColor
             statusContainer.layer?.borderColor = MainPopoverStyle.Colors.weeklyProgressWarningStatusBorder.cgColor
         }
+    }
+
+    private func updateCardHeight() {
+        layoutSubtreeIfNeeded()
+        statusContainer.layoutSubtreeIfNeeded()
+
+        let contentHeight =
+            ceil(headerRow.fittingSize.height)
+            + LayoutMetrics.cardContentSpacing
+            + MainPopoverStyle.Metrics.weeklyProgressBarHeight
+            + LayoutMetrics.cardContentSpacing
+            + ceil(statusContainer.fittingSize.height)
+
+        cardHeightConstraint?.constant = LayoutMetrics.cardPadding * 2 + contentHeight
     }
 
     private func syncRows(count: Int) {
