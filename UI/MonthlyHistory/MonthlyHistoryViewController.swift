@@ -239,6 +239,14 @@ final class MonthlyHistoryViewController: NSViewController {
     private var detailEditorTopConstraint: NSLayoutConstraint?
 
     static func requiredHeight(forRowCount rowCount: Int) -> CGFloat {
+        requiredHeight(forRowCount: rowCount, editorHeight: 0, editorSpacing: 0)
+    }
+
+    static func requiredHeight(
+        forRowCount rowCount: Int,
+        editorHeight: CGFloat,
+        editorSpacing: CGFloat
+    ) -> CGFloat {
         let safeRowCount = max(rowCount, 1)
         let gridHeight = CGFloat(safeRowCount) * MainPopoverStyle.Metrics.monthlyHistoryCellHeight
             + CGFloat(safeRowCount - 1) * MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
@@ -249,6 +257,8 @@ final class MonthlyHistoryViewController: NSViewController {
             + LayoutMetrics.weekdayRowHeight
             + LayoutMetrics.weekdayToGridSpacing
             + gridHeight
+            + editorSpacing
+            + editorHeight
             + LayoutMetrics.contentBottomInset
     }
 
@@ -463,6 +473,26 @@ final class MonthlyHistoryViewController: NSViewController {
 
     func applyEditingSelectedDay() {
         detailEditorView.applyEditing()
+    }
+
+    func requiredHeight() -> CGFloat {
+        view.layoutSubtreeIfNeeded()
+
+        let editorHeight: CGFloat
+        let editorSpacing: CGFloat
+        if detailEditorView.snapshot.isVisible {
+            editorSpacing = detailEditorTopConstraint?.constant ?? 0
+            editorHeight = ceil(detailEditorView.fittingSize.height)
+        } else {
+            editorSpacing = 0
+            editorHeight = 0
+        }
+
+        return Self.requiredHeight(
+            forRowCount: max(gridRows.arrangedSubviews.count, 1),
+            editorHeight: editorHeight,
+            editorSpacing: editorSpacing
+        )
     }
 
     @objc

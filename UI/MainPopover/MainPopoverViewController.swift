@@ -402,8 +402,10 @@ final class MainPopoverViewController: NSViewController {
     private func applyPreferredPopoverSize(_ size: NSSize) {
         preferredContentSize = size
         guard isViewLoaded else { return }
-        view.frame = NSRect(origin: .zero, size: size)
-        view.bounds = NSRect(origin: .zero, size: size)
+        if view.superview == nil {
+            view.frame = NSRect(origin: .zero, size: size)
+        }
+        view.bounds = NSRect(origin: .zero, size: view.bounds.size)
         view.layoutSubtreeIfNeeded()
     }
 
@@ -412,18 +414,22 @@ final class MainPopoverViewController: NSViewController {
             width: MainPopoverStyle.Metrics.popoverSize.width,
             height: max(
                 MainPopoverStyle.Metrics.popoverSize.height,
-                ceil(weeklyDetailSectionView.fittingSize.height)
+                ceil(weeklyDetailSectionView.requiredHeight())
             )
         )
     }
 
     private func monthlyHistoryPopoverSize() -> NSSize {
-        monthlyDetailContainerView.layoutSubtreeIfNeeded()
         return NSSize(
             width: MainPopoverStyle.Metrics.popoverSize.width,
             height: max(
                 MainPopoverStyle.Metrics.popoverSize.height,
-                ceil(monthlyDetailContainerView.fittingSize.height)
+                ceil(
+                    LayoutMetrics.monthlyDetailTopInset
+                        + monthlyDetailBackButton.fittingSize.height
+                        + LayoutMetrics.monthlyDetailSpacingAfterBackButton
+                        + monthlyHistoryViewController.requiredHeight()
+                )
             )
         )
     }

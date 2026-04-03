@@ -180,6 +180,53 @@ struct MainPopoverDetailNavigationTests {
 
     @Test
     @MainActor
+    func weeklyInlineEditorDoesNotAccumulatePopoverHeightAcrossSelections() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "16:00",
+            statusText: "24h 00m remaining to 40h",
+            progressFraction: 0.4,
+            visualState: .normal,
+            days: makeWeeklyProgressDays()
+        )
+        let firstEditorState = MainPopoverDetailDayEditingState(
+            referenceDate: try #require(makeDate("2026-03-31T00:00:00+09:00")),
+            dateText: "Tuesday, Mar 31",
+            startTimeText: "08:24",
+            endTimeText: "17:30",
+            startTime: try #require(makeDate("2026-03-31T08:24:00+09:00")),
+            endTime: try #require(makeDate("2026-03-31T17:30:00+09:00")),
+            fallbackStartTime: try #require(makeDate("2026-03-31T08:24:00+09:00")),
+            fallbackEndTime: try #require(makeDate("2026-03-31T17:30:00+09:00"))
+        )
+        let secondEditorState = MainPopoverDetailDayEditingState(
+            referenceDate: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+            dateText: "Wednesday, Apr 1",
+            startTimeText: "08:45",
+            endTimeText: "17:36",
+            startTime: try #require(makeDate("2026-04-01T08:45:00+09:00")),
+            endTime: try #require(makeDate("2026-04-01T17:36:00+09:00")),
+            fallbackStartTime: try #require(makeDate("2026-04-01T08:45:00+09:00")),
+            fallbackEndTime: try #require(makeDate("2026-04-01T17:36:00+09:00"))
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showWeeklyDetail(weeklyState, editorState: firstEditorState)
+        let firstHeight = controller.preferredContentSize.height
+
+        controller.showWeeklyDetail(weeklyState, editorState: secondEditorState)
+        let secondHeight = controller.preferredContentSize.height
+
+        #expect(firstHeight == secondHeight)
+    }
+
+    @Test
+    @MainActor
     func viewControllerShowsMonthlyDetailNavigatesMonthsAndReturnsToMain() throws {
         let controller = MainPopoverViewController(
             state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
@@ -311,6 +358,53 @@ struct MainPopoverDetailNavigationTests {
         #expect(controller.snapshot.isShowingMonthlyDetail)
         #expect(controller.snapshot.monthlyDetail.isShowingEditor)
         #expect(controller.snapshot.monthlyDetail.editorDateText == "Thursday, Apr 2")
+    }
+
+    @Test
+    @MainActor
+    func monthlyInlineEditorDoesNotAccumulatePopoverHeightAcrossSelections() throws {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let monthlyState = MonthlyHistoryViewState(
+            referenceDate: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+            titleText: "MONTHLY HISTORY",
+            monthText: "April 2026",
+            weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+            totalLabelText: "Monthly Total",
+            totalDurationText: "7h 51m",
+            cells: makeMonthlyHistoryCells(dayCount: 35)
+        )
+        let firstEditorState = MainPopoverDetailDayEditingState(
+            referenceDate: try #require(makeDate("2026-04-02T00:00:00+09:00")),
+            dateText: "Thursday, Apr 2",
+            startTimeText: "08:10",
+            endTimeText: "--:--",
+            startTime: try #require(makeDate("2026-04-02T08:10:00+09:00")),
+            endTime: nil,
+            fallbackStartTime: try #require(makeDate("2026-04-02T08:10:00+09:00")),
+            fallbackEndTime: try #require(makeDate("2026-04-02T18:00:00+09:00"))
+        )
+        let secondEditorState = MainPopoverDetailDayEditingState(
+            referenceDate: try #require(makeDate("2026-04-03T00:00:00+09:00")),
+            dateText: "Friday, Apr 3",
+            startTimeText: "08:24",
+            endTimeText: "17:30",
+            startTime: try #require(makeDate("2026-04-03T08:24:00+09:00")),
+            endTime: try #require(makeDate("2026-04-03T17:30:00+09:00")),
+            fallbackStartTime: try #require(makeDate("2026-04-03T08:24:00+09:00")),
+            fallbackEndTime: try #require(makeDate("2026-04-03T17:30:00+09:00"))
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showMonthlyHistory(monthlyState, editorState: firstEditorState)
+        let firstHeight = controller.preferredContentSize.height
+
+        controller.showMonthlyHistory(monthlyState, editorState: secondEditorState)
+        let secondHeight = controller.preferredContentSize.height
+
+        #expect(firstHeight == secondHeight)
     }
 
     @Test
@@ -642,4 +736,101 @@ private func makeCalendar(timeZone: TimeZone) -> Calendar {
     calendar.timeZone = timeZone
     calendar.locale = Locale(identifier: "ko_KR")
     return calendar
+}
+
+private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState] {
+    [
+        MainPopoverWeeklyProgressDayViewState(
+            date: makeDate("2026-03-29T00:00:00+09:00")!,
+            dayText: "Sun 29",
+            timeRangeText: "—:— - —:—",
+            workedText: "--",
+            annotationText: nil,
+            dayCategory: .weekend,
+            progressFraction: 0,
+            isToday: false,
+            isSelectable: true
+        ),
+        MainPopoverWeeklyProgressDayViewState(
+            date: makeDate("2026-03-30T00:00:00+09:00")!,
+            dayText: "Mon 30",
+            timeRangeText: "08:00 - 17:30",
+            workedText: "08:29",
+            annotationText: nil,
+            dayCategory: .weekday,
+            progressFraction: 1,
+            isToday: false,
+            isSelectable: true
+        ),
+        MainPopoverWeeklyProgressDayViewState(
+            date: makeDate("2026-03-31T00:00:00+09:00")!,
+            dayText: "Tue 31",
+            timeRangeText: "08:24 - 17:30",
+            workedText: "08:05",
+            annotationText: nil,
+            dayCategory: .weekday,
+            progressFraction: 1,
+            isToday: false,
+            isSelectable: true
+        ),
+        MainPopoverWeeklyProgressDayViewState(
+            date: makeDate("2026-04-01T00:00:00+09:00")!,
+            dayText: "Wed 1",
+            timeRangeText: "08:45 - 17:36",
+            workedText: "07:51",
+            annotationText: nil,
+            dayCategory: .weekday,
+            progressFraction: 0.98,
+            isToday: false,
+            isSelectable: true
+        ),
+        MainPopoverWeeklyProgressDayViewState(
+            date: makeDate("2026-04-02T00:00:00+09:00")!,
+            dayText: "Thu 2",
+            timeRangeText: "08:22 - 18:31",
+            workedText: "09:08",
+            annotationText: nil,
+            dayCategory: .weekday,
+            progressFraction: 1,
+            isToday: false,
+            isSelectable: true
+        ),
+        MainPopoverWeeklyProgressDayViewState(
+            date: makeDate("2026-04-03T00:00:00+09:00")!,
+            dayText: "Fri 3",
+            timeRangeText: "08:10 - --:--",
+            workedText: "03:38",
+            annotationText: nil,
+            dayCategory: .weekday,
+            progressFraction: 0.45,
+            isToday: true,
+            isSelectable: true
+        ),
+        MainPopoverWeeklyProgressDayViewState(
+            date: makeDate("2026-04-04T00:00:00+09:00")!,
+            dayText: "Sat 4",
+            timeRangeText: "—:— - —:—",
+            workedText: "--",
+            annotationText: nil,
+            dayCategory: .weekend,
+            progressFraction: 0,
+            isToday: false,
+            isSelectable: true
+        ),
+    ]
+}
+
+private func makeMonthlyHistoryCells(dayCount: Int) -> [MonthlyHistoryDayCellViewState] {
+    (1...dayCount).map { index in
+        MonthlyHistoryDayCellViewState(
+            date: makeDate(String(format: "2026-04-%02dT00:00:00+09:00", index)),
+            dayText: "\(index)",
+            statusText: index == 2 ? "Active" : (index == 3 ? "08:05" : "—"),
+            annotationText: nil,
+            activity: index == 2 ? .active : (index == 3 ? .worked : .empty),
+            dayCategory: .weekday,
+            isDimmed: index > 7,
+            isSelectable: true
+        )
+    }
 }

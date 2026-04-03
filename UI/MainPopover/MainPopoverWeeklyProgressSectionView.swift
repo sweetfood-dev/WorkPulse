@@ -145,6 +145,13 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
 
 @MainActor
 final class MainPopoverWeeklyProgressSectionView: NSView {
+    private enum LayoutMetrics {
+        static let topInset: CGFloat = 18
+        static let backToCardSpacing: CGFloat = 12
+        static let cardToRowsSpacing: CGFloat = 18
+        static let bottomInset: CGFloat = 20
+    }
+
     var onBack: (() -> Void)?
     var onSelectDay: ((Date) -> Void)?
     var onApplyEditedDayTimes: ((Date, Date?, Date?) -> Void)?
@@ -230,6 +237,27 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
     func applyEditingSelectedDay() {
         detailEditorView.applyEditing()
+    }
+
+    func requiredHeight() -> CGFloat {
+        layoutSubtreeIfNeeded()
+
+        let editorHeight: CGFloat
+        if detailEditorView.snapshot.isVisible {
+            editorHeight = (detailEditorTopConstraint?.constant ?? 0)
+                + ceil(detailEditorView.fittingSize.height)
+        } else {
+            editorHeight = 0
+        }
+
+        return LayoutMetrics.topInset
+            + ceil(backButton.fittingSize.height)
+            + LayoutMetrics.backToCardSpacing
+            + ceil(cardView.fittingSize.height)
+            + LayoutMetrics.cardToRowsSpacing
+            + ceil(rowsStack.fittingSize.height)
+            + editorHeight
+            + LayoutMetrics.bottomInset
     }
 
     @objc
@@ -335,19 +363,19 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         self.detailEditorTopConstraint = detailEditorTopConstraint
 
         NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: topAnchor, constant: 18),
+            backButton.topAnchor.constraint(equalTo: topAnchor, constant: LayoutMetrics.topInset),
             backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
 
-            cardView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 12),
+            cardView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: LayoutMetrics.backToCardSpacing),
             cardView.centerXAnchor.constraint(equalTo: centerXAnchor),
             cardView.widthAnchor.constraint(equalToConstant: MainPopoverStyle.Metrics.weeklyProgressCardWidth),
-            rowsStack.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: 18),
+            rowsStack.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: LayoutMetrics.cardToRowsSpacing),
             rowsStack.centerXAnchor.constraint(equalTo: centerXAnchor),
             rowsStack.widthAnchor.constraint(equalTo: cardView.widthAnchor),
             detailEditorTopConstraint,
             detailEditorView.centerXAnchor.constraint(equalTo: centerXAnchor),
             detailEditorView.widthAnchor.constraint(equalTo: cardView.widthAnchor),
-            detailEditorView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -20),
+            detailEditorView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -LayoutMetrics.bottomInset),
 
             cardContent.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 24),
             cardContent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 24),
