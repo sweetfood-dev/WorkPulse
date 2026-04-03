@@ -513,6 +513,17 @@ final class MainPopoverViewController: NSViewController {
     }
 
     var routeConstraintCountForTesting: Int {
-        0
+        let routeViews = [
+            mainContentView,
+            weeklyDetailSectionView,
+            monthlyDetailContainerView,
+        ]
+
+        return routeContainerView.constraints.filter { constraint in
+            routeViews.contains { routeView in
+                (constraint.firstItem as AnyObject?) === routeView
+                    || (constraint.secondItem as AnyObject?) === routeView
+            }
+        }.count
     }
 }
