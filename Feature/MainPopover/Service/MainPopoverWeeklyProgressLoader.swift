@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 
 struct MainPopoverWeeklyProgressDayViewState {
+    let date: Date
     let dayText: String
     let timeRangeText: String
     let workedText: String
@@ -9,6 +10,29 @@ struct MainPopoverWeeklyProgressDayViewState {
     let dayCategory: CalendarDayCategory
     let progressFraction: CGFloat
     let isToday: Bool
+    let isSelectable: Bool
+
+    init(
+        date: Date = Date(timeIntervalSince1970: 0),
+        dayText: String,
+        timeRangeText: String,
+        workedText: String,
+        annotationText: String?,
+        dayCategory: CalendarDayCategory,
+        progressFraction: CGFloat,
+        isToday: Bool,
+        isSelectable: Bool = true
+    ) {
+        self.date = date
+        self.dayText = dayText
+        self.timeRangeText = timeRangeText
+        self.workedText = workedText
+        self.annotationText = annotationText
+        self.dayCategory = dayCategory
+        self.progressFraction = progressFraction
+        self.isToday = isToday
+        self.isSelectable = isSelectable
+    }
 }
 
 struct MainPopoverWeeklyProgressViewState {
@@ -68,6 +92,7 @@ struct MainPopoverWeeklyProgressLoader {
     func load(referenceDate: Date) -> MainPopoverWeeklyProgressViewState {
         let weekDates = makeWeekDates(for: referenceDate)
         let currentDate = currentDateProvider()
+        let currentDayStart = calendar.startOfDay(for: currentDate)
         let dayStatesWithDuration = weekDates.map { date in
             let record = recordStore.record(on: date, calendar: calendar)
             let metadata = calendarDayMetadataProvider.metadata(for: date)
@@ -79,13 +104,15 @@ struct MainPopoverWeeklyProgressLoader {
 
             return (
                 MainPopoverWeeklyProgressDayViewState(
+                    date: date,
                     dayText: dayFormatter.string(from: date),
                     timeRangeText: makeTimeRangeText(record: record),
                     workedText: formatWorkedDuration(duration),
                     annotationText: metadata.holiday?.annotationText,
                     dayCategory: metadata.category,
                     progressFraction: dailyProgressFraction(for: duration),
-                    isToday: calendar.isDate(date, inSameDayAs: referenceDate)
+                    isToday: calendar.isDate(date, inSameDayAs: referenceDate),
+                    isSelectable: calendar.startOfDay(for: date) <= currentDayStart
                 ),
                 duration
             )

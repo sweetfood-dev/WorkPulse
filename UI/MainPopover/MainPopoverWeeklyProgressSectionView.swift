@@ -9,6 +9,8 @@ struct MainPopoverWeeklyProgressSectionSnapshot {
     let annotationTexts: [String]
     let isShowingBackButton: Bool
     let isWarningState: Bool
+    let isShowingEditor: Bool
+    let editorDateText: String
 }
 
 private final class MainPopoverWeeklyProgressDayRowView: NSView {
@@ -19,6 +21,9 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     private let progressBar = CurrentSessionProgressBarView()
     private let row = NSStackView()
     private let contentStack = NSStackView()
+    private var selectedDate: Date?
+    private var isSelectable = false
+    var onSelect: ((Date) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -82,6 +87,8 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     }
 
     func apply(_ state: MainPopoverWeeklyProgressDayViewState) {
+        selectedDate = state.date
+        isSelectable = state.isSelectable
         dayLabel.stringValue = state.dayText
         annotationLabel.stringValue = state.annotationText ?? ""
         annotationLabel.isHidden = state.annotationText == nil
@@ -104,6 +111,20 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
             ?? MainPopoverStyle.Colors.secondaryText
     }
 
+    override func mouseDown(with event: NSEvent) {
+        guard isSelectable, let selectedDate else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        onSelect?(selectedDate)
+    }
+
+    func simulateSelect() {
+        guard isSelectable, let selectedDate else { return }
+        onSelect?(selectedDate)
+    }
+
     private func accentColor(for category: CalendarDayCategory) -> NSColor? {
         switch category {
         case .weekday:
@@ -124,7 +145,22 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
 
 @MainActor
 final class MainPopoverWeeklyProgressSectionView: NSView {
+    private static let isGeometryDebugEnabled =
+        ProcessInfo.processInfo.environment["WORKPULSE_DEBUG_POPOVER_GEOMETRY"] == "1"
+
+    private enum LayoutMetrics {
+        static let topInset: CGFloat = 18
+        static let backToCardSpacing: CGFloat = 10
+        static let cardToRowsSpacing: CGFloat = 14
+        static let bottomInset: CGFloat = 20
+        static let cardPadding: CGFloat = 18
+        static let cardContentSpacing: CGFloat = 14
+        static let statusVerticalPadding: CGFloat = 8
+    }
+
     var onBack: (() -> Void)?
+    var onSelectDay: ((Date) -> Void)?
+    var onApplyEditedDayTimes: ((Date, Date?, Date?) -> Void)?
 
     private let backButton = NSButton(title: "", target: nil, action: nil)
     private let cardView = NSView()
@@ -139,9 +175,15 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
     private let statusContainer = NSView()
     private let statusRow = NSStackView()
     private let rowsStack = NSStackView()
+    private let detailEditorView = MainPopoverDetailDayEditorView()
 
     private var isWarningState = false
     private var rowViews: [MainPopoverWeeklyProgressDayRowView] = []
+    private var detailEditorTopConstraint: NSLayoutConstraint?
+    private var detailEditorBottomConstraint: NSLayoutConstraint?
+    private var rowsBottomConstraint: NSLayoutConstraint?
+    private var cardHeightConstraint: NSLayoutConstraint?
+    private var isEditorVisible = false
 
     init(copy: MainPopoverCopy = .english) {
         super.init(frame: .zero)
@@ -154,7 +196,10 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func apply(_ state: MainPopoverWeeklyProgressViewState) {
+    func apply(
+        _ state: MainPopoverWeeklyProgressViewState,
+        editorState: MainPopoverDetailDayEditingState? = nil
+    ) {
         titleLabel.stringValue = state.titleText
         weekLabel.stringValue = state.weekText
         statusLabel.stringValue = state.statusText
@@ -163,8 +208,15 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         syncRows(count: state.days.count)
 
         zip(rowViews, state.days).forEach { row, day in
+            row.onSelect = { [weak self] selectedDate in
+                self?.onSelectDay?(selectedDate)
+            }
             row.apply(day)
         }
+        detailEditorView.apply(editorState)
+        applyEditorLayout(isVisible: editorState != nil)
+        updateCardHeight()
+        logGeometry(reason: "apply")
     }
 
     var snapshot: MainPopoverWeeklyProgressSectionSnapshot {
@@ -176,8 +228,48 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             dayCount: rowViews.count,
             annotationTexts: rowViews.map(\.annotationText).filter { $0.isEmpty == false },
             isShowingBackButton: backButton.isHidden == false,
-            isWarningState: isWarningState
+            isWarningState: isWarningState,
+            isShowingEditor: isEditorVisible,
+            editorDateText: detailEditorView.snapshot.dateText
         )
+    }
+
+    func simulateSelectDay(at index: Int) {
+        guard rowViews.indices.contains(index) else { return }
+        rowViews[index].simulateSelect()
+    }
+
+    func beginEditingSelectedDay(_ field: TodayTimeField) {
+        detailEditorView.beginEditing(field)
+    }
+
+    func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
+        detailEditorView.setEditingPickerDate(date, for: field)
+    }
+
+    func applyEditingSelectedDay() {
+        detailEditorView.applyEditing()
+    }
+
+    func requiredHeight() -> CGFloat {
+        layoutSubtreeIfNeeded()
+
+        let editorHeight: CGFloat
+        if isEditorVisible {
+            editorHeight = (detailEditorTopConstraint?.constant ?? 0)
+                + ceil(detailEditorView.fittingSize.height)
+        } else {
+            editorHeight = 0
+        }
+
+        return LayoutMetrics.topInset
+            + ceil(backButton.fittingSize.height)
+            + LayoutMetrics.backToCardSpacing
+            + ceil(cardView.fittingSize.height)
+            + LayoutMetrics.cardToRowsSpacing
+            + ceil(rowsStack.fittingSize.height)
+            + editorHeight
+            + LayoutMetrics.bottomInset
     }
 
     @objc
@@ -196,6 +288,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
         cardView.wantsLayer = true
+        cardView.setContentHuggingPriority(.required, for: .vertical)
+        cardView.setContentCompressionResistancePriority(.required, for: .vertical)
         cardView.layer?.backgroundColor = MainPopoverStyle.Colors.weeklyProgressCardBackground.cgColor
         cardView.layer?.cornerRadius = MainPopoverStyle.Metrics.weeklyProgressCardCornerRadius
         cardView.layer?.borderWidth = 1
@@ -208,7 +302,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         let cardContent = NSStackView()
         cardContent.orientation = .vertical
         cardContent.alignment = .leading
-        cardContent.spacing = 20
+        cardContent.spacing = LayoutMetrics.cardContentSpacing
         cardContent.translatesAutoresizingMaskIntoConstraints = false
 
         titleIconView.image = NSImage(systemSymbolName: "chart.line.uptrend.xyaxis", accessibilityDescription: nil)
@@ -244,6 +338,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         statusContainer.translatesAutoresizingMaskIntoConstraints = false
         statusContainer.wantsLayer = true
+        statusContainer.setContentHuggingPriority(.required, for: .vertical)
+        statusContainer.setContentCompressionResistancePriority(.required, for: .vertical)
         statusContainer.layer?.cornerRadius = MainPopoverStyle.Metrics.weeklyProgressStatusCornerRadius
         statusContainer.layer?.borderWidth = 1
 
@@ -269,35 +365,76 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         rowsStack.alignment = .leading
         rowsStack.spacing = MainPopoverStyle.Metrics.weeklyDetailRowSpacing
         rowsStack.translatesAutoresizingMaskIntoConstraints = false
+        rowsStack.setContentHuggingPriority(.required, for: .vertical)
+        rowsStack.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime in
+            self?.onApplyEditedDayTimes?(date, startTime, endTime)
+        }
 
         addSubview(backButton)
         addSubview(cardView)
         addSubview(rowsStack)
+        addSubview(detailEditorView)
+
+        let detailEditorTopConstraint = detailEditorView.topAnchor.constraint(equalTo: rowsStack.bottomAnchor, constant: 0)
+        self.detailEditorTopConstraint = detailEditorTopConstraint
+        let detailEditorBottomConstraint = detailEditorView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -LayoutMetrics.bottomInset)
+        self.detailEditorBottomConstraint = detailEditorBottomConstraint
+        let rowsBottomConstraint = rowsStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -LayoutMetrics.bottomInset)
+        self.rowsBottomConstraint = rowsBottomConstraint
+        let cardHeightConstraint = cardView.heightAnchor.constraint(equalToConstant: 0)
+        self.cardHeightConstraint = cardHeightConstraint
 
         NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: topAnchor, constant: 18),
+            backButton.topAnchor.constraint(equalTo: topAnchor, constant: LayoutMetrics.topInset),
             backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
 
-            cardView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 12),
+            cardView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: LayoutMetrics.backToCardSpacing),
             cardView.centerXAnchor.constraint(equalTo: centerXAnchor),
             cardView.widthAnchor.constraint(equalToConstant: MainPopoverStyle.Metrics.weeklyProgressCardWidth),
-            rowsStack.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: 18),
+            cardHeightConstraint,
+            rowsStack.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: LayoutMetrics.cardToRowsSpacing),
             rowsStack.centerXAnchor.constraint(equalTo: centerXAnchor),
             rowsStack.widthAnchor.constraint(equalTo: cardView.widthAnchor),
-            rowsStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -20),
+            detailEditorView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            detailEditorView.widthAnchor.constraint(equalTo: cardView.widthAnchor),
+            rowsBottomConstraint,
 
-            cardContent.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 24),
-            cardContent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 24),
-            cardContent.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -24),
-            cardContent.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -24),
+            cardContent.topAnchor.constraint(equalTo: cardView.topAnchor, constant: LayoutMetrics.cardPadding),
+            cardContent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: LayoutMetrics.cardPadding),
+            cardContent.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -LayoutMetrics.cardPadding),
+            cardContent.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -LayoutMetrics.cardPadding),
 
             progressBar.widthAnchor.constraint(equalTo: cardContent.widthAnchor),
             statusContainer.widthAnchor.constraint(equalTo: cardContent.widthAnchor),
 
-            statusRow.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: 11),
+            statusRow.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: LayoutMetrics.statusVerticalPadding),
             statusRow.centerXAnchor.constraint(equalTo: statusContainer.centerXAnchor),
-            statusRow.bottomAnchor.constraint(equalTo: statusContainer.bottomAnchor, constant: -11),
+            statusRow.bottomAnchor.constraint(equalTo: statusContainer.bottomAnchor, constant: -LayoutMetrics.statusVerticalPadding),
         ])
+
+        applyEditorLayout(isVisible: false)
+        updateCardHeight()
+    }
+
+    private func applyEditorLayout(isVisible: Bool) {
+        isEditorVisible = isVisible
+        detailEditorView.isHidden = !isVisible
+        detailEditorTopConstraint?.constant = isVisible ? 16 : 0
+        rowsBottomConstraint?.isActive = !isVisible
+        detailEditorTopConstraint?.isActive = isVisible
+        detailEditorBottomConstraint?.isActive = isVisible
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+        logGeometry(reason: "applyEditorLayout[\(isVisible)]")
+    }
+
+    private func logGeometry(reason: String) {
+        guard Self.isGeometryDebugEnabled else { return }
+        print(
+            "[WeeklyDetailGeometry] reason=\(reason) frame=\(NSStringFromRect(frame)) bounds=\(NSStringFromRect(bounds)) card=\(NSStringFromRect(cardView.frame)) rows=\(NSStringFromRect(rowsStack.frame)) editor=\(NSStringFromRect(detailEditorView.frame)) editorHidden=\(detailEditorView.isHidden) editorVisibleState=\(isEditorVisible) requiredHeight=\(requiredHeight())"
+        )
     }
 
     private func applyVisualState(_ state: MainPopoverCurrentSessionVisualState) {
@@ -322,6 +459,20 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             statusContainer.layer?.backgroundColor = MainPopoverStyle.Colors.weeklyProgressWarningStatusBackground.cgColor
             statusContainer.layer?.borderColor = MainPopoverStyle.Colors.weeklyProgressWarningStatusBorder.cgColor
         }
+    }
+
+    private func updateCardHeight() {
+        layoutSubtreeIfNeeded()
+        statusContainer.layoutSubtreeIfNeeded()
+
+        let contentHeight =
+            ceil(headerRow.fittingSize.height)
+            + LayoutMetrics.cardContentSpacing
+            + MainPopoverStyle.Metrics.weeklyProgressBarHeight
+            + LayoutMetrics.cardContentSpacing
+            + ceil(statusContainer.fittingSize.height)
+
+        cardHeightConstraint?.constant = LayoutMetrics.cardPadding * 2 + contentHeight
     }
 
     private func syncRows(count: Int) {

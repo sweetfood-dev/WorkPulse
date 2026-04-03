@@ -2,8 +2,12 @@ import AppKit
 
 @MainActor
 final class MainPopoverCoordinator {
+    private static let isGeometryDebugEnabled =
+        ProcessInfo.processInfo.environment["WORKPULSE_DEBUG_POPOVER_GEOMETRY"] == "1"
+
     private weak var popoverViewController: MainPopoverViewController?
     private var displayedReferenceDate: Date?
+    private var displayedWeeklyProgressReferenceDate: Date?
     private var displayedMonthlyHistoryReferenceDate: Date?
     private let runtimeDependencies: MainPopoverRuntimeDependencies
     private let recordStore: any AttendanceRecordStore
@@ -78,11 +82,22 @@ final class MainPopoverCoordinator {
         popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime in
             self?.handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
         }
+        popoverViewController.onApplyEditedDetailTimes = { [weak self] surface, referenceDate, startTime, endTime in
+            self?.handleAppliedDetailTimes(
+                surface: surface,
+                referenceDate: referenceDate,
+                startTime: startTime,
+                endTime: endTime
+            )
+        }
         popoverViewController.onOpenWeeklyProgress = { [weak self] in
             self?.showWeeklyProgress()
         }
         popoverViewController.onOpenMonthlyHistory = { [weak self] in
             self?.showMonthlyHistory()
+        }
+        popoverViewController.onSelectDetailDate = { [weak self] surface, selectedDate in
+            self?.selectDetailDate(surface: surface, selectedDate: selectedDate)
         }
         popoverViewController.onNavigateMonthlyHistory = { [weak self] monthOffset in
             self?.navigateMonthlyHistory(by: monthOffset)
@@ -91,8 +106,10 @@ final class MainPopoverCoordinator {
     }
 
     func handlePopoverWillOpen() {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
+        logGeometryEvent("handlePopoverWillOpen", referenceDate: referenceDate)
         popoverViewController?.showMainView()
+        displayedWeeklyProgressReferenceDate = nil
         displayedMonthlyHistoryReferenceDate = nil
 
         if shouldResetEditingForReferenceDate(referenceDate) {
@@ -111,7 +128,8 @@ final class MainPopoverCoordinator {
     }
 
     private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
+        logGeometryEvent("handleAppliedTodayTimes", referenceDate: referenceDate)
         do {
             try recordStore.upsertRecord(
                 AttendanceRecord(
@@ -126,42 +144,49 @@ final class MainPopoverCoordinator {
         refreshPopover(referenceDate: referenceDate)
     }
 
-    private func resolvedReferenceDate(from candidateReferenceDate: Date? = nil) -> Date {
+    private func currentReferenceDateForPopoverOpen() -> Date {
         let currentDate = runtimeDependencies.currentDateProvider()
-        guard let candidateReferenceDate = candidateReferenceDate ?? displayedReferenceDate else {
+        guard let displayedReferenceDate else { return currentDate }
+
+        guard runtimeDependencies.calendar.isDate(displayedReferenceDate, inSameDayAs: currentDate) else {
             return currentDate
         }
 
-        guard runtimeDependencies.calendar.isDate(candidateReferenceDate, inSameDayAs: currentDate) else {
-            return currentDate
-        }
-
-        return candidateReferenceDate
+        return displayedReferenceDate
     }
 
     private func refreshPopover(referenceDate: Date) {
         guard let popoverViewController else { return }
+        logGeometryEvent("refreshPopover", referenceDate: referenceDate)
         displayedReferenceDate = referenceDate
+        let currentDate = runtimeDependencies.currentDateProvider()
 
         let loadedState = stateLoader.load(referenceDate: referenceDate)
         popoverViewController.display(
             MainPopoverDisplayIntent(
                 viewState: loadedState.viewState,
                 startTime: loadedState.todayRecord?.startTime,
-                endTime: loadedState.todayRecord?.endTime
+                endTime: loadedState.todayRecord?.endTime,
+                allowsLiveCurrentSessionUpdates: runtimeDependencies.calendar.isDate(
+                    referenceDate,
+                    inSameDayAs: currentDate
+                )
             )
         )
     }
 
     private func showWeeklyProgress() {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
+        logGeometryEvent("showWeeklyProgress", referenceDate: referenceDate)
+        displayedWeeklyProgressReferenceDate = referenceDate
         popoverViewController?.showWeeklyDetail(
             weeklyProgressLoader.load(referenceDate: referenceDate)
         )
     }
 
     private func showMonthlyHistory() {
-        let referenceDate = resolvedReferenceDate()
+        let referenceDate = currentReferenceDateForPopoverOpen()
+        logGeometryEvent("showMonthlyHistory", referenceDate: referenceDate)
         let state = loadMonthlyHistory(referenceDate: referenceDate)
         displayedMonthlyHistoryReferenceDate = state.referenceDate
         popoverViewController?.showMonthlyHistory(state)
@@ -191,6 +216,7 @@ final class MainPopoverCoordinator {
             return
         }
 
+        logGeometryEvent("navigateMonthlyHistory(\(monthOffset))", referenceDate: state.referenceDate)
         displayedMonthlyHistoryReferenceDate = state.referenceDate
         popoverViewController?.showMonthlyHistory(state)
     }
@@ -202,5 +228,102 @@ final class MainPopoverCoordinator {
             displayedReferenceDate,
             inSameDayAs: referenceDate
         ) == false
+    }
+
+    private func handleAppliedDetailTimes(
+        surface: MainPopoverDetailSurface,
+        referenceDate: Date,
+        startTime: Date?,
+        endTime: Date?
+    ) {
+        logGeometryEvent("handleAppliedDetailTimes[\(surface)]", referenceDate: referenceDate)
+        do {
+            try recordStore.upsertRecord(
+                AttendanceRecord(
+                    date: referenceDate,
+                    startTime: startTime,
+                    endTime: endTime
+                )
+            )
+        } catch {
+            NSLog("Failed to save detail attendance record: %@", String(describing: error))
+        }
+
+        refreshMainRouteIfNeeded(for: referenceDate)
+        selectDetailDate(surface: surface, selectedDate: referenceDate)
+    }
+
+    private func refreshMainRouteIfNeeded(for referenceDate: Date) {
+        guard let displayedReferenceDate else { return }
+        guard runtimeDependencies.calendar.isDate(displayedReferenceDate, inSameDayAs: referenceDate) else {
+            return
+        }
+
+        refreshPopover(referenceDate: displayedReferenceDate)
+    }
+
+    private func selectDetailDate(
+        surface: MainPopoverDetailSurface,
+        selectedDate: Date
+    ) {
+        logGeometryEvent("selectDetailDate[\(surface)]", referenceDate: selectedDate)
+        let editorState = makeDetailDayEditingState(referenceDate: selectedDate)
+
+        switch surface {
+        case .weekly:
+            let referenceDate = displayedWeeklyProgressReferenceDate ?? currentReferenceDateForPopoverOpen()
+            displayedWeeklyProgressReferenceDate = referenceDate
+            popoverViewController?.showWeeklyDetail(
+                weeklyProgressLoader.load(referenceDate: referenceDate),
+                editorState: editorState
+            )
+        case .monthly:
+            let referenceDate = displayedMonthlyHistoryReferenceDate ?? currentReferenceDateForPopoverOpen()
+            let state = loadMonthlyHistory(referenceDate: referenceDate)
+            displayedMonthlyHistoryReferenceDate = state.referenceDate
+            popoverViewController?.showMonthlyHistory(
+                state,
+                editorState: editorState
+            )
+        }
+    }
+
+    private func makeDetailDayEditingState(referenceDate: Date) -> MainPopoverDetailDayEditingState {
+        let loadedState = stateLoader.load(referenceDate: referenceDate)
+        let fallbackStartTime = fallbackTime(on: referenceDate, hour: 9, minute: 0)
+        let fallbackEndTime = loadedState.todayRecord?.startTime
+            ?? fallbackTime(on: referenceDate, hour: 18, minute: 0)
+
+        return MainPopoverDetailDayEditingState(
+            referenceDate: referenceDate,
+            dateText: loadedState.viewState.dateText,
+            startTimeText: loadedState.viewState.startTimeText,
+            endTimeText: loadedState.viewState.endTimeText,
+            startTime: loadedState.todayRecord?.startTime,
+            endTime: loadedState.todayRecord?.endTime,
+            fallbackStartTime: loadedState.todayRecord?.startTime ?? fallbackStartTime,
+            fallbackEndTime: loadedState.todayRecord?.endTime ?? fallbackEndTime
+        )
+    }
+
+    private func fallbackTime(
+        on referenceDate: Date,
+        hour: Int,
+        minute: Int
+    ) -> Date {
+        let dayStart = runtimeDependencies.calendar.startOfDay(for: referenceDate)
+        return runtimeDependencies.calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: dayStart
+        ) ?? dayStart
+    }
+
+    private func logGeometryEvent(_ event: String, referenceDate: Date) {
+        guard Self.isGeometryDebugEnabled else { return }
+        print(
+            "[PopoverFlow] event=\(event) referenceDate=\(referenceDate) displayedMain=\(String(describing: displayedReferenceDate)) displayedWeekly=\(String(describing: displayedWeeklyProgressReferenceDate)) displayedMonthly=\(String(describing: displayedMonthlyHistoryReferenceDate))"
+        )
     }
 }

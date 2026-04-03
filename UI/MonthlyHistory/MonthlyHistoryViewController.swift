@@ -10,6 +10,8 @@ struct MonthlyHistoryViewControllerSnapshot {
     let annotationTexts: [String]
     let rowWidths: [CGFloat]
     let hasOverflowingAnnotationLayout: Bool
+    let isShowingEditor: Bool
+    let editorDateText: String
 }
 
 private final class MonthlyHistoryDayCellView: NSView {
@@ -17,6 +19,9 @@ private final class MonthlyHistoryDayCellView: NSView {
     private let statusLabel = NSTextField(labelWithString: "")
     private let annotationLabel = NSTextField(labelWithString: "")
     private var activity: MonthlyHistoryDayCellActivity = .outsideMonth
+    private var selectedDate: Date?
+    private var isSelectable = false
+    var onSelect: ((Date) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -64,6 +69,8 @@ private final class MonthlyHistoryDayCellView: NSView {
     }
 
     func apply(_ state: MonthlyHistoryDayCellViewState) {
+        selectedDate = state.date
+        isSelectable = state.isSelectable
         activity = state.activity
         dayLabel.stringValue = state.dayText
         statusLabel.stringValue = state.statusText
@@ -185,10 +192,27 @@ private final class MonthlyHistoryDayCellView: NSView {
         return annotationLabel.frame.maxX > bounds.maxX - 6
             || annotationLabel.frame.maxY > bounds.maxY - 6
     }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isSelectable, let selectedDate else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        onSelect?(selectedDate)
+    }
+
+    func simulateSelect() {
+        guard isSelectable, let selectedDate else { return }
+        onSelect?(selectedDate)
+    }
 }
 
 @MainActor
 final class MonthlyHistoryViewController: NSViewController {
+    private static let isGeometryDebugEnabled =
+        ProcessInfo.processInfo.environment["WORKPULSE_DEBUG_POPOVER_GEOMETRY"] == "1"
+
     private enum LayoutMetrics {
         static let headerHeight: CGFloat = 54
         static let footerHeight: CGFloat = 48
@@ -200,6 +224,8 @@ final class MonthlyHistoryViewController: NSViewController {
 
     var onNavigatePrevious: (() -> Void)?
     var onNavigateNext: (() -> Void)?
+    var onSelectDay: ((Date) -> Void)?
+    var onApplyEditedDayTimes: ((Date, Date?, Date?) -> Void)?
 
     private let previousButton = NSButton(title: "", target: nil, action: nil)
     private let nextButton = NSButton(title: "", target: nil, action: nil)
@@ -209,11 +235,24 @@ final class MonthlyHistoryViewController: NSViewController {
     private let totalDurationLabel = NSTextField(labelWithString: "")
     private let weekdayRow = NSStackView()
     private let gridRows = NSStackView()
+    private let detailEditorView = MainPopoverDetailDayEditorView()
 
     private var weekdayLabels: [NSTextField] = []
     private var dayCellViews: [MonthlyHistoryDayCellView] = []
+    private var detailEditorTopConstraint: NSLayoutConstraint?
+    private var detailEditorBottomConstraint: NSLayoutConstraint?
+    private var gridBottomConstraint: NSLayoutConstraint?
+    private var isEditorVisible = false
 
     static func requiredHeight(forRowCount rowCount: Int) -> CGFloat {
+        requiredHeight(forRowCount: rowCount, editorHeight: 0, editorSpacing: 0)
+    }
+
+    static func requiredHeight(
+        forRowCount rowCount: Int,
+        editorHeight: CGFloat,
+        editorSpacing: CGFloat
+    ) -> CGFloat {
         let safeRowCount = max(rowCount, 1)
         let gridHeight = CGFloat(safeRowCount) * MainPopoverStyle.Metrics.monthlyHistoryCellHeight
             + CGFloat(safeRowCount - 1) * MainPopoverStyle.Metrics.monthlyHistoryGridSpacing
@@ -224,6 +263,8 @@ final class MonthlyHistoryViewController: NSViewController {
             + LayoutMetrics.weekdayRowHeight
             + LayoutMetrics.weekdayToGridSpacing
             + gridHeight
+            + editorSpacing
+            + editorHeight
             + LayoutMetrics.contentBottomInset
     }
 
@@ -294,6 +335,7 @@ final class MonthlyHistoryViewController: NSViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(weekdayRow)
         contentView.addSubview(gridRows)
+        contentView.addSubview(detailEditorView)
 
         totalLabel.font = .systemFont(ofSize: 10, weight: .bold)
         totalLabel.textColor = MainPopoverStyle.Colors.secondaryText
@@ -316,9 +358,29 @@ final class MonthlyHistoryViewController: NSViewController {
 
         footerView.addSubview(footerRow)
 
+        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime in
+            self?.onApplyEditedDayTimes?(date, startTime, endTime)
+        }
+
         rootView.addSubview(headerView)
         rootView.addSubview(contentView)
         rootView.addSubview(footerView)
+
+        let detailEditorTopConstraint = detailEditorView.topAnchor.constraint(
+            equalTo: gridRows.bottomAnchor,
+            constant: 0
+        )
+        self.detailEditorTopConstraint = detailEditorTopConstraint
+        let detailEditorBottomConstraint = detailEditorView.bottomAnchor.constraint(
+            equalTo: contentView.bottomAnchor,
+            constant: -LayoutMetrics.contentBottomInset
+        )
+        self.detailEditorBottomConstraint = detailEditorBottomConstraint
+        let gridBottomConstraint = gridRows.bottomAnchor.constraint(
+            equalTo: contentView.bottomAnchor,
+            constant: -LayoutMetrics.contentBottomInset
+        )
+        self.gridBottomConstraint = gridBottomConstraint
 
         NSLayoutConstraint.activate([
             headerView.topAnchor.constraint(equalTo: rootView.topAnchor),
@@ -345,7 +407,9 @@ final class MonthlyHistoryViewController: NSViewController {
             gridRows.topAnchor.constraint(equalTo: weekdayRow.bottomAnchor, constant: LayoutMetrics.weekdayToGridSpacing),
             gridRows.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             gridRows.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            gridRows.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -LayoutMetrics.contentBottomInset),
+            detailEditorView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            detailEditorView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            gridBottomConstraint,
 
             footerView.topAnchor.constraint(equalTo: contentView.bottomAnchor),
             footerView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
@@ -359,9 +423,13 @@ final class MonthlyHistoryViewController: NSViewController {
         ])
 
         view = rootView
+        applyEditorLayout(isVisible: false)
     }
 
-    func apply(_ state: MonthlyHistoryViewState) {
+    func apply(
+        _ state: MonthlyHistoryViewState,
+        editorState: MainPopoverDetailDayEditingState? = nil
+    ) {
         loadViewIfNeeded()
         monthLabel.stringValue = state.monthText
         totalLabel.stringValue = state.totalLabelText.uppercased()
@@ -372,8 +440,14 @@ final class MonthlyHistoryViewController: NSViewController {
         }
         syncCells(count: state.cells.count)
         zip(dayCellViews, state.cells).forEach { cellView, cellState in
+            cellView.onSelect = { [weak self] selectedDate in
+                self?.onSelectDay?(selectedDate)
+            }
             cellView.apply(cellState)
         }
+        detailEditorView.apply(editorState)
+        applyEditorLayout(isVisible: editorState != nil)
+        logGeometry(reason: "apply")
     }
 
     var snapshot: MonthlyHistoryViewControllerSnapshot {
@@ -387,7 +461,9 @@ final class MonthlyHistoryViewController: NSViewController {
             activeCellCount: dayCellViews.filter(\.isActive).count,
             annotationTexts: dayCellViews.map(\.annotationText).filter { $0.isEmpty == false },
             rowWidths: gridRows.arrangedSubviews.map(\.frame.width),
-            hasOverflowingAnnotationLayout: dayCellViews.contains { $0.hasOverflowingAnnotationLayout }
+            hasOverflowingAnnotationLayout: dayCellViews.contains { $0.hasOverflowingAnnotationLayout },
+            isShowingEditor: isEditorVisible,
+            editorDateText: detailEditorView.snapshot.dateText
         )
     }
 
@@ -397,6 +473,63 @@ final class MonthlyHistoryViewController: NSViewController {
 
     func simulateNavigateNext() {
         handleNavigateNext()
+    }
+
+    func simulateSelectDay(at index: Int) {
+        guard dayCellViews.indices.contains(index) else { return }
+        dayCellViews[index].simulateSelect()
+    }
+
+    func beginEditingSelectedDay(_ field: TodayTimeField) {
+        detailEditorView.beginEditing(field)
+    }
+
+    func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
+        detailEditorView.setEditingPickerDate(date, for: field)
+    }
+
+    func applyEditingSelectedDay() {
+        detailEditorView.applyEditing()
+    }
+
+    func requiredHeight() -> CGFloat {
+        view.layoutSubtreeIfNeeded()
+
+        let editorHeight: CGFloat
+        let editorSpacing: CGFloat
+        if isEditorVisible {
+            editorSpacing = detailEditorTopConstraint?.constant ?? 0
+            editorHeight = ceil(detailEditorView.fittingSize.height)
+        } else {
+            editorSpacing = 0
+            editorHeight = 0
+        }
+
+        return Self.requiredHeight(
+            forRowCount: max(gridRows.arrangedSubviews.count, 1),
+            editorHeight: editorHeight,
+            editorSpacing: editorSpacing
+        )
+    }
+
+    private func applyEditorLayout(isVisible: Bool) {
+        isEditorVisible = isVisible
+        detailEditorView.isHidden = !isVisible
+        detailEditorTopConstraint?.constant = isVisible ? 16 : 0
+        gridBottomConstraint?.isActive = !isVisible
+        detailEditorTopConstraint?.isActive = isVisible
+        detailEditorBottomConstraint?.isActive = isVisible
+        guard isViewLoaded else { return }
+        view.needsLayout = true
+        view.layoutSubtreeIfNeeded()
+        logGeometry(reason: "applyEditorLayout[\(isVisible)]")
+    }
+
+    private func logGeometry(reason: String) {
+        guard Self.isGeometryDebugEnabled else { return }
+        print(
+            "[MonthlyDetailGeometry] reason=\(reason) frame=\(NSStringFromRect(view.frame)) bounds=\(NSStringFromRect(view.bounds)) weekdayRow=\(NSStringFromRect(weekdayRow.frame)) gridRows=\(NSStringFromRect(gridRows.frame)) editor=\(NSStringFromRect(detailEditorView.frame)) editorHidden=\(detailEditorView.isHidden) editorVisibleState=\(isEditorVisible) requiredHeight=\(requiredHeight())"
+        )
     }
 
     @objc

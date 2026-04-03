@@ -365,3 +365,168 @@ final class MainPopoverTodayTimesSectionView: NSView {
     }
 
 }
+
+struct MainPopoverDetailDayEditorSnapshot {
+    let isVisible: Bool
+    let dateText: String
+    let todayTimes: MainPopoverTodayTimesSectionSnapshot
+}
+
+@MainActor
+final class MainPopoverDetailDayEditorView: NSView {
+    private static let isGeometryDebugEnabled =
+        ProcessInfo.processInfo.environment["WORKPULSE_DEBUG_POPOVER_GEOMETRY"] == "1"
+
+    private let dateLabel = NSTextField(labelWithString: "")
+    private let contentStack = NSStackView()
+    private let todayTimesSectionView = MainPopoverTodayTimesSectionView()
+    private let binder: MainPopoverTodayTimesBinder
+    private lazy var collapsedHeightConstraint = heightAnchor.constraint(equalToConstant: 0)
+    private var editingState: MainPopoverDetailDayEditingState?
+
+    var onApplyEditedTimes: ((Date, Date?, Date?) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        self.binder = MainPopoverTodayTimesBinder(sectionView: todayTimesSectionView)
+        super.init(frame: frameRect)
+        configure()
+        bindEvents()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func apply(_ editingState: MainPopoverDetailDayEditingState?) {
+        self.editingState = editingState
+        guard let editingState else {
+            collapsedHeightConstraint.isActive = true
+            isHidden = true
+            invalidateIntrinsicContentSize()
+            superview?.needsLayout = true
+            layoutSubtreeIfNeeded()
+            superview?.layoutSubtreeIfNeeded()
+            logGeometry(reason: "apply[nil]")
+            return
+        }
+
+        collapsedHeightConstraint.isActive = false
+        isHidden = false
+        dateLabel.stringValue = editingState.dateText
+        binder.loadSavedTimes(
+            startTime: editingState.startTime,
+            endTime: editingState.endTime,
+            forceReload: true
+        )
+        render()
+        invalidateIntrinsicContentSize()
+        superview?.needsLayout = true
+        layoutSubtreeIfNeeded()
+        superview?.layoutSubtreeIfNeeded()
+        logGeometry(reason: "apply[state]")
+    }
+
+    func beginEditing(_ field: TodayTimeField) {
+        binder.beginEditing(field)
+    }
+
+    func setEditingPickerDate(_ date: Date, for field: TodayTimeField) {
+        let currentDraft = todayTimesSectionView.currentDraft()
+        let updatedDraft: MainPopoverTodayTimesDraft
+
+        switch field {
+        case .startTime:
+            updatedDraft = MainPopoverTodayTimesDraft(startTime: date, endTime: currentDraft.endTime)
+        case .endTime:
+            updatedDraft = MainPopoverTodayTimesDraft(startTime: currentDraft.startTime, endTime: date)
+        }
+
+        binder.setEditingDraft(updatedDraft)
+    }
+
+    func applyEditing() {
+        logGeometry(reason: "applyEditing")
+        binder.applyEditing()
+    }
+
+    func cancelEditing() {
+        binder.cancelEditing()
+    }
+
+    func deleteEndTime() {
+        logGeometry(reason: "deleteEndTime")
+        binder.deleteEndTime()
+    }
+
+    var snapshot: MainPopoverDetailDayEditorSnapshot {
+        MainPopoverDetailDayEditorSnapshot(
+            isVisible: isHidden == false,
+            dateText: dateLabel.stringValue,
+            todayTimes: todayTimesSectionView.snapshot
+        )
+    }
+
+    private func bindEvents() {
+        binder.onDidChange = { [weak self] in
+            self?.render()
+        }
+        binder.onDidApplyTimes = { [weak self] appliedTimes in
+            guard let self, let editingState = self.editingState else { return }
+            self.onApplyEditedTimes?(
+                editingState.referenceDate,
+                appliedTimes.startTime,
+                appliedTimes.endTime
+            )
+        }
+    }
+
+    private func configure() {
+        translatesAutoresizingMaskIntoConstraints = false
+        collapsedHeightConstraint.priority = .required
+        isHidden = true
+        collapsedHeightConstraint.isActive = true
+
+        dateLabel.font = MainPopoverStyle.Typography.sectionTitle
+        dateLabel.textColor = MainPopoverStyle.Colors.primaryText
+
+        contentStack.orientation = .vertical
+        contentStack.alignment = .leading
+        contentStack.spacing = 12
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        contentStack.addArrangedSubview(dateLabel)
+        contentStack.addArrangedSubview(todayTimesSectionView)
+
+        addSubview(contentStack)
+
+        NSLayoutConstraint.activate([
+            contentStack.topAnchor.constraint(equalTo: topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            todayTimesSectionView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+        ])
+    }
+
+    private func render() {
+        guard let editingState else { return }
+
+        todayTimesSectionView.apply(
+            binder.makeRenderModel(
+                displayState: MainPopoverTodayTimesDisplayState(
+                    startTimeText: editingState.startTimeText,
+                    endTimeText: editingState.endTimeText
+                ),
+                fallbackStartTime: editingState.fallbackStartTime,
+                fallbackEndTime: editingState.fallbackEndTime
+            )
+        )
+    }
+
+    private func logGeometry(reason: String) {
+        guard Self.isGeometryDebugEnabled else { return }
+        print(
+            "[DetailEditorGeometry] reason=\(reason) frame=\(NSStringFromRect(frame)) bounds=\(NSStringFromRect(bounds)) hidden=\(isHidden) collapsed=\(collapsedHeightConstraint.isActive) date=\(dateLabel.stringValue)"
+        )
+    }
+}
