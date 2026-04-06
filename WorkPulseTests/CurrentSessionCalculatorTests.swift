@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftData
 import Testing
@@ -1550,6 +1551,84 @@ struct AppDelegateTests {
         #expect(controller.snapshot.isShowingMonthlyDetail)
         #expect(controller.snapshot.monthlyDetail.isShowingEditor)
         #expect(controller.snapshot.monthlyDetail.editorDateText == "Wednesday, Apr 1")
+    }
+
+    @Test
+    @MainActor
+    func calendarDayChangeNotificationResyncsMenuBarAttendanceState() throws {
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")
+        )
+        let notificationCenter = NotificationCenter()
+        let appDelegate = AppDelegate(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+                currentDateProvider: { referenceDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: InMemoryAttendanceRecordStore(records: []),
+            notificationCenter: notificationCenter
+        )
+        var syncCallCount = 0
+        appDelegate.onDidSyncMenuBarAttendanceStateForTesting = {
+            syncCallCount += 1
+        }
+
+        appDelegate.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+        #expect(syncCallCount == 1)
+
+        notificationCenter.post(name: .NSCalendarDayChanged, object: nil)
+        #expect(syncCallCount == 2)
+    }
+
+    private static var seoulCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+        return calendar
+    }
+}
+
+@Suite("MainPopoverCoordinator")
+struct MainPopoverCoordinatorTests {
+    @Test
+    @MainActor
+    func syncingMenuBarAttendanceStatePublishesCurrentDayState() throws {
+        let currentDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+                endTime: nil
+            )
+        ])
+        let coordinator = MainPopoverCoordinator(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+                currentDateProvider: { currentDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: store
+        )
+        var publishedAttendanceState: MainPopoverAttendanceState?
+
+        coordinator.onDidUpdateAttendanceState = { attendanceState in
+            publishedAttendanceState = attendanceState
+        }
+
+        coordinator.syncMenuBarAttendanceState()
+
+        #expect(publishedAttendanceState == .checkedIn)
     }
 
     private static var seoulCalendar: Calendar {

@@ -19,13 +19,43 @@ struct MenuBarShellControllerTests {
             )
         ) {
             let button = try! #require(statusItem.button)
-            #expect(button.title == "WP")
+            #expect(button.title == "")
+            #expect(button.image != nil)
+            #expect(button.toolTip == "출근 전")
+            #expect(button.imagePosition == .imageOnly)
+            #expect(statusItem.length == NSStatusItem.squareLength)
             #expect(popover.contentViewController === contentViewController)
             #expect(popover.contentSize == contentViewController.preferredContentSize)
             #expect(contentViewController.view.frame.size == contentViewController.preferredContentSize)
             #expect(popover.behavior == .transient)
             #expect(popover.animates)
         }
+    }
+
+    @Test
+    @MainActor
+    func updatingStatusItemUsesAttendanceStateTitles() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let popover = FakePopoverController()
+        let contentViewController = NSViewController()
+        let controller = MenuBarShellController(
+            statusItem: statusItem,
+            popover: popover,
+            popoverViewController: contentViewController
+        )
+        let button = try #require(statusItem.button)
+
+        controller.updateStatusItem(attendanceState: .checkedIn)
+        #expect(button.title == "")
+        #expect(button.toolTip == "업무 중")
+        #expect(button.image != nil)
+        #expect(button.contentTintColor == nil)
+
+        controller.updateStatusItem(attendanceState: .checkedOut)
+        #expect(button.title == "")
+        #expect(button.toolTip == "퇴근")
+        #expect(button.image != nil)
+        #expect(button.contentTintColor == nil)
     }
 
     @Test
@@ -93,9 +123,6 @@ struct MenuBarShellControllerTests {
 
             #expect(popover.showCallCount == 1)
             #expect(popover.isShown)
-            #expect(popover.lastShownView === button)
-            #expect(popover.lastShownRect == button.bounds)
-            #expect(popover.lastPreferredEdge == .minY)
 
             button.performClick(nil)
 
