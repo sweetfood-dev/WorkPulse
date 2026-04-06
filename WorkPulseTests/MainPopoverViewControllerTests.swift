@@ -77,6 +77,36 @@ struct MainPopoverViewControllerTests {
         controller.applyCurrentSession(startTime: nil, endTime: nil)
 
         #expect(controller.snapshot.currentSession.valueText == "--:--:--")
+        #expect(controller.snapshot.currentSession.titleText == "READY TO CHECK IN")
+    }
+
+    @Test
+    @MainActor
+    func refreshingCurrentSessionShowsWorkedTodayTitleAfterCheckout() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let recordDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")
+        )
+        let controller = makeController(
+            state: MainPopoverViewStateFactory(copy: .english).make(
+                referenceDate: recordDate,
+                todayRecord: AttendanceRecord(
+                    date: recordDate,
+                    startTime: startTime,
+                    endTime: endTime
+                )
+            )
+        )
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: startTime, endTime: endTime)
+
+        #expect(controller.snapshot.currentSession.titleText == "🔥 WORKED TODAY")
     }
 
     @Test
@@ -184,6 +214,7 @@ struct MainPopoverViewControllerTests {
     func applyingStateRefreshesHeaderAndSummarySections() {
         let controller = makeController()
         let state = MainPopoverViewState(
+            attendanceState: .checkedIn,
             dateText: "Wednesday, Apr 1",
             checkedInSummaryText: "Checked in at 08:45",
             currentSessionText: "--:--:--",
@@ -555,12 +586,17 @@ struct MainPopoverViewStateFactoryTests {
     func makesPlaceholderStateFromCopy() {
         let copy = MainPopoverCopy(
             placeholderDateText: "Placeholder Day",
+            notCheckedInSummaryText: "Waiting to start",
             checkedInSummaryPrefix: "Arrived",
+            checkedOutSummaryPrefix: "Left at",
             currentSessionPlaceholderText: "00:00:00",
             timePlaceholderText: "--.--",
             totalPlaceholderText: "n/a",
+            currentSessionReadyTitle: "READY",
             currentSessionTitle: "SESSION",
             currentSessionWarningTitle: "🔥 SESSION",
+            workedTodayTitle: "DONE",
+            workedTodayWarningTitle: "🔥 DONE",
             currentSessionLeadingCaption: "0H",
             startTimeTitle: "In",
             endTimeTitle: "Out",
@@ -582,12 +618,13 @@ struct MainPopoverViewStateFactoryTests {
         let state = MainPopoverViewStateFactory(copy: copy).makePlaceholder()
 
         #expect(state.dateText == "Placeholder Day")
-        #expect(state.checkedInSummaryText == "Arrived --.--")
+        #expect(state.checkedInSummaryText == "Waiting to start")
         #expect(state.currentSessionText == "00:00:00")
         #expect(state.startTimeText == "--.--")
         #expect(state.endTimeText == "--.--")
         #expect(state.weeklyTotalText == "n/a")
         #expect(state.monthlyTotalText == "n/a")
+        #expect(state.attendanceState == .notCheckedIn)
     }
 
     @Test
@@ -607,10 +644,11 @@ struct MainPopoverViewStateFactoryTests {
         )
 
         #expect(state.dateText == "Tuesday, Mar 31")
-        #expect(state.checkedInSummaryText == "Checked in at --:--")
+        #expect(state.checkedInSummaryText == "Not checked in yet")
         #expect(state.startTimeText == "--:--")
         #expect(state.endTimeText == "--:--")
         #expect(state.currentSessionText == "--:--:--")
+        #expect(state.attendanceState == .notCheckedIn)
     }
 
     @Test
@@ -641,11 +679,12 @@ struct MainPopoverViewStateFactoryTests {
         )
 
         #expect(state.dateText == "Tuesday, Mar 31")
-        #expect(state.checkedInSummaryText == "Checked in at 09:00")
+        #expect(state.checkedInSummaryText == "Checked out at 18:30")
         #expect(state.startTimeText == "09:00")
         #expect(state.endTimeText == "18:30")
         #expect(state.weeklyTotalText == "12:30")
         #expect(state.monthlyTotalText == "44:10")
+        #expect(state.attendanceState == .checkedOut)
     }
 
     private static var seoulCalendar: Calendar {

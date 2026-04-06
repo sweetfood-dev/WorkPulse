@@ -5,6 +5,12 @@ enum MainPopoverDetailSurface: Equatable {
     case monthly
 }
 
+enum MainPopoverAttendanceState: Equatable {
+    case notCheckedIn
+    case checkedIn
+    case checkedOut
+}
+
 struct MainPopoverDetailDayEditingState {
     let referenceDate: Date
     let dateText: String
@@ -24,6 +30,7 @@ struct MainPopoverDisplayIntent {
 }
 
 struct MainPopoverViewState {
+    let attendanceState: MainPopoverAttendanceState
     let dateText: String
     let checkedInSummaryText: String
     let currentSessionText: String

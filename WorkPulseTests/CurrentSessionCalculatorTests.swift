@@ -381,6 +381,7 @@ struct MainPopoverStateLoaderTests {
         #expect(loadedState.todayRecord == todayRecord)
         #expect(loadedState.viewState.dateText == "Tuesday, Mar 31")
         #expect(loadedState.viewState.checkedInSummaryText == "Checked in at 09:00")
+        #expect(loadedState.viewState.attendanceState == .checkedIn)
         #expect(loadedState.viewState.startTimeText == "09:00")
         #expect(loadedState.viewState.endTimeText == "--:--")
         #expect(loadedState.viewState.weeklyTotalText == "15:00")
@@ -405,7 +406,8 @@ struct MainPopoverStateLoaderTests {
         let loadedState = loader.load(referenceDate: referenceDate)
 
         #expect(loadedState.todayRecord == nil)
-        #expect(loadedState.viewState.checkedInSummaryText == "Checked in at --:--")
+        #expect(loadedState.viewState.checkedInSummaryText == "Not checked in yet")
+        #expect(loadedState.viewState.attendanceState == .notCheckedIn)
         #expect(loadedState.viewState.startTimeText == "--:--")
         #expect(loadedState.viewState.endTimeText == "--:--")
         #expect(loadedState.viewState.weeklyTotalText == "--")

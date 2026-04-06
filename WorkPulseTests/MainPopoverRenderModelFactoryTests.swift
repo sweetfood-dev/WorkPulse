@@ -56,12 +56,17 @@ struct MainPopoverRenderModelFactoryTests {
         let factory = MainPopoverRenderModelFactory(
             copy: MainPopoverCopy(
                 placeholderDateText: "Today",
+                notCheckedInSummaryText: "Waiting to start",
                 checkedInSummaryPrefix: "Checked in at",
+                checkedOutSummaryPrefix: "Checked out at",
                 currentSessionPlaceholderText: "--:--:--",
                 timePlaceholderText: "--:--",
                 totalPlaceholderText: "--",
+                currentSessionReadyTitle: "READY",
                 currentSessionTitle: "SESSION",
                 currentSessionWarningTitle: "🔥 SESSION",
+                workedTodayTitle: "DONE",
+                workedTodayWarningTitle: "🔥 DONE",
                 currentSessionLeadingCaption: "START",
                 startTimeTitle: "In",
                 endTimeTitle: "Out",
