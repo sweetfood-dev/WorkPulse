@@ -7,6 +7,7 @@ struct MonthlyHistoryViewControllerSnapshot {
     let cellCount: Int
     let workedCellCount: Int
     let activeCellCount: Int
+    let overtimeCellCount: Int
     let annotationTexts: [String]
     let rowWidths: [CGFloat]
     let hasOverflowingAnnotationLayout: Bool
@@ -19,6 +20,7 @@ private final class MonthlyHistoryDayCellView: NSView {
     private let statusLabel = NSTextField(labelWithString: "")
     private let annotationLabel = NSTextField(labelWithString: "")
     private var activity: MonthlyHistoryDayCellActivity = .outsideMonth
+    private var isOvertime = false
     private var selectedDate: Date?
     private var isSelectable = false
     var onSelect: ((Date) -> Void)?
@@ -72,6 +74,7 @@ private final class MonthlyHistoryDayCellView: NSView {
         selectedDate = state.date
         isSelectable = state.isSelectable
         activity = state.activity
+        isOvertime = state.isOvertime
         dayLabel.stringValue = state.dayText
         statusLabel.stringValue = state.statusText
         annotationLabel.stringValue = state.annotationText ?? ""
@@ -86,10 +89,10 @@ private final class MonthlyHistoryDayCellView: NSView {
             statusLabel.textColor = .clear
             annotationLabel.textColor = .clear
         case .worked:
-            applyWorkedPalette(for: state.dayCategory)
+            applyWorkedPalette(for: state.dayCategory, isOvertime: state.isOvertime)
             alphaValue = state.isDimmed ? 0.55 : 1
         case .active:
-            applyActivePalette(for: state.dayCategory)
+            applyActivePalette(for: state.dayCategory, isOvertime: state.isOvertime)
             alphaValue = state.isDimmed ? 0.55 : 1
         case .empty:
             applyEmptyPalette(for: state.dayCategory)
@@ -116,7 +119,15 @@ private final class MonthlyHistoryDayCellView: NSView {
         }
     }
 
-    private func applyWorkedPalette(for category: CalendarDayCategory) {
+    private func applyWorkedPalette(for category: CalendarDayCategory, isOvertime: Bool) {
+        if isOvertime {
+            layer?.backgroundColor = MainPopoverStyle.Colors.detailOvertimeBackground.cgColor
+            layer?.borderColor = MainPopoverStyle.Colors.detailOvertimeBorder.cgColor
+            dayLabel.textColor = MainPopoverStyle.Colors.detailOvertimeAccent
+            statusLabel.textColor = MainPopoverStyle.Colors.detailOvertimeAccent
+            return
+        }
+
         if let accent = accentColor(for: category) {
             layer?.backgroundColor = accent.withAlphaComponent(0.10).cgColor
             layer?.borderColor = accent.withAlphaComponent(0.20).cgColor
@@ -130,7 +141,15 @@ private final class MonthlyHistoryDayCellView: NSView {
         }
     }
 
-    private func applyActivePalette(for category: CalendarDayCategory) {
+    private func applyActivePalette(for category: CalendarDayCategory, isOvertime: Bool) {
+        if isOvertime {
+            layer?.backgroundColor = MainPopoverStyle.Colors.detailOvertimeAccent.withAlphaComponent(0.14).cgColor
+            layer?.borderColor = MainPopoverStyle.Colors.detailOvertimeBorder.cgColor
+            dayLabel.textColor = MainPopoverStyle.Colors.detailOvertimeAccent
+            statusLabel.textColor = MainPopoverStyle.Colors.detailOvertimeAccent
+            return
+        }
+
         if let accent = accentColor(for: category) {
             layer?.backgroundColor = accent.withAlphaComponent(0.14).cgColor
             layer?.borderColor = accent.withAlphaComponent(0.24).cgColor
@@ -181,6 +200,10 @@ private final class MonthlyHistoryDayCellView: NSView {
 
     var isActive: Bool {
         activity == .active
+    }
+
+    var isOvertimeState: Bool {
+        isOvertime
     }
 
     var hasOverflowingAnnotationLayout: Bool {
@@ -459,6 +482,7 @@ final class MonthlyHistoryViewController: NSViewController {
             cellCount: dayCellViews.count,
             workedCellCount: dayCellViews.filter(\.isWorked).count,
             activeCellCount: dayCellViews.filter(\.isActive).count,
+            overtimeCellCount: dayCellViews.filter(\.isOvertimeState).count,
             annotationTexts: dayCellViews.map(\.annotationText).filter { $0.isEmpty == false },
             rowWidths: gridRows.arrangedSubviews.map(\.frame.width),
             hasOverflowingAnnotationLayout: dayCellViews.contains { $0.hasOverflowingAnnotationLayout },

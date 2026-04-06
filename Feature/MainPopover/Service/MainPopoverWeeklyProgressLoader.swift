@@ -8,6 +8,7 @@ struct MainPopoverWeeklyProgressDayViewState {
     let workedText: String
     let annotationText: String?
     let dayCategory: CalendarDayCategory
+    let isOvertime: Bool
     let progressFraction: CGFloat
     let isToday: Bool
     let isSelectable: Bool
@@ -19,6 +20,7 @@ struct MainPopoverWeeklyProgressDayViewState {
         workedText: String,
         annotationText: String?,
         dayCategory: CalendarDayCategory,
+        isOvertime: Bool = false,
         progressFraction: CGFloat,
         isToday: Bool,
         isSelectable: Bool = true
@@ -29,6 +31,7 @@ struct MainPopoverWeeklyProgressDayViewState {
         self.workedText = workedText
         self.annotationText = annotationText
         self.dayCategory = dayCategory
+        self.isOvertime = isOvertime
         self.progressFraction = progressFraction
         self.isToday = isToday
         self.isSelectable = isSelectable
@@ -110,6 +113,7 @@ struct MainPopoverWeeklyProgressLoader {
                     workedText: formatWorkedDuration(duration),
                     annotationText: metadata.holiday?.annotationText,
                     dayCategory: metadata.category,
+                    isOvertime: isOvertime(duration),
                     progressFraction: dailyProgressFraction(for: duration),
                     isToday: calendar.isDate(date, inSameDayAs: referenceDate),
                     isSelectable: calendar.startOfDay(for: date) <= currentDayStart
@@ -233,5 +237,10 @@ struct MainPopoverWeeklyProgressLoader {
     private func progressFraction(for duration: TimeInterval) -> CGFloat {
         guard duration > 0 else { return 0 }
         return min(1, max(0, CGFloat(duration / goalDuration)))
+    }
+
+    private func isOvertime(_ duration: TimeInterval?) -> Bool {
+        guard let duration else { return false }
+        return duration >= MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
     }
 }
