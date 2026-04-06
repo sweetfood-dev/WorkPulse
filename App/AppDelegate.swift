@@ -27,11 +27,15 @@ struct MainPopoverRuntimeDependencies {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarShellController: MenuBarShellController?
+    private var calendarDayChangedObserver: NSObjectProtocol?
     private let popoverCoordinator: MainPopoverCoordinator
+    private let notificationCenter: NotificationCenter
+    var onDidSyncMenuBarAttendanceStateForTesting: (() -> Void)?
 
     init(
         runtimeDependencies: MainPopoverRuntimeDependencies = .live,
-        recordStore: (any AttendanceRecordStore)? = nil
+        recordStore: (any AttendanceRecordStore)? = nil,
+        notificationCenter: NotificationCenter = .default
     ) {
         let resolvedRecordStore = recordStore ?? {
             let legacyStore = UserDefaultsAttendanceRecordStore(
@@ -56,7 +60,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             runtimeDependencies: runtimeDependencies,
             recordStore: resolvedRecordStore
         )
+        self.notificationCenter = notificationCenter
         super.init()
+    }
+
+    deinit {
+        if let calendarDayChangedObserver {
+            notificationCenter.removeObserver(calendarDayChangedObserver)
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -74,7 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.popoverCoordinator.handlePopoverDidClose()
         }
         self.menuBarShellController = menuBarShellController
-        popoverCoordinator.syncMenuBarAttendanceState()
+        observeCalendarDayChanges()
+        syncMenuBarAttendanceState()
     }
 
     func configurePopoverViewController(
@@ -89,5 +101,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func handlePopoverWillOpen() {
         popoverCoordinator.handlePopoverWillOpen()
+    }
+
+    private func observeCalendarDayChanges() {
+        guard calendarDayChangedObserver == nil else { return }
+        calendarDayChangedObserver = notificationCenter.addObserver(
+            forName: .NSCalendarDayChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.syncMenuBarAttendanceState()
+        }
+    }
+
+    private func syncMenuBarAttendanceState() {
+        popoverCoordinator.syncMenuBarAttendanceState()
+        onDidSyncMenuBarAttendanceStateForTesting?()
     }
 }
