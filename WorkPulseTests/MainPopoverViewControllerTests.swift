@@ -111,6 +111,34 @@ struct MainPopoverViewControllerTests {
 
     @Test
     @MainActor
+    func initialLoadUsesPreloadedAttendanceState() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let recordDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")
+        )
+        let controller = makeController(
+            state: MainPopoverViewStateFactory(copy: .english).make(
+                referenceDate: recordDate,
+                todayRecord: AttendanceRecord(
+                    date: recordDate,
+                    startTime: startTime,
+                    endTime: endTime
+                )
+            )
+        )
+
+        controller.loadViewIfNeeded()
+
+        #expect(controller.snapshot.currentSession.titleText == "WORKED TODAY")
+    }
+
+    @Test
+    @MainActor
     func refreshingCurrentSessionKeepsReadyStateWhenOnlyEndTimeExists() throws {
         let endTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
@@ -133,6 +161,24 @@ struct MainPopoverViewControllerTests {
         controller.applyCurrentSession(startTime: nil, endTime: endTime)
 
         #expect(controller.snapshot.currentSession.titleText == "READY TO CHECK IN")
+        #expect(controller.snapshot.currentSession.valueText == "--:--:--")
+    }
+
+    @Test
+    @MainActor
+    func refreshingCurrentSessionDoesNotShowWorkedTodayWhenEndPrecedesStart() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let controller = makeController()
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: startTime, endTime: endTime)
+
+        #expect(controller.snapshot.currentSession.titleText == "CURRENT SESSION")
         #expect(controller.snapshot.currentSession.valueText == "--:--:--")
     }
 
@@ -741,6 +787,37 @@ struct MainPopoverViewStateFactoryTests {
         #expect(state.startTimeText == "--:--")
         #expect(state.endTimeText == "18:30")
         #expect(state.attendanceState == .notCheckedIn)
+    }
+
+    @Test
+    func treatsEndBeforeStartAsCheckedIn() throws {
+        let factory = MainPopoverViewStateFactory(
+            calendar: Self.seoulCalendar,
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+        )
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let record = AttendanceRecord(
+            date: referenceDate,
+            startTime: try #require(
+                ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+            ),
+            endTime: try #require(
+                ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+            )
+        )
+
+        let state = factory.make(
+            referenceDate: referenceDate,
+            todayRecord: record
+        )
+
+        #expect(state.checkedInSummaryText == "Checked in at 18:30")
+        #expect(state.startTimeText == "18:30")
+        #expect(state.endTimeText == "09:00")
+        #expect(state.attendanceState == .checkedIn)
     }
 
     private static var seoulCalendar: Calendar {

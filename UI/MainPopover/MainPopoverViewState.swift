@@ -9,6 +9,18 @@ enum MainPopoverAttendanceState: Equatable {
     case notCheckedIn
     case checkedIn
     case checkedOut
+
+    static func make(startTime: Date?, endTime: Date?) -> Self {
+        guard let startTime else {
+            return .notCheckedIn
+        }
+
+        guard let endTime else {
+            return .checkedIn
+        }
+
+        return endTime >= startTime ? .checkedOut : .checkedIn
+    }
 }
 
 struct MainPopoverDetailDayEditingState {

@@ -25,6 +25,7 @@ final class MainPopoverCurrentSessionBinder {
 
     init(
         initialText: String,
+        initialAttendanceState: MainPopoverAttendanceState = .notCheckedIn,
         copy: MainPopoverCopy = .english,
         progressPolicy: MainPopoverCurrentSessionProgressPolicy = MainPopoverCurrentSessionProgressPolicy(),
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
@@ -33,7 +34,7 @@ final class MainPopoverCurrentSessionBinder {
     ) {
         self.copy = copy
         self.progressPolicy = progressPolicy
-        self.attendanceState = .notCheckedIn
+        self.attendanceState = initialAttendanceState
         self.currentSessionText = initialText
         self.currentSessionDuration = nil
         self.currentSessionCalculator = currentSessionCalculator
@@ -48,12 +49,12 @@ final class MainPopoverCurrentSessionBinder {
     }
 
     func apply(startTime: Date?, endTime: Date?) {
-        attendanceState = attendanceState(startTime: startTime, endTime: endTime)
+        attendanceState = MainPopoverAttendanceState.make(startTime: startTime, endTime: endTime)
         runtime.apply(startTime: startTime, endTime: endTime)
     }
 
     func begin(startTime: Date?, endTime: Date?) {
-        attendanceState = attendanceState(startTime: startTime, endTime: endTime)
+        attendanceState = MainPopoverAttendanceState.make(startTime: startTime, endTime: endTime)
         runtime.begin(startTime: startTime, endTime: endTime)
     }
 
@@ -92,13 +93,4 @@ final class MainPopoverCurrentSessionBinder {
         }
     }
 
-    private func attendanceState(startTime: Date?, endTime: Date?) -> MainPopoverAttendanceState {
-        if startTime != nil, endTime != nil {
-            return .checkedOut
-        }
-        if startTime != nil {
-            return .checkedIn
-        }
-        return .notCheckedIn
-    }
 }
