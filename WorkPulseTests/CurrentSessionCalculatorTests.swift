@@ -1560,6 +1560,51 @@ struct AppDelegateTests {
     }
 }
 
+@Suite("MainPopoverCoordinator")
+struct MainPopoverCoordinatorTests {
+    @Test
+    @MainActor
+    func syncingMenuBarAttendanceStatePublishesCurrentDayState() throws {
+        let currentDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T20:00:00+09:00")
+        )
+        let store = InMemoryAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")),
+                startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+                endTime: nil
+            )
+        ])
+        let coordinator = MainPopoverCoordinator(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: Self.seoulCalendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+                currentDateProvider: { currentDate },
+                currentSessionScheduler: FakeRepeatingScheduler()
+            ),
+            recordStore: store
+        )
+        var publishedAttendanceState: MainPopoverAttendanceState?
+
+        coordinator.onDidUpdateAttendanceState = { attendanceState in
+            publishedAttendanceState = attendanceState
+        }
+
+        coordinator.syncMenuBarAttendanceState()
+
+        #expect(publishedAttendanceState == .checkedIn)
+    }
+
+    private static var seoulCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
+        return calendar
+    }
+}
+
 private func makeSeoulCalendar() -> Calendar {
     var calendar = Calendar(identifier: .gregorian)
     calendar.locale = Locale(identifier: "en_US_POSIX")

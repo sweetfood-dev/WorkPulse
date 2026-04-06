@@ -72,9 +72,17 @@ final class MenuBarShellController: NSObject {
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
 
-        button.title = "WP"
+        statusItem.length = NSStatusItem.squareLength
+        button.title = ""
+        button.imagePosition = .imageOnly
+        applyStatusAppearance(.notCheckedIn, to: button)
         button.target = self
         button.action = #selector(togglePopover(_:))
+    }
+
+    func updateStatusItem(attendanceState: MainPopoverAttendanceState) {
+        guard let button = statusItem.button else { return }
+        applyStatusAppearance(attendanceState, to: button)
     }
 
     @objc
@@ -118,5 +126,47 @@ final class MenuBarShellController: NSObject {
         print(
             "[PopoverShell] applyContentSize size=\(size) contentFrame=\(NSStringFromRect(contentView.frame)) contentBounds=\(NSStringFromRect(contentView.bounds)) shown=\(popover.isShown)"
         )
+    }
+
+    private func applyStatusAppearance(_ attendanceState: MainPopoverAttendanceState, to button: NSStatusBarButton) {
+        button.image = statusImage(for: attendanceState)
+        button.contentTintColor = nil
+        button.toolTip = statusTitle(for: attendanceState)
+    }
+
+    private func statusImage(for attendanceState: MainPopoverAttendanceState) -> NSImage? {
+        let image = NSImage(
+            systemSymbolName: "laptopcomputer.and.ipad",
+            accessibilityDescription: statusTitle(for: attendanceState)
+        )
+        let symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+            .applying(
+                NSImage.SymbolConfiguration(hierarchicalColor: statusTintColor(for: attendanceState))
+            )
+        let configuredImage = image?.withSymbolConfiguration(symbolConfiguration)
+        configuredImage?.isTemplate = false
+        return configuredImage
+    }
+
+    private func statusTintColor(for attendanceState: MainPopoverAttendanceState) -> NSColor {
+        switch attendanceState {
+        case .notCheckedIn:
+            return .systemGray
+        case .checkedIn:
+            return .systemBlue
+        case .checkedOut:
+            return .systemGreen
+        }
+    }
+
+    private func statusTitle(for attendanceState: MainPopoverAttendanceState) -> String {
+        switch attendanceState {
+        case .notCheckedIn:
+            return "출근 전"
+        case .checkedIn:
+            return "업무 중"
+        case .checkedOut:
+            return "퇴근"
+        }
     }
 }

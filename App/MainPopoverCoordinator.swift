@@ -16,6 +16,7 @@ final class MainPopoverCoordinator {
     private let workedDurationCalculator: WorkedDurationCalculator
     private let weeklyProgressLoader: MainPopoverWeeklyProgressLoader
     private let monthlyHistoryLoader: MonthlyHistoryLoader
+    var onDidUpdateAttendanceState: ((MainPopoverAttendanceState) -> Void)?
 
     init(
         runtimeDependencies: MainPopoverRuntimeDependencies,
@@ -105,6 +106,12 @@ final class MainPopoverCoordinator {
         refreshPopover(referenceDate: referenceDate)
     }
 
+    func syncMenuBarAttendanceState() {
+        let currentDate = runtimeDependencies.currentDateProvider()
+        let loadedState = stateLoader.load(referenceDate: currentDate)
+        onDidUpdateAttendanceState?(loadedState.viewState.attendanceState)
+    }
+
     func handlePopoverWillOpen() {
         let referenceDate = currentReferenceDateForPopoverOpen()
         logGeometryEvent("handlePopoverWillOpen", referenceDate: referenceDate)
@@ -162,6 +169,7 @@ final class MainPopoverCoordinator {
         let currentDate = runtimeDependencies.currentDateProvider()
 
         let loadedState = stateLoader.load(referenceDate: referenceDate)
+        syncMenuBarAttendanceState()
         popoverViewController.display(
             MainPopoverDisplayIntent(
                 viewState: loadedState.viewState,

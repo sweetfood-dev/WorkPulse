@@ -64,6 +64,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menuBarShellController = MenuBarShellController(
             popoverViewController: popoverViewController
         )
+        popoverCoordinator.onDidUpdateAttendanceState = { [weak menuBarShellController] attendanceState in
+            menuBarShellController?.updateStatusItem(attendanceState: attendanceState)
+        }
         menuBarShellController.onWillOpenPopover = { [weak self] in
             self?.handlePopoverWillOpen()
         }
@@ -71,6 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.popoverCoordinator.handlePopoverDidClose()
         }
         self.menuBarShellController = menuBarShellController
+        popoverCoordinator.syncMenuBarAttendanceState()
     }
 
     func configurePopoverViewController(
