@@ -33,6 +33,7 @@ struct MainPopoverViewStateFactory {
 
     func makePlaceholder() -> MainPopoverViewState {
         MainPopoverViewState(
+            attendanceState: .notCheckedIn,
             dateText: copy.placeholderDateText,
             checkedInSummaryText: copy.checkedInSummaryPlaceholder,
             currentSessionText: copy.currentSessionPlaceholderText,
@@ -50,6 +51,7 @@ struct MainPopoverViewStateFactory {
         monthlyTotalText: String? = nil
     ) -> MainPopoverViewState {
         MainPopoverViewState(
+            attendanceState: attendanceState(for: todayRecord),
             dateText: dateFormatter.string(from: referenceDate),
             checkedInSummaryText: checkedInSummaryText(for: todayRecord),
             currentSessionText: copy.currentSessionPlaceholderText,
@@ -61,11 +63,29 @@ struct MainPopoverViewStateFactory {
     }
 
     private func checkedInSummaryText(for record: AttendanceRecord?) -> String {
-        guard let startTime = record?.startTime else {
-            return copy.checkedInSummaryPlaceholder
+        guard let record else {
+            return copy.notCheckedInSummaryText
         }
 
-        return copy.checkedInSummaryText(for: timeFormatter.string(from: startTime))
+        switch MainPopoverAttendanceState.make(startTime: record.startTime, endTime: record.endTime) {
+        case .checkedOut:
+            guard let endTime = record.endTime else {
+                return copy.notCheckedInSummaryText
+            }
+            return copy.checkedOutSummaryText(for: timeFormatter.string(from: endTime))
+        case .checkedIn:
+            guard let startTime = record.startTime else {
+                return copy.notCheckedInSummaryText
+            }
+            return copy.checkedInSummaryText(for: timeFormatter.string(from: startTime))
+        case .notCheckedIn:
+            return copy.notCheckedInSummaryText
+        }
+    }
+
+    private func attendanceState(for record: AttendanceRecord?) -> MainPopoverAttendanceState {
+        guard let record else { return .notCheckedIn }
+        return MainPopoverAttendanceState.make(startTime: record.startTime, endTime: record.endTime)
     }
 
     private func timeText(for date: Date?) -> String {

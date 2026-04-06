@@ -55,6 +55,7 @@ final class MainPopoverViewController: NSViewController {
     private lazy var currentSessionBinder: MainPopoverCurrentSessionBinder = {
         let binder = MainPopoverCurrentSessionBinder(
             initialText: state.currentSessionText,
+            initialAttendanceState: state.attendanceState,
             copy: copy,
             currentSessionCalculator: currentSessionCalculator,
             currentTimeProvider: currentTimeProvider,

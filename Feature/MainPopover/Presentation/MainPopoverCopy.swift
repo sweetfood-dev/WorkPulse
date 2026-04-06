@@ -2,12 +2,17 @@ import Foundation
 
 struct MainPopoverCopy {
     let placeholderDateText: String
+    let notCheckedInSummaryText: String
     let checkedInSummaryPrefix: String
+    let checkedOutSummaryPrefix: String
     let currentSessionPlaceholderText: String
     let timePlaceholderText: String
     let totalPlaceholderText: String
+    let currentSessionReadyTitle: String
     let currentSessionTitle: String
     let currentSessionWarningTitle: String
+    let workedTodayTitle: String
+    let workedTodayWarningTitle: String
     let currentSessionLeadingCaption: String
     let startTimeTitle: String
     let endTimeTitle: String
@@ -28,12 +33,17 @@ struct MainPopoverCopy {
 
     static let english = MainPopoverCopy(
         placeholderDateText: "Today",
+        notCheckedInSummaryText: "Not checked in yet",
         checkedInSummaryPrefix: "Checked in at",
+        checkedOutSummaryPrefix: "Checked out at",
         currentSessionPlaceholderText: "--:--:--",
         timePlaceholderText: "--:--",
         totalPlaceholderText: "--",
+        currentSessionReadyTitle: "READY TO CHECK IN",
         currentSessionTitle: "CURRENT SESSION",
         currentSessionWarningTitle: "🔥 CURRENT SESSION",
+        workedTodayTitle: "WORKED TODAY",
+        workedTodayWarningTitle: "🔥 WORKED TODAY",
         currentSessionLeadingCaption: "0H",
         startTimeTitle: "Start Time",
         endTimeTitle: "End Time",
@@ -54,7 +64,7 @@ struct MainPopoverCopy {
     )
 
     var checkedInSummaryPlaceholder: String {
-        checkedInSummaryText(for: timePlaceholderText)
+        notCheckedInSummaryText
     }
 
     func currentSessionTrailingCaption(goalDuration: TimeInterval) -> String {
@@ -64,6 +74,10 @@ struct MainPopoverCopy {
 
     func checkedInSummaryText(for timeText: String) -> String {
         "\(checkedInSummaryPrefix) \(timeText)"
+    }
+
+    func checkedOutSummaryText(for timeText: String) -> String {
+        "\(checkedOutSummaryPrefix) \(timeText)"
     }
 
     func summaryTotalText(totalDurationText: String) -> String {
