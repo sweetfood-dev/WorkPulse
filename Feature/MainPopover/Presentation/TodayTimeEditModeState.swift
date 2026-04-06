@@ -16,7 +16,11 @@ struct TodayTimeEditModeState {
     }
 
     var hasValidDraftTimes: Bool {
-        guard let draftStartTime, let draftEndTime else {
+        guard let draftStartTime else {
+            return draftEndTime == nil
+        }
+
+        guard let draftEndTime else {
             return true
         }
 

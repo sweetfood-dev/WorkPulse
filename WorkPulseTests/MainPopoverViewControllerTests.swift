@@ -111,6 +111,33 @@ struct MainPopoverViewControllerTests {
 
     @Test
     @MainActor
+    func refreshingCurrentSessionKeepsReadyStateWhenOnlyEndTimeExists() throws {
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+        )
+        let recordDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00")
+        )
+        let controller = makeController(
+            state: MainPopoverViewStateFactory(copy: .english).make(
+                referenceDate: recordDate,
+                todayRecord: AttendanceRecord(
+                    date: recordDate,
+                    startTime: nil,
+                    endTime: endTime
+                )
+            )
+        )
+
+        controller.loadViewIfNeeded()
+        controller.applyCurrentSession(startTime: nil, endTime: endTime)
+
+        #expect(controller.snapshot.currentSession.titleText == "READY TO CHECK IN")
+        #expect(controller.snapshot.currentSession.valueText == "--:--:--")
+    }
+
+    @Test
+    @MainActor
     func beginningCurrentSessionUpdatesRefreshesImmediatelyAndOnEveryTick() throws {
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
@@ -685,6 +712,35 @@ struct MainPopoverViewStateFactoryTests {
         #expect(state.weeklyTotalText == "12:30")
         #expect(state.monthlyTotalText == "44:10")
         #expect(state.attendanceState == .checkedOut)
+    }
+
+    @Test
+    func treatsEndWithoutStartAsNotCheckedIn() throws {
+        let factory = MainPopoverViewStateFactory(
+            calendar: Self.seoulCalendar,
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+        )
+        let referenceDate = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let record = AttendanceRecord(
+            date: referenceDate,
+            startTime: nil,
+            endTime: try #require(
+                ISO8601DateFormatter().date(from: "2026-03-31T18:30:00+09:00")
+            )
+        )
+
+        let state = factory.make(
+            referenceDate: referenceDate,
+            todayRecord: record
+        )
+
+        #expect(state.checkedInSummaryText == "Not checked in yet")
+        #expect(state.startTimeText == "--:--")
+        #expect(state.endTimeText == "18:30")
+        #expect(state.attendanceState == .notCheckedIn)
     }
 
     private static var seoulCalendar: Calendar {

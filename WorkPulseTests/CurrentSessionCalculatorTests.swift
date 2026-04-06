@@ -1631,6 +1631,19 @@ struct TodayTimeEditModeStateTests {
         #expect(state.editingField == nil)
         #expect(state.isEditingStartTime == false)
     }
+
+    @Test
+    func endTimeWithoutStartTimeIsInvalid() throws {
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")
+        )
+        var state = TodayTimeEditModeState()
+        state.loadSavedTimes(startTime: nil, endTime: nil)
+        state.beginEditing(.endTime)
+        state.updateDraftEndTime(endTime)
+
+        #expect(state.hasValidDraftTimes == false)
+    }
 }
 
 private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {

@@ -67,7 +67,7 @@ struct MainPopoverViewStateFactory {
             return copy.notCheckedInSummaryText
         }
 
-        if let endTime = record.endTime {
+        if let startTime = record.startTime, let endTime = record.endTime {
             return copy.checkedOutSummaryText(for: timeFormatter.string(from: endTime))
         }
 
@@ -80,7 +80,7 @@ struct MainPopoverViewStateFactory {
 
     private func attendanceState(for record: AttendanceRecord?) -> MainPopoverAttendanceState {
         guard let record else { return .notCheckedIn }
-        if record.endTime != nil {
+        if record.startTime != nil, record.endTime != nil {
             return .checkedOut
         }
         if record.startTime != nil {

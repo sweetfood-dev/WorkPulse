@@ -93,7 +93,7 @@ final class MainPopoverCurrentSessionBinder {
     }
 
     private func attendanceState(startTime: Date?, endTime: Date?) -> MainPopoverAttendanceState {
-        if endTime != nil {
+        if startTime != nil, endTime != nil {
             return .checkedOut
         }
         if startTime != nil {
