@@ -18,6 +18,7 @@ struct MainPopoverCopy {
     let endTimeTitle: String
     let deleteActionTitle: String
     let backActionTitle: String
+    let reportActionTitle: String
     let weeklyTitle: String
     let monthlyTitle: String
     let weeklyLabelPrefix: String
@@ -49,6 +50,7 @@ struct MainPopoverCopy {
         endTimeTitle: "End Time",
         deleteActionTitle: "Delete",
         backActionTitle: "Back",
+        reportActionTitle: "Report",
         weeklyTitle: "This Week",
         monthlyTitle: "This Month",
         weeklyLabelPrefix: "Week",

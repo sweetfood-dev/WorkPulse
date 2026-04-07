@@ -43,6 +43,7 @@
 		A1B2C3D4E5F60000000000B4 /* MonthlyHistoryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000C4 /* MonthlyHistoryViewController.swift */; };
 		A1B2C3D4E5F60000000000D5 /* CalendarDayMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000D3 /* CalendarDayMetadata.swift */; };
 		A1B2C3D4E5F60000000000D6 /* KoreanCalendarDayMetadataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000D4 /* KoreanCalendarDayMetadataProvider.swift */; };
+		A1B2C3D4E5F60000000000E1 /* TodayQuitReportBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000000000E2 /* TodayQuitReportBuilder.swift */; };
 		B1C2D3E4F5A6000000000001 /* MenuBarShellControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */; };
 		B1C2D3E4F5A6000000000002 /* MainPopoverViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */; };
 		B1C2D3E4F5A6000000000003 /* CurrentSessionCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000014 /* CurrentSessionCalculatorTests.swift */; };
@@ -51,6 +52,7 @@
 		B1C2D3E4F5A6000000000006 /* MainPopoverSectionViewsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000017 /* MainPopoverSectionViewsTests.swift */; };
 		B1C2D3E4F5A6000000000007 /* MainPopoverDetailNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000018 /* MainPopoverDetailNavigationTests.swift */; };
 		B1C2D3E4F5A6000000000008 /* KoreanCalendarDayMetadataProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6000000000019 /* KoreanCalendarDayMetadataProviderTests.swift */; };
+		B1C2D3E4F5A6000000000009 /* TodayQuitReportBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A600000000001A /* TodayQuitReportBuilderTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -102,6 +104,7 @@
 		A1B2C3D4E5F60000000000C4 /* MonthlyHistoryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyHistoryViewController.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60000000000D3 /* CalendarDayMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarDayMetadata.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60000000000D4 /* KoreanCalendarDayMetadataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoreanCalendarDayMetadataProvider.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60000000000E2 /* TodayQuitReportBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayQuitReportBuilder.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarShellControllerTests.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000012 /* WorkPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WorkPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverViewControllerTests.swift; sourceTree = "<group>"; };
@@ -111,6 +114,7 @@
 		B1C2D3E4F5A6000000000017 /* MainPopoverSectionViewsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverSectionViewsTests.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000018 /* MainPopoverDetailNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverDetailNavigationTests.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6000000000019 /* KoreanCalendarDayMetadataProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoreanCalendarDayMetadataProviderTests.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5A600000000001A /* TodayQuitReportBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayQuitReportBuilderTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -232,6 +236,7 @@
 				A1B2C3D4E5F6000000000091 /* MainPopoverStateLoader.swift */,
 				A1B2C3D4E5F60000000000C1 /* MainPopoverWeeklyProgressLoader.swift */,
 				A1B2C3D4E5F60000000000C2 /* MonthlyHistoryLoader.swift */,
+				A1B2C3D4E5F60000000000E2 /* TodayQuitReportBuilder.swift */,
 				A1B2C3D4E5F60000000000A7 /* WorkedDurationCalculator.swift */,
 			);
 		};
@@ -270,6 +275,7 @@
 				B1C2D3E4F5A6000000000017 /* MainPopoverSectionViewsTests.swift */,
 				B1C2D3E4F5A6000000000013 /* MainPopoverViewControllerTests.swift */,
 				B1C2D3E4F5A6000000000011 /* MenuBarShellControllerTests.swift */,
+				B1C2D3E4F5A600000000001A /* TodayQuitReportBuilderTests.swift */,
 			);
 		};
 /* End PBXGroup section */
@@ -398,6 +404,7 @@
 				A1B2C3D4E5F600000000001E /* MainPopoverViewState.swift in Sources */,
 				A1B2C3D4E5F60000000000B1 /* MainPopoverWeeklyProgressLoader.swift in Sources */,
 				A1B2C3D4E5F60000000000B2 /* MonthlyHistoryLoader.swift in Sources */,
+				A1B2C3D4E5F60000000000E1 /* TodayQuitReportBuilder.swift in Sources */,
 				A1B2C3D4E5F60000000000B4 /* MonthlyHistoryViewController.swift in Sources */,
 				A1B2C3D4E5F600000000002C /* WorkedDurationCalculator.swift in Sources */,
 				A1B2C3D4E5F6000000000006 /* MainPopoverViewStateFactory.swift in Sources */,
@@ -421,6 +428,7 @@
 				B1C2D3E4F5A6000000000006 /* MainPopoverSectionViewsTests.swift in Sources */,
 				B1C2D3E4F5A6000000000002 /* MainPopoverViewControllerTests.swift in Sources */,
 				B1C2D3E4F5A6000000000001 /* MenuBarShellControllerTests.swift in Sources */,
+				B1C2D3E4F5A6000000000009 /* TodayQuitReportBuilderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

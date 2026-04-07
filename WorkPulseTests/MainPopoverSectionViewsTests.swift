@@ -196,13 +196,15 @@ struct MainPopoverSectionViewsTests {
         section.apply(
             MainPopoverHeaderRenderModel(
                 dateText: "Wednesday, Apr 1",
-                checkedInSummaryText: "Checked in at 08:45"
+                checkedInSummaryText: "Checked in at 08:45",
+                reportActionTitle: "Report"
             )
         )
         let snapshot = section.snapshot
 
         #expect(snapshot.dateText == "Wednesday, Apr 1")
         #expect(snapshot.checkedInSummaryText == "Checked in at 08:45")
+        #expect(snapshot.reportButtonTitle == "Report")
         #expect(snapshot.isDateIconLeading)
         #expect(snapshot.isSettingsIconTrailing)
         #expect(snapshot.isCheckInIconLeading)

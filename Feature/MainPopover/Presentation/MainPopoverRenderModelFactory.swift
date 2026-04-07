@@ -9,6 +9,7 @@ enum MainPopoverCurrentSessionVisualState {
 struct MainPopoverHeaderRenderModel {
     let dateText: String
     let checkedInSummaryText: String
+    let reportActionTitle: String
 }
 
 struct MainPopoverCurrentSessionRenderModel {
@@ -72,7 +73,8 @@ struct MainPopoverRenderModelFactory {
         MainPopoverRenderModel(
             header: MainPopoverHeaderRenderModel(
                 dateText: viewState.dateText,
-                checkedInSummaryText: viewState.checkedInSummaryText
+                checkedInSummaryText: viewState.checkedInSummaryText,
+                reportActionTitle: copy.reportActionTitle
             ),
             currentSession: currentSession,
             todayTimes: todayTimes,

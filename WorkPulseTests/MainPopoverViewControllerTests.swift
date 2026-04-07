@@ -303,8 +303,24 @@ struct MainPopoverViewControllerTests {
 
         #expect(snapshot.header.dateText == "Wednesday, Apr 1")
         #expect(snapshot.header.checkedInSummaryText == "Checked in at 08:45")
+        #expect(snapshot.header.reportButtonTitle == "Report")
         #expect(snapshot.summary.weeklyValueText == "09:05")
         #expect(snapshot.summary.monthlyValueText == "--")
+    }
+
+    @Test
+    @MainActor
+    func tappingReportInvokesCopyQuitReportCallback() {
+        let controller = makeController()
+        var didTapReport = false
+        controller.onCopyQuitReport = {
+            didTapReport = true
+        }
+
+        controller.loadViewIfNeeded()
+        controller.simulateTapReport()
+
+        #expect(didTapReport)
     }
 
     @MainActor
@@ -675,6 +691,7 @@ struct MainPopoverViewStateFactoryTests {
             endTimeTitle: "Out",
             deleteActionTitle: "Delete",
             backActionTitle: "Back",
+            reportActionTitle: "Report",
             weeklyTitle: "Week",
             monthlyTitle: "Month",
             weeklyLabelPrefix: "Week",
