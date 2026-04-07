@@ -28,34 +28,51 @@ struct TodayQuitReportBuilder {
 
     func make(todayRecord: AttendanceRecord?, now: Date) -> String {
         guard let todayRecord else {
-            return "아직 출근 전이라 퇴근 가능 시간을 계산할 수 없습니다."
+            return report(
+                startTimeText: "기록 없음",
+                earliestQuitTimeText: "계산 불가",
+                statusText: "출근 전",
+                checkoutTimeText: nil
+            )
         }
 
         guard let startTime = todayRecord.startTime else {
-            return "오늘 출퇴근 기록이 올바르지 않아 퇴근 가능 시간을 계산할 수 없습니다."
+            return report(
+                startTimeText: "기록 이상",
+                earliestQuitTimeText: "계산 불가",
+                statusText: "기록 이상",
+                checkoutTimeText: nil
+            )
         }
 
         let earliestQuitTime = earliestQuitTime(for: startTime)
+        let startTimeText = timeFormatter.string(from: startTime)
         let earliestQuitText = timeFormatter.string(from: earliestQuitTime)
 
         if let endTime = todayRecord.endTime {
             guard workedDurationCalculator.workedDuration(startTime: startTime, endTime: endTime) != nil else {
-                return "오늘 출퇴근 기록이 올바르지 않아 퇴근 가능 시간을 계산할 수 없습니다."
+                return report(
+                    startTimeText: startTimeText,
+                    earliestQuitTimeText: "계산 불가",
+                    statusText: "기록 이상",
+                    checkoutTimeText: nil
+                )
             }
 
-            let endTimeText = timeFormatter.string(from: endTime)
-            if endTime >= earliestQuitTime {
-                return "오늘은 \(earliestQuitText)부터 퇴근 가능했고, \(endTimeText)에 퇴근했습니다."
-            }
-
-            return "오늘은 \(earliestQuitText)부터 퇴근 가능하지만, \(endTimeText)에 퇴근 기록이 있습니다."
+            return report(
+                startTimeText: startTimeText,
+                earliestQuitTimeText: earliestQuitText,
+                statusText: endTime >= earliestQuitTime ? "퇴근 완료" : "조기 퇴근 기록",
+                checkoutTimeText: timeFormatter.string(from: endTime)
+            )
         }
 
-        if now >= earliestQuitTime {
-            return "오늘은 \(earliestQuitText)부터 퇴근 가능합니다. 현재는 퇴근 가능한 상태입니다."
-        }
-
-        return "오늘은 \(earliestQuitText)부터 퇴근 가능합니다."
+        return report(
+            startTimeText: startTimeText,
+            earliestQuitTimeText: earliestQuitText,
+            statusText: now >= earliestQuitTime ? "퇴근 가능" : "업무 중",
+            checkoutTimeText: nil
+        )
     }
 
     private func earliestQuitTime(for startTime: Date) -> Date {
@@ -73,5 +90,25 @@ struct TodayQuitReportBuilder {
 
             candidate = candidate.addingTimeInterval(goalDuration - workedDuration)
         }
+    }
+
+    private func report(
+        startTimeText: String,
+        earliestQuitTimeText: String,
+        statusText: String,
+        checkoutTimeText: String?
+    ) -> String {
+        var lines = [
+            "[퇴근 가능 시간 보고]",
+            "오늘 출근 시간: \(startTimeText)",
+            "오늘 퇴근 가능 시간: \(earliestQuitTimeText)",
+            "현재 상태: \(statusText)",
+        ]
+
+        if let checkoutTimeText {
+            lines.append("오늘 퇴근 시간: \(checkoutTimeText)")
+        }
+
+        return lines.joined(separator: "\n")
     }
 }

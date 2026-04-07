@@ -23,7 +23,14 @@ struct TodayQuitReportBuilderTests {
             now: now
         )
 
-        #expect(report == "오늘은 17:10부터 퇴근 가능합니다.")
+        #expect(
+            report == """
+            [퇴근 가능 시간 보고]
+            오늘 출근 시간: 08:10
+            오늘 퇴근 가능 시간: 17:10
+            현재 상태: 업무 중
+            """
+        )
     }
 
     @Test
@@ -45,7 +52,15 @@ struct TodayQuitReportBuilderTests {
             now: endTime
         )
 
-        #expect(report == "오늘은 17:10부터 퇴근 가능했고, 17:30에 퇴근했습니다.")
+        #expect(
+            report == """
+            [퇴근 가능 시간 보고]
+            오늘 출근 시간: 08:10
+            오늘 퇴근 가능 시간: 17:10
+            현재 상태: 퇴근 완료
+            오늘 퇴근 시간: 17:30
+            """
+        )
     }
 
     @Test
@@ -67,7 +82,14 @@ struct TodayQuitReportBuilderTests {
             now: now
         )
 
-        #expect(report == "오늘 출퇴근 기록이 올바르지 않아 퇴근 가능 시간을 계산할 수 없습니다.")
+        #expect(
+            report == """
+            [퇴근 가능 시간 보고]
+            오늘 출근 시간: 기록 이상
+            오늘 퇴근 가능 시간: 계산 불가
+            현재 상태: 기록 이상
+            """
+        )
     }
 }
 
@@ -102,7 +124,14 @@ struct QuitReportCopyTests {
         let controller = coordinator.makePopoverViewController(referenceDate: currentDate)
         controller.simulateTapReport()
 
-        #expect(clipboard.lastCopiedString == "오늘은 17:10부터 퇴근 가능합니다.")
+        #expect(
+            clipboard.lastCopiedString == """
+            [퇴근 가능 시간 보고]
+            오늘 출근 시간: 08:10
+            오늘 퇴근 가능 시간: 17:10
+            현재 상태: 업무 중
+            """
+        )
     }
 }
 
