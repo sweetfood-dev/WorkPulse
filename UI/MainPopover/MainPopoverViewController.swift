@@ -37,6 +37,7 @@ final class MainPopoverViewController: NSViewController {
     var onOpenWeeklyProgress: (() -> Void)?
     var onOpenMonthlyHistory: (() -> Void)?
     var onSelectDetailDate: ((MainPopoverDetailSurface, Date) -> Void)?
+    var onCopyQuitReport: (() -> Void)?
 
     private let headerSectionView = MainPopoverHeaderSectionView()
     private let currentSessionSectionView = MainPopoverCurrentSessionSectionView()
@@ -102,6 +103,9 @@ final class MainPopoverViewController: NSViewController {
             case .monthly:
                 self?.onOpenMonthlyHistory?()
             }
+        }
+        headerSectionView.onDidTapReport = { [weak self] in
+            self?.onCopyQuitReport?()
         }
         weeklyDetailSectionView.onBack = { [weak self] in
             self?.showMainView()
@@ -286,6 +290,10 @@ final class MainPopoverViewController: NSViewController {
 
     func simulateSelectMonthlyDetailDay(at index: Int) {
         monthlyHistoryViewController.simulateSelectDay(at: index)
+    }
+
+    func simulateTapReport() {
+        headerSectionView.simulateTapReport()
     }
 
     func beginEditingSelectedDetailDay(_ field: TodayTimeField) {

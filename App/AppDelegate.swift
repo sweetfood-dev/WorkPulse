@@ -110,7 +110,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.syncMenuBarAttendanceState()
+            MainActor.assumeIsolated {
+                self?.syncMenuBarAttendanceState()
+            }
         }
     }
 

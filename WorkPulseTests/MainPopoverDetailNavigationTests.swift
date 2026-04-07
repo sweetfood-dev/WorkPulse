@@ -911,7 +911,7 @@ struct MainPopoverDetailLoadersTests {
                     MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
                     MonthlyHistoryDayCellViewState(dayText: "", statusText: "", annotationText: nil, activity: .outsideMonth, dayCategory: .weekday, isDimmed: false),
                     MonthlyHistoryDayCellViewState(dayText: "1", statusText: "7h 51m", annotationText: nil, activity: .worked, dayCategory: .weekday, isDimmed: false),
-                    MonthlyHistoryDayCellViewState(dayText: "2", statusText: "Active", annotationText: longHolidayName, activity: .active, dayCategory: .holiday, isDimmed: false),
+                    MonthlyHistoryDayCellViewState(dayText: "2", statusText: "Active", annotationText: longHolidayName, activity: .active, dayCategory: .holiday, isOvertime: true, isDimmed: false),
                     MonthlyHistoryDayCellViewState(dayText: "3", statusText: "—", annotationText: nil, activity: .empty, dayCategory: .weekday, isDimmed: true),
                     MonthlyHistoryDayCellViewState(dayText: "4", statusText: "Off", annotationText: nil, activity: .empty, dayCategory: .weekend, isDimmed: true),
                 ]

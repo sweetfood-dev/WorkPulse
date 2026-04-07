@@ -72,6 +72,7 @@ struct MainPopoverRenderModelFactoryTests {
                 endTimeTitle: "Out",
                 deleteActionTitle: "Delete",
                 backActionTitle: "Back",
+                reportActionTitle: "Report",
                 weeklyTitle: "Week",
                 monthlyTitle: "Month",
                 weeklyLabelPrefix: "Week",

@@ -5,6 +5,7 @@ struct MainPopoverHeaderSectionSnapshot {
     let checkedInSummaryText: String
     let isDateIconLeading: Bool
     let isSettingsIconTrailing: Bool
+    let reportButtonTitle: String
     let isCheckInIconLeading: Bool
     let dateFontPointSize: CGFloat
     let checkedInSummaryFontPointSize: CGFloat
@@ -14,6 +15,7 @@ final class MainPopoverHeaderSectionView: NSView {
     private let dateLabel = NSTextField(labelWithString: "")
     private let checkedInSummaryLabel = NSTextField(labelWithString: "")
     private let dateIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "calendar")
+    private let reportButton = NSButton(title: "", target: nil, action: nil)
     private let settingsIconView = MainPopoverSectionIconFactory.makeSymbolImageView(systemName: "gearshape")
     private let checkInIconView = MainPopoverSectionIconFactory.makeTintedSymbolImageView(
         systemName: "arrow.right.to.line",
@@ -25,6 +27,8 @@ final class MainPopoverHeaderSectionView: NSView {
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.headerInsets
     )
+
+    var onDidTapReport: (() -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -39,6 +43,7 @@ final class MainPopoverHeaderSectionView: NSView {
     func apply(_ renderModel: MainPopoverHeaderRenderModel) {
         dateLabel.stringValue = renderModel.dateText
         checkedInSummaryLabel.stringValue = renderModel.checkedInSummaryText
+        reportButton.title = renderModel.reportActionTitle
     }
 
     var snapshot: MainPopoverHeaderSectionSnapshot {
@@ -47,10 +52,15 @@ final class MainPopoverHeaderSectionView: NSView {
             checkedInSummaryText: checkedInSummaryLabel.stringValue,
             isDateIconLeading: dateRow.arrangedSubviews.first === dateIconView,
             isSettingsIconTrailing: dateRow.arrangedSubviews.last === settingsIconView,
+            reportButtonTitle: reportButton.title,
             isCheckInIconLeading: checkInRow.arrangedSubviews.first === checkInIconView,
             dateFontPointSize: dateLabel.font?.pointSize ?? 0,
             checkedInSummaryFontPointSize: checkedInSummaryLabel.font?.pointSize ?? 0
         )
+    }
+
+    func simulateTapReport() {
+        handleTapReport()
     }
 
     private func configure() {
@@ -62,10 +72,16 @@ final class MainPopoverHeaderSectionView: NSView {
         dateLabel.textColor = MainPopoverStyle.Colors.primaryText
         checkedInSummaryLabel.font = MainPopoverStyle.Typography.secondary
         checkedInSummaryLabel.textColor = MainPopoverStyle.Colors.secondaryText
+        reportButton.bezelStyle = .rounded
+        reportButton.controlSize = .small
+        reportButton.font = .systemFont(ofSize: 11, weight: .semibold)
+        reportButton.target = self
+        reportButton.action = #selector(handleTapReport)
 
         dateRow.addArrangedSubview(dateIconView)
         dateRow.addArrangedSubview(dateLabel)
         dateRow.addArrangedSubview(NSView())
+        dateRow.addArrangedSubview(reportButton)
         dateRow.addArrangedSubview(settingsIconView)
         dateRow.orientation = .horizontal
         dateRow.alignment = .centerY
@@ -88,5 +104,10 @@ final class MainPopoverHeaderSectionView: NSView {
             container.trailingAnchor.constraint(equalTo: trailingAnchor),
             container.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+    }
+
+    @objc
+    private func handleTapReport() {
+        onDidTapReport?()
     }
 }

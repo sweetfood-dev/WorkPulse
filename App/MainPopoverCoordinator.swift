@@ -1,5 +1,17 @@
 import AppKit
 
+protocol StringClipboardWriting {
+    func copy(_ string: String)
+}
+
+struct NSPasteboardStringClipboardWriter: StringClipboardWriting {
+    func copy(_ string: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(string, forType: .string)
+    }
+}
+
 @MainActor
 final class MainPopoverCoordinator {
     private static let isGeometryDebugEnabled =
@@ -14,18 +26,27 @@ final class MainPopoverCoordinator {
     private let viewStateFactory: MainPopoverViewStateFactory
     private let stateLoader: MainPopoverStateLoader
     private let workedDurationCalculator: WorkedDurationCalculator
+    private let todayQuitReportBuilder: TodayQuitReportBuilder
+    private let clipboardWriter: any StringClipboardWriting
     private let weeklyProgressLoader: MainPopoverWeeklyProgressLoader
     private let monthlyHistoryLoader: MonthlyHistoryLoader
     var onDidUpdateAttendanceState: ((MainPopoverAttendanceState) -> Void)?
 
     init(
         runtimeDependencies: MainPopoverRuntimeDependencies,
-        recordStore: any AttendanceRecordStore
+        recordStore: any AttendanceRecordStore,
+        clipboardWriter: any StringClipboardWriting = NSPasteboardStringClipboardWriter()
     ) {
         self.runtimeDependencies = runtimeDependencies
         self.recordStore = recordStore
+        self.clipboardWriter = clipboardWriter
         self.workedDurationCalculator = WorkedDurationCalculator(
             calendar: runtimeDependencies.calendar
+        )
+        self.todayQuitReportBuilder = TodayQuitReportBuilder(
+            calendar: runtimeDependencies.calendar,
+            locale: runtimeDependencies.locale,
+            timeZone: runtimeDependencies.timeZone
         )
         self.viewStateFactory = MainPopoverViewStateFactory(
             calendar: runtimeDependencies.calendar,
@@ -96,6 +117,9 @@ final class MainPopoverCoordinator {
         }
         popoverViewController.onOpenMonthlyHistory = { [weak self] in
             self?.showMonthlyHistory()
+        }
+        popoverViewController.onCopyQuitReport = { [weak self] in
+            self?.copyTodayQuitReport()
         }
         popoverViewController.onSelectDetailDate = { [weak self] surface, selectedDate in
             self?.selectDetailDate(surface: surface, selectedDate: selectedDate)
@@ -181,6 +205,16 @@ final class MainPopoverCoordinator {
                 )
             )
         )
+    }
+
+    private func copyTodayQuitReport() {
+        let currentDate = runtimeDependencies.currentDateProvider()
+        let todayRecord = recordStore.record(on: currentDate, calendar: runtimeDependencies.calendar)
+        let reportText = todayQuitReportBuilder.make(
+            todayRecord: todayRecord,
+            now: currentDate
+        )
+        clipboardWriter.copy(reportText)
     }
 
     private func showWeeklyProgress() {
