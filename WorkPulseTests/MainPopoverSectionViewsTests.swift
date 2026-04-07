@@ -246,7 +246,7 @@ struct MainPopoverSectionViewsTests {
                 valueText: "08:00:01",
                 leadingCaptionText: "0H",
                 trailingCaptionText: "Goal: 8h",
-                progressFraction: 0.94,
+                progressFraction: 1,
                 visualState: .warning
             )
         )
