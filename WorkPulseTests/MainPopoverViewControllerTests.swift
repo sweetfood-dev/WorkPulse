@@ -26,7 +26,7 @@ struct MainPopoverViewControllerTests {
 
     @Test
     @MainActor
-    func refreshingCurrentSessionLeavesVisibleTrackWhenSessionExceedsGoal() throws {
+    func refreshingCurrentSessionFillsProgressWhenSessionExceedsGoal() throws {
         let startTime = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T08:00:00+09:00")
         )
@@ -40,7 +40,7 @@ struct MainPopoverViewControllerTests {
         let snapshot = controller.snapshot
 
         #expect(snapshot.currentSession.valueText == "08:30:00")
-        #expect(abs(snapshot.currentSession.progressFraction - 0.94) < 0.001)
+        #expect(snapshot.currentSession.progressFraction == 1)
         #expect(snapshot.currentSession.titleText == "🔥 CURRENT SESSION")
         #expect(snapshot.currentSession.isWarningState)
     }

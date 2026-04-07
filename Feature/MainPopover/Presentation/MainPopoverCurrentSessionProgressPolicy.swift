@@ -3,7 +3,7 @@ import Foundation
 
 struct MainPopoverCurrentSessionProgressPolicy {
     static let defaultGoalDuration: TimeInterval = 8 * 60 * 60
-    static let defaultMaximumVisibleFraction: CGFloat = 0.94
+    static let defaultMaximumVisibleFraction: CGFloat = 1
 
     let goalDuration: TimeInterval
     let maximumVisibleFraction: CGFloat

@@ -886,6 +886,55 @@ struct MainPopoverDetailLoadersTests {
         let overtimeDay = try #require(state.days.first(where: { $0.dayText == "Thu 2" }))
 
         #expect(overtimeDay.isOvertime)
+        #expect(overtimeDay.progressFraction == 1)
+    }
+
+    @Test
+    func weeklyProgressLoaderFillsTopProgressWhenWeekExceedsGoal() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-03T20:00:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-03-30T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-03-30T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-03-30T18:30:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-03-31T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-03-31T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-03-31T18:30:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-01T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-01T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-01T18:30:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-02T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-02T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-02T18:30:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-03T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-03T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-03T18:30:00+09:00"))
+            ),
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.totalDurationText == "42:30")
+        #expect(state.statusText == "2h 30m Overtime")
+        #expect(state.progressFraction == 1)
+        #expect(state.visualState == .warning)
     }
 
     @Test
