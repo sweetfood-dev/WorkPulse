@@ -230,13 +230,19 @@ struct MainPopoverWeeklyProgressLoader {
 
     private func dailyProgressFraction(for duration: TimeInterval?) -> CGFloat {
         guard let duration, duration > 0 else { return 0 }
+        if duration >= MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration {
+            return 1
+        }
         let fraction = CGFloat(duration / MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration)
         return min(1, max(0, fraction))
     }
 
     private func progressFraction(for duration: TimeInterval) -> CGFloat {
         guard duration > 0 else { return 0 }
-        return min(1, max(0, CGFloat(duration / goalDuration)))
+        if duration >= goalDuration {
+            return 1
+        }
+        return max(0, CGFloat(duration / goalDuration))
     }
 
     private func isOvertime(_ duration: TimeInterval?) -> Bool {
