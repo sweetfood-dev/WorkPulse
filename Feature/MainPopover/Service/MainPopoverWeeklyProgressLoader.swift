@@ -138,8 +138,11 @@ struct MainPopoverWeeklyProgressLoader {
     }
 
     func load(referenceDate: Date) -> MainPopoverWeeklyProgressViewState {
+        load(referenceDate: referenceDate, currentDate: currentDateProvider())
+    }
+
+    func load(referenceDate: Date, currentDate: Date) -> MainPopoverWeeklyProgressViewState {
         let weekDates = makeWeekDates(for: referenceDate)
-        let currentDate = currentDateProvider()
         let currentDayStart = calendar.startOfDay(for: currentDate)
         let dayStatesWithDuration = weekDates.map { date in
             let record = recordStore.record(on: date, calendar: calendar)

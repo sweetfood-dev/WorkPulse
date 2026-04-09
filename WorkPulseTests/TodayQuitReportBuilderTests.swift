@@ -171,6 +171,55 @@ struct QuitReportCopyTests {
             """
         )
     }
+
+    @Test
+    @MainActor
+    func tappingReportUsesSingleTimestampForRecordAndThroughTodayStatus() throws {
+        let mondayMorning = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-06T10:00:00+09:00")
+        )
+        let tuesdayMidnight = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-07T00:00:00+09:00")
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-06T08:10:00+09:00")
+        )
+        let store = InMemoryAttendanceRecordStoreForQuitReport(records: [
+            AttendanceRecord(date: mondayMorning, startTime: startTime, endTime: nil)
+        ])
+        let clipboard = ClipboardSpy()
+        let currentDateProvider = SequencedCurrentDateProvider([
+            mondayMorning,
+            mondayMorning,
+            mondayMorning,
+            tuesdayMidnight,
+        ])
+        let coordinator = MainPopoverCoordinator(
+            runtimeDependencies: MainPopoverRuntimeDependencies(
+                calendar: makeSeoulCalendar(),
+                locale: Locale(identifier: "ko_KR"),
+                timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60)),
+                calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(),
+                currentDateProvider: { currentDateProvider.next() },
+                currentSessionScheduler: NoopCurrentSessionScheduler()
+            ),
+            recordStore: store,
+            clipboardWriter: clipboard
+        )
+
+        let controller = coordinator.makePopoverViewController(referenceDate: mondayMorning)
+        controller.simulateTapReport()
+
+        #expect(
+            clipboard.lastCopiedString == """
+            [퇴근 가능 시간 보고]
+            오늘 출근 시간: 08:10
+            오늘 퇴근 가능 시간: 17:10
+            현재 상태: 업무 중
+            오늘까지 누적 상태: 정상
+            """
+        )
+    }
 }
 
 private final class ClipboardSpy: StringClipboardWriting {
@@ -202,6 +251,23 @@ private final class InMemoryAttendanceRecordStoreForQuitReport: AttendanceRecord
         } else {
             records.append(record)
         }
+    }
+}
+
+private final class SequencedCurrentDateProvider {
+    private var dates: [Date]
+    private var lastDate: Date
+
+    init(_ dates: [Date]) {
+        self.dates = dates
+        self.lastDate = dates.last ?? Date(timeIntervalSince1970: 0)
+    }
+
+    func next() -> Date {
+        if dates.isEmpty == false {
+            lastDate = dates.removeFirst()
+        }
+        return lastDate
     }
 }
 

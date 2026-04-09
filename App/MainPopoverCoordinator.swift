@@ -210,7 +210,10 @@ final class MainPopoverCoordinator {
     private func copyTodayQuitReport() {
         let currentDate = runtimeDependencies.currentDateProvider()
         let todayRecord = recordStore.record(on: currentDate, calendar: runtimeDependencies.calendar)
-        let throughTodayStatusText = weeklyProgressLoader.load(referenceDate: currentDate).todayDeltaStatusText
+        let throughTodayStatusText = weeklyProgressLoader.load(
+            referenceDate: currentDate,
+            currentDate: currentDate
+        ).todayDeltaStatusText
         let reportText = todayQuitReportBuilder.make(
             todayRecord: todayRecord,
             now: currentDate,
