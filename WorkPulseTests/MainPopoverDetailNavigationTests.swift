@@ -53,6 +53,7 @@ struct MainPopoverDetailNavigationTests {
         #expect(controller.snapshot.weeklyDetail.titleText == "Weekly Progress")
         #expect(controller.snapshot.weeklyDetail.weekText == "Week 14")
         #expect(controller.snapshot.weeklyDetail.statusText == "8h 45m remaining to 40h")
+        #expect(controller.snapshot.weeklyDetail.selectedStatusSegment == 0)
         #expect(controller.snapshot.weeklyDetail.progressFraction == 0.4)
         #expect(controller.snapshot.weeklyDetail.dayCount == 1)
         #expect(controller.snapshot.weeklyDetail.isWarningState == false)
@@ -122,6 +123,37 @@ struct MainPopoverDetailNavigationTests {
         controller.showWeeklyDetail(weeklyState)
 
         #expect(controller.snapshot.weeklyDetail.overtimeDayCount == 2)
+    }
+
+    @Test
+    @MainActor
+    func weeklyDetailAllowsSwitchingBetweenProgressAndQuitTimeStatuses() {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "33:35",
+            statusText: "1h 01m remaining to 40h",
+            quitTimeStatusText: "Quit at 17:10",
+            progressFraction: 0.97,
+            visualState: .normal,
+            days: makeWeeklyProgressDays()
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showWeeklyDetail(weeklyState)
+        controller.simulateSelectWeeklyDetailStatusSegment(at: 1)
+
+        #expect(controller.snapshot.weeklyDetail.selectedStatusSegment == 1)
+        #expect(controller.snapshot.weeklyDetail.statusText == "Quit at 17:10")
+
+        controller.simulateSelectWeeklyDetailStatusSegment(at: 0)
+
+        #expect(controller.snapshot.weeklyDetail.selectedStatusSegment == 0)
+        #expect(controller.snapshot.weeklyDetail.statusText == "1h 01m remaining to 40h")
     }
 
     @Test
@@ -651,6 +683,7 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.weekText == "Week 14")
         #expect(state.totalDurationText == "16:00")
         #expect(state.statusText == "24h 00m remaining to 40h")
+        #expect(state.quitTimeStatusText == "No check-in record")
         #expect(state.progressFraction == 0.4)
         #expect(state.visualState == .normal)
         #expect(state.days.count == 7)
@@ -688,6 +721,7 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.weekText == "Week 14")
         #expect(state.totalDurationText == "11:00")
         #expect(state.statusText == "29h 00m remaining to 40h")
+        #expect(state.quitTimeStatusText == "Quit at 18:00")
         #expect(state.progressFraction > 0.27)
         #expect(state.progressFraction < 0.28)
         #expect(state.visualState == .normal)
@@ -933,8 +967,34 @@ struct MainPopoverDetailLoadersTests {
 
         #expect(state.totalDurationText == "42:30")
         #expect(state.statusText == "2h 30m Overtime")
+        #expect(state.quitTimeStatusText == "Checked out 18:30")
         #expect(state.progressFraction == 1)
         #expect(state.visualState == .warning)
+    }
+
+    @Test
+    func weeklyProgressLoaderShowsCanLeaveSinceForTodayAfterEarliestQuitTime() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-03T18:30:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-03T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-03T08:00:00+09:00")),
+                endTime: nil
+            ),
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.quitTimeStatusText == "Can leave since 17:00")
     }
 
     @Test

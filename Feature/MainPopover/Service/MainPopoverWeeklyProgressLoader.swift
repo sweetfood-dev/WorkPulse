@@ -43,9 +43,30 @@ struct MainPopoverWeeklyProgressViewState {
     let weekText: String
     let totalDurationText: String
     let statusText: String
+    let quitTimeStatusText: String
     let progressFraction: CGFloat
     let visualState: MainPopoverCurrentSessionVisualState
     let days: [MainPopoverWeeklyProgressDayViewState]
+
+    init(
+        titleText: String,
+        weekText: String,
+        totalDurationText: String,
+        statusText: String,
+        quitTimeStatusText: String = "",
+        progressFraction: CGFloat,
+        visualState: MainPopoverCurrentSessionVisualState,
+        days: [MainPopoverWeeklyProgressDayViewState]
+    ) {
+        self.titleText = titleText
+        self.weekText = weekText
+        self.totalDurationText = totalDurationText
+        self.statusText = statusText
+        self.quitTimeStatusText = quitTimeStatusText
+        self.progressFraction = progressFraction
+        self.visualState = visualState
+        self.days = days
+    }
 }
 
 struct MainPopoverWeeklyProgressLoader {
@@ -56,6 +77,7 @@ struct MainPopoverWeeklyProgressLoader {
     private let currentDateProvider: () -> Date
     private let copy: MainPopoverCopy
     private let goalDuration: TimeInterval
+    private let quitTimeInsightCalculator: QuitTimeInsightCalculator
     private let dayFormatter: DateFormatter
     private let timeFormatter: DateFormatter
 
@@ -76,6 +98,7 @@ struct MainPopoverWeeklyProgressLoader {
         self.currentDateProvider = currentDateProvider
         self.copy = copy
         self.goalDuration = 40 * 60 * 60
+        self.quitTimeInsightCalculator = QuitTimeInsightCalculator(calendar: calendar)
 
         let dayFormatter = DateFormatter()
         dayFormatter.calendar = calendar
@@ -131,12 +154,18 @@ struct MainPopoverWeeklyProgressLoader {
         let visualState: MainPopoverCurrentSessionVisualState = totalDuration > goalDuration
             ? .warning
             : .normal
+        let selectedRecord = recordStore.record(on: referenceDate, calendar: calendar)
 
         return MainPopoverWeeklyProgressViewState(
             titleText: copy.weeklyProgressTitle,
             weekText: copy.weeklyLabelText(weekOfYear: weekOfYear),
             totalDurationText: formatTotalDuration(totalDuration),
             statusText: statusText(for: totalDuration, visualState: visualState),
+            quitTimeStatusText: quitTimeStatusText(
+                for: selectedRecord,
+                referenceDate: referenceDate,
+                currentDate: currentDate
+            ),
             progressFraction: progressFraction,
             visualState: visualState,
             days: dayStatesWithDuration.map(\.0)
@@ -248,5 +277,32 @@ struct MainPopoverWeeklyProgressLoader {
     private func isOvertime(_ duration: TimeInterval?) -> Bool {
         guard let duration else { return false }
         return duration >= MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+    }
+
+    private func quitTimeStatusText(
+        for record: AttendanceRecord?,
+        referenceDate: Date,
+        currentDate: Date
+    ) -> String {
+        switch quitTimeInsightCalculator.make(record: record) {
+        case .noRecord:
+            return copy.weeklyNoCheckInStatusText
+        case .invalidRecord:
+            return copy.weeklyQuitTimeUnavailableText
+        case let .available(_, earliestQuitTime, checkoutTime):
+            if let checkoutTime {
+                let checkoutText = formatTime(checkoutTime)
+                return checkoutTime >= earliestQuitTime
+                    ? copy.weeklyCheckedOutStatusText(timeText: checkoutText)
+                    : copy.weeklyEarlyCheckedOutStatusText(timeText: checkoutText)
+            }
+
+            let earliestQuitText = formatTime(earliestQuitTime)
+            if calendar.isDate(referenceDate, inSameDayAs: currentDate), currentDate >= earliestQuitTime {
+                return copy.weeklyCanQuitStatusText(timeText: earliestQuitText)
+            }
+
+            return copy.weeklyQuitTimeStatusText(timeText: earliestQuitText)
+        }
     }
 }

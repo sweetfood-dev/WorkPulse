@@ -1,8 +1,7 @@
 import Foundation
 
 struct TodayQuitReportBuilder {
-    private let workedDurationCalculator: WorkedDurationCalculator
-    private let goalDuration: TimeInterval
+    private let quitTimeInsightCalculator: QuitTimeInsightCalculator
     private let timeFormatter: DateFormatter
 
     init(
@@ -15,8 +14,10 @@ struct TodayQuitReportBuilder {
         calendar.locale = locale
         calendar.timeZone = timeZone
 
-        self.workedDurationCalculator = WorkedDurationCalculator(calendar: calendar)
-        self.goalDuration = goalDuration
+        self.quitTimeInsightCalculator = QuitTimeInsightCalculator(
+            calendar: calendar,
+            goalDuration: goalDuration
+        )
 
         let timeFormatter = DateFormatter()
         timeFormatter.calendar = calendar
@@ -27,68 +28,40 @@ struct TodayQuitReportBuilder {
     }
 
     func make(todayRecord: AttendanceRecord?, now: Date) -> String {
-        guard let todayRecord else {
+        switch quitTimeInsightCalculator.make(record: todayRecord) {
+        case .noRecord:
             return report(
                 startTimeText: "기록 없음",
                 earliestQuitTimeText: "계산 불가",
                 statusText: "출근 전",
                 checkoutTimeText: nil
             )
-        }
-
-        guard let startTime = todayRecord.startTime else {
+        case .invalidRecord:
             return report(
                 startTimeText: "기록 이상",
                 earliestQuitTimeText: "계산 불가",
                 statusText: "기록 이상",
                 checkoutTimeText: nil
             )
-        }
+        case let .available(startTime, earliestQuitTime, checkoutTime):
+            let startTimeText = timeFormatter.string(from: startTime)
+            let earliestQuitText = timeFormatter.string(from: earliestQuitTime)
 
-        let earliestQuitTime = earliestQuitTime(for: startTime)
-        let startTimeText = timeFormatter.string(from: startTime)
-        let earliestQuitText = timeFormatter.string(from: earliestQuitTime)
-
-        if let endTime = todayRecord.endTime {
-            guard workedDurationCalculator.workedDuration(startTime: startTime, endTime: endTime) != nil else {
+            if let checkoutTime {
                 return report(
                     startTimeText: startTimeText,
-                    earliestQuitTimeText: "계산 불가",
-                    statusText: "기록 이상",
-                    checkoutTimeText: nil
+                    earliestQuitTimeText: earliestQuitText,
+                    statusText: checkoutTime >= earliestQuitTime ? "퇴근 완료" : "조기 퇴근 기록",
+                    checkoutTimeText: timeFormatter.string(from: checkoutTime)
                 )
             }
 
             return report(
                 startTimeText: startTimeText,
                 earliestQuitTimeText: earliestQuitText,
-                statusText: endTime >= earliestQuitTime ? "퇴근 완료" : "조기 퇴근 기록",
-                checkoutTimeText: timeFormatter.string(from: endTime)
+                statusText: now >= earliestQuitTime ? "퇴근 가능" : "업무 중",
+                checkoutTimeText: nil
             )
-        }
-
-        return report(
-            startTimeText: startTimeText,
-            earliestQuitTimeText: earliestQuitText,
-            statusText: now >= earliestQuitTime ? "퇴근 가능" : "업무 중",
-            checkoutTimeText: nil
-        )
-    }
-
-    private func earliestQuitTime(for startTime: Date) -> Date {
-        var candidate = startTime.addingTimeInterval(goalDuration)
-
-        while true {
-            let workedDuration = workedDurationCalculator.workedDuration(
-                startTime: startTime,
-                endTime: candidate
-            ) ?? 0
-
-            if workedDuration >= goalDuration {
-                return candidate
-            }
-
-            candidate = candidate.addingTimeInterval(goalDuration - workedDuration)
         }
     }
 
