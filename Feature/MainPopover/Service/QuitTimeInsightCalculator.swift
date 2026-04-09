@@ -2,7 +2,7 @@ import Foundation
 
 enum QuitTimeInsight {
     case noRecord
-    case invalidRecord
+    case invalidRecord(startTime: Date?)
     case available(startTime: Date, earliestQuitTime: Date, checkoutTime: Date?)
 }
 
@@ -20,13 +20,13 @@ struct QuitTimeInsightCalculator {
 
     func make(record: AttendanceRecord?) -> QuitTimeInsight {
         guard let record else { return .noRecord }
-        guard let startTime = record.startTime else { return .invalidRecord }
+        guard let startTime = record.startTime else { return .invalidRecord(startTime: nil) }
 
         let earliestQuitTime = earliestQuitTime(for: startTime)
 
         if let checkoutTime = record.endTime {
             guard workedDurationCalculator.workedDuration(startTime: startTime, endTime: checkoutTime) != nil else {
-                return .invalidRecord
+                return .invalidRecord(startTime: startTime)
             }
 
             return .available(
