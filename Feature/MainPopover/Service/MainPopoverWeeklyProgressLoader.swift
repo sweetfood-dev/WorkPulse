@@ -84,6 +84,13 @@ enum MainPopoverWeeklyProgressDeltaVisualState {
     case overtime
 }
 
+private enum MainPopoverWeeklyThroughTodayDelta {
+    case neutral
+    case remaining(TimeInterval)
+    case overtime(TimeInterval)
+    case unavailable
+}
+
 struct MainPopoverWeeklyProgressLoader {
     private let recordStore: any AttendanceRecordQuerying
     private let workedDurationCalculator: WorkedDurationCalculator
@@ -350,70 +357,57 @@ struct MainPopoverWeeklyProgressLoader {
         for weekDates: [Date],
         currentDate: Date
     ) -> String {
-        guard weekDates.contains(where: { calendar.isDate($0, inSameDayAs: currentDate) }) else {
+        switch throughTodayDelta(for: weekDates, currentDate: currentDate) {
+        case nil:
             return ""
-        }
-
-        let currentDayStart = calendar.startOfDay(for: currentDate)
-        let elapsedDates = weekDates.filter { calendar.startOfDay(for: $0) <= currentDayStart }
-        let expectedWorkdayCount = elapsedDates.reduce(into: 0) { count, date in
-            if calendarDayMetadataProvider.metadata(for: date).category == .weekday {
-                count += 1
-            }
-        }
-        let expectedDuration = TimeInterval(expectedWorkdayCount) * MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
-
-        var actualDuration: TimeInterval = 0
-        for date in elapsedDates {
-            guard let record = recordStore.record(on: date, calendar: calendar) else {
-                continue
-            }
-
-            guard let duration = workedDuration(
-                for: record,
-                referenceDate: date,
-                currentDate: currentDate
-            ) else {
-                return copy.weeklyTodayStatusUnavailableText
-            }
-
-            actualDuration += duration
-        }
-
-        if actualDuration > expectedDuration {
-            return copy.weeklyTodayOvertimeStatusText(
-                durationText: formatStatusDuration(actualDuration - expectedDuration)
-            )
-        }
-
-        if actualDuration < expectedDuration {
+        case .neutral?:
+            return copy.weeklyTodayGoalMetText
+        case let .remaining(duration)?:
             return copy.weeklyTodayRemainingStatusText(
-                durationText: formatStatusDuration(expectedDuration - actualDuration)
+                durationText: formatStatusDuration(duration)
             )
+        case let .overtime(duration)?:
+            return copy.weeklyTodayOvertimeStatusText(
+                durationText: formatStatusDuration(duration)
+            )
+        case .unavailable?:
+            return copy.weeklyTodayStatusUnavailableText
         }
-
-        return copy.weeklyTodayGoalMetText
     }
 
     private func todayDeltaVisualState(
         for weekDates: [Date],
         currentDate: Date
     ) -> MainPopoverWeeklyProgressDeltaVisualState {
-        guard weekDates.contains(where: { calendar.isDate($0, inSameDayAs: currentDate) }) else {
+        switch throughTodayDelta(for: weekDates, currentDate: currentDate) {
+        case .remaining?:
+            return .remaining
+        case .overtime?:
+            return .overtime
+        case .neutral?, .unavailable?, nil:
             return .neutral
+        }
+    }
+
+    private func throughTodayDelta(
+        for weekDates: [Date],
+        currentDate: Date
+    ) -> MainPopoverWeeklyThroughTodayDelta? {
+        guard let todayDate = weekDates.first(where: { calendar.isDate($0, inSameDayAs: currentDate) }) else {
+            return nil
         }
 
         let currentDayStart = calendar.startOfDay(for: currentDate)
-        let elapsedDates = weekDates.filter { calendar.startOfDay(for: $0) <= currentDayStart }
-        let expectedWorkdayCount = elapsedDates.reduce(into: 0) { count, date in
-            if calendarDayMetadataProvider.metadata(for: date).category == .weekday {
-                count += 1
-            }
-        }
-        let expectedDuration = TimeInterval(expectedWorkdayCount) * MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+        let priorDates = weekDates.filter { calendar.startOfDay(for: $0) < currentDayStart }
+        var delta: TimeInterval = 0
 
-        var actualDuration: TimeInterval = 0
-        for date in elapsedDates {
+        for date in priorDates {
+            guard calendarDayMetadataProvider.metadata(for: date).category == .weekday else {
+                continue
+            }
+
+            delta -= MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+
             guard let record = recordStore.record(on: date, calendar: calendar) else {
                 continue
             }
@@ -423,20 +417,44 @@ struct MainPopoverWeeklyProgressLoader {
                 referenceDate: date,
                 currentDate: currentDate
             ) else {
-                return .neutral
+                return .unavailable
             }
 
-            actualDuration += duration
+            delta += duration
         }
 
-        if actualDuration > expectedDuration {
-            return .overtime
+        guard calendarDayMetadataProvider.metadata(for: todayDate).category == .weekday else {
+            return deltaState(for: delta)
         }
 
-        if actualDuration < expectedDuration {
-            return .remaining
+        guard let todayRecord = recordStore.record(on: todayDate, calendar: calendar) else {
+            return deltaState(for: delta)
         }
 
+        guard let todayDuration = workedDuration(
+            for: todayRecord,
+            referenceDate: todayDate,
+            currentDate: currentDate
+        ) else {
+            return .unavailable
+        }
+
+        if todayRecord.endTime != nil {
+            delta += todayDuration - MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+        } else if todayDuration > MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration {
+            delta += todayDuration - MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+        }
+
+        return deltaState(for: delta)
+    }
+
+    private func deltaState(for delta: TimeInterval) -> MainPopoverWeeklyThroughTodayDelta {
+        if delta > 0 {
+            return .overtime(delta)
+        }
+        if delta < 0 {
+            return .remaining(abs(delta))
+        }
         return .neutral
     }
 }

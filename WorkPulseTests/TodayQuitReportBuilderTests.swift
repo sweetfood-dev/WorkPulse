@@ -20,7 +20,8 @@ struct TodayQuitReportBuilderTests {
 
         let report = builder.make(
             todayRecord: AttendanceRecord(date: startTime, startTime: startTime, endTime: nil),
-            now: now
+            now: now,
+            throughTodayStatusText: "Through today: 8h 00m remaining"
         )
 
         #expect(
@@ -29,6 +30,7 @@ struct TodayQuitReportBuilderTests {
             오늘 출근 시간: 08:10
             오늘 퇴근 가능 시간: 17:10
             현재 상태: 업무 중
+            오늘까지 누적 상태: 8h 00m 부족
             """
         )
     }
@@ -49,7 +51,8 @@ struct TodayQuitReportBuilderTests {
 
         let report = builder.make(
             todayRecord: AttendanceRecord(date: startTime, startTime: startTime, endTime: endTime),
-            now: endTime
+            now: endTime,
+            throughTodayStatusText: "Through today: 0h 20m Overtime"
         )
 
         #expect(
@@ -58,6 +61,7 @@ struct TodayQuitReportBuilderTests {
             오늘 출근 시간: 08:10
             오늘 퇴근 가능 시간: 17:10
             현재 상태: 퇴근 완료
+            오늘까지 누적 상태: 0h 20m 초과
             오늘 퇴근 시간: 17:30
             """
         )
@@ -79,7 +83,8 @@ struct TodayQuitReportBuilderTests {
 
         let report = builder.make(
             todayRecord: AttendanceRecord(date: now, startTime: nil, endTime: endTime),
-            now: now
+            now: now,
+            throughTodayStatusText: "Through today: Unavailable"
         )
 
         #expect(
@@ -88,6 +93,7 @@ struct TodayQuitReportBuilderTests {
             오늘 출근 시간: 기록 이상
             오늘 퇴근 가능 시간: 계산 불가
             현재 상태: 기록 이상
+            오늘까지 누적 상태: 계산 불가
             """
         )
     }
@@ -108,7 +114,8 @@ struct TodayQuitReportBuilderTests {
 
         let report = builder.make(
             todayRecord: AttendanceRecord(date: startTime, startTime: startTime, endTime: invalidEndTime),
-            now: startTime
+            now: startTime,
+            throughTodayStatusText: "Through today: On track"
         )
 
         #expect(
@@ -117,6 +124,7 @@ struct TodayQuitReportBuilderTests {
             오늘 출근 시간: 08:10
             오늘 퇴근 가능 시간: 계산 불가
             현재 상태: 기록 이상
+            오늘까지 누적 상태: 정상
             """
         )
     }
@@ -159,6 +167,7 @@ struct QuitReportCopyTests {
             오늘 출근 시간: 08:10
             오늘 퇴근 가능 시간: 17:10
             현재 상태: 업무 중
+            오늘까지 누적 상태: 정상
             """
         )
     }

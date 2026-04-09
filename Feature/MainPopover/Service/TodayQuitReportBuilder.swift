@@ -27,21 +27,27 @@ struct TodayQuitReportBuilder {
         self.timeFormatter = timeFormatter
     }
 
-    func make(todayRecord: AttendanceRecord?, now: Date) -> String {
+    func make(
+        todayRecord: AttendanceRecord?,
+        now: Date,
+        throughTodayStatusText: String? = nil
+    ) -> String {
         switch quitTimeInsightCalculator.make(record: todayRecord) {
         case .noRecord:
             return report(
                 startTimeText: "기록 없음",
                 earliestQuitTimeText: "계산 불가",
                 statusText: "출근 전",
-                checkoutTimeText: nil
+                checkoutTimeText: nil,
+                throughTodayStatusText: throughTodayStatusText
             )
         case let .invalidRecord(startTime):
             return report(
                 startTimeText: startTime.map { timeFormatter.string(from: $0) } ?? "기록 이상",
                 earliestQuitTimeText: "계산 불가",
                 statusText: "기록 이상",
-                checkoutTimeText: nil
+                checkoutTimeText: nil,
+                throughTodayStatusText: throughTodayStatusText
             )
         case let .available(startTime, earliestQuitTime, checkoutTime):
             let startTimeText = timeFormatter.string(from: startTime)
@@ -52,7 +58,8 @@ struct TodayQuitReportBuilder {
                     startTimeText: startTimeText,
                     earliestQuitTimeText: earliestQuitText,
                     statusText: checkoutTime >= earliestQuitTime ? "퇴근 완료" : "조기 퇴근 기록",
-                    checkoutTimeText: timeFormatter.string(from: checkoutTime)
+                    checkoutTimeText: timeFormatter.string(from: checkoutTime),
+                    throughTodayStatusText: throughTodayStatusText
                 )
             }
 
@@ -60,7 +67,8 @@ struct TodayQuitReportBuilder {
                 startTimeText: startTimeText,
                 earliestQuitTimeText: earliestQuitText,
                 statusText: now >= earliestQuitTime ? "퇴근 가능" : "업무 중",
-                checkoutTimeText: nil
+                checkoutTimeText: nil,
+                throughTodayStatusText: throughTodayStatusText
             )
         }
     }
@@ -69,7 +77,8 @@ struct TodayQuitReportBuilder {
         startTimeText: String,
         earliestQuitTimeText: String,
         statusText: String,
-        checkoutTimeText: String?
+        checkoutTimeText: String?,
+        throughTodayStatusText: String?
     ) -> String {
         var lines = [
             "[퇴근 가능 시간 보고]",
@@ -78,10 +87,27 @@ struct TodayQuitReportBuilder {
             "현재 상태: \(statusText)",
         ]
 
+        if let throughTodayStatusLine = throughTodayStatusLine(from: throughTodayStatusText) {
+            lines.append(throughTodayStatusLine)
+        }
+
         if let checkoutTimeText {
             lines.append("오늘 퇴근 시간: \(checkoutTimeText)")
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private func throughTodayStatusLine(from statusText: String?) -> String? {
+        guard let statusText, statusText.isEmpty == false else { return nil }
+
+        let normalized = statusText
+            .replacingOccurrences(of: "Through today: ", with: "")
+            .replacingOccurrences(of: " Overtime", with: " 초과")
+            .replacingOccurrences(of: " remaining", with: " 부족")
+            .replacingOccurrences(of: "On track", with: "정상")
+            .replacingOccurrences(of: "Unavailable", with: "계산 불가")
+
+        return "오늘까지 누적 상태: \(normalized)"
     }
 }
