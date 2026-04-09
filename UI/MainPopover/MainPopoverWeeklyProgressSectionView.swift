@@ -5,6 +5,7 @@ struct MainPopoverWeeklyProgressSectionSnapshot {
     let weekText: String
     let statusText: String
     let todayDeltaText: String
+    let todayDeltaVisualState: MainPopoverWeeklyProgressDeltaVisualState
     let progressFraction: CGFloat
     let selectedStatusSegment: Int
     let dayCount: Int
@@ -280,6 +281,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             weekText: weekLabel.stringValue,
             statusText: statusLabel.stringValue,
             todayDeltaText: todayDeltaLabel.stringValue,
+            todayDeltaVisualState: currentState?.todayDeltaVisualState ?? .neutral,
             progressFraction: progressBar.progressFraction,
             selectedStatusSegment: statusSegmentedControl.selectedSegment,
             dayCount: rowViews.count,
@@ -597,6 +599,14 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         todayDeltaLabel.stringValue = currentState.todayDeltaStatusText
         todayDeltaLabel.isHidden = currentState.todayDeltaStatusText.isEmpty
+        switch currentState.todayDeltaVisualState {
+        case .neutral:
+            todayDeltaLabel.textColor = MainPopoverStyle.Colors.secondaryText
+        case .remaining:
+            todayDeltaLabel.textColor = MainPopoverStyle.Colors.currentSessionValue
+        case .overtime:
+            todayDeltaLabel.textColor = MainPopoverStyle.Colors.detailOvertimeAccent
+        }
 
         statusIconView.contentTintColor = statusLabel.textColor
     }

@@ -48,6 +48,7 @@ struct MainPopoverWeeklyProgressViewState {
     let statusText: String
     let quitTimeStatusText: String
     let todayDeltaStatusText: String
+    let todayDeltaVisualState: MainPopoverWeeklyProgressDeltaVisualState
     let progressFraction: CGFloat
     let visualState: MainPopoverCurrentSessionVisualState
     let days: [MainPopoverWeeklyProgressDayViewState]
@@ -59,6 +60,7 @@ struct MainPopoverWeeklyProgressViewState {
         statusText: String,
         quitTimeStatusText: String = "",
         todayDeltaStatusText: String = "",
+        todayDeltaVisualState: MainPopoverWeeklyProgressDeltaVisualState = .neutral,
         progressFraction: CGFloat,
         visualState: MainPopoverCurrentSessionVisualState,
         days: [MainPopoverWeeklyProgressDayViewState]
@@ -69,10 +71,17 @@ struct MainPopoverWeeklyProgressViewState {
         self.statusText = statusText
         self.quitTimeStatusText = quitTimeStatusText
         self.todayDeltaStatusText = todayDeltaStatusText
+        self.todayDeltaVisualState = todayDeltaVisualState
         self.progressFraction = progressFraction
         self.visualState = visualState
         self.days = days
     }
+}
+
+enum MainPopoverWeeklyProgressDeltaVisualState {
+    case neutral
+    case remaining
+    case overtime
 }
 
 struct MainPopoverWeeklyProgressLoader {
@@ -173,6 +182,10 @@ struct MainPopoverWeeklyProgressLoader {
                 currentDate: currentDate
             ),
             todayDeltaStatusText: todayDeltaStatusText(
+                for: weekDates,
+                currentDate: currentDate
+            ),
+            todayDeltaVisualState: todayDeltaVisualState(
                 for: weekDates,
                 currentDate: currentDate
             ),
@@ -380,5 +393,50 @@ struct MainPopoverWeeklyProgressLoader {
         }
 
         return copy.weeklyTodayGoalMetText
+    }
+
+    private func todayDeltaVisualState(
+        for weekDates: [Date],
+        currentDate: Date
+    ) -> MainPopoverWeeklyProgressDeltaVisualState {
+        guard weekDates.contains(where: { calendar.isDate($0, inSameDayAs: currentDate) }) else {
+            return .neutral
+        }
+
+        let currentDayStart = calendar.startOfDay(for: currentDate)
+        let elapsedDates = weekDates.filter { calendar.startOfDay(for: $0) <= currentDayStart }
+        let expectedWorkdayCount = elapsedDates.reduce(into: 0) { count, date in
+            if calendarDayMetadataProvider.metadata(for: date).category == .weekday {
+                count += 1
+            }
+        }
+        let expectedDuration = TimeInterval(expectedWorkdayCount) * MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+
+        var actualDuration: TimeInterval = 0
+        for date in elapsedDates {
+            guard let record = recordStore.record(on: date, calendar: calendar) else {
+                continue
+            }
+
+            guard let duration = workedDuration(
+                for: record,
+                referenceDate: date,
+                currentDate: currentDate
+            ) else {
+                return .neutral
+            }
+
+            actualDuration += duration
+        }
+
+        if actualDuration > expectedDuration {
+            return .overtime
+        }
+
+        if actualDuration < expectedDuration {
+            return .remaining
+        }
+
+        return .neutral
     }
 }
