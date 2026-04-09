@@ -402,11 +402,8 @@ struct MainPopoverWeeklyProgressLoader {
         var delta: TimeInterval = 0
 
         for date in priorDates {
-            guard calendarDayMetadataProvider.metadata(for: date).category == .weekday else {
-                continue
-            }
-
-            delta -= MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+            let dailyGoalDuration = goalDuration(for: date)
+            delta -= dailyGoalDuration
 
             guard let record = recordStore.record(on: date, calendar: calendar) else {
                 continue
@@ -423,10 +420,6 @@ struct MainPopoverWeeklyProgressLoader {
             delta += duration
         }
 
-        guard calendarDayMetadataProvider.metadata(for: todayDate).category == .weekday else {
-            return deltaState(for: delta)
-        }
-
         guard let todayRecord = recordStore.record(on: todayDate, calendar: calendar) else {
             return deltaState(for: delta)
         }
@@ -439,13 +432,22 @@ struct MainPopoverWeeklyProgressLoader {
             return .unavailable
         }
 
+        let todayGoalDuration = goalDuration(for: todayDate)
         if todayRecord.endTime != nil {
-            delta += todayDuration - MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
-        } else if todayDuration > MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration {
-            delta += todayDuration - MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+            delta += todayDuration - todayGoalDuration
+        } else if todayGoalDuration == 0 {
+            delta += todayDuration
+        } else if todayDuration > todayGoalDuration {
+            delta += todayDuration - todayGoalDuration
         }
 
         return deltaState(for: delta)
+    }
+
+    private func goalDuration(for date: Date) -> TimeInterval {
+        calendarDayMetadataProvider.metadata(for: date).category == .weekday
+            ? MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+            : 0
     }
 
     private func deltaState(for delta: TimeInterval) -> MainPopoverWeeklyThroughTodayDelta {

@@ -783,6 +783,42 @@ struct MainPopoverDetailLoadersTests {
     }
 
     @Test
+    func weeklyProgressLoaderCountsWeekendWorkInThroughTodayDelta() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-08T12:00:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-05T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-05T09:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-05T13:00:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-06T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-06T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-06T17:00:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-07T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-07T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-07T17:00:00+09:00"))
+            )
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.todayDeltaStatusText == "Through today: 2h 00m Overtime")
+        #expect(state.todayDeltaVisualState == .overtime)
+    }
+
+    @Test
     func weeklyProgressLoaderShowsFullDeficitForZeroWorkedDay() throws {
         let referenceDate = try #require(
             makeDate("2026-04-01T12:00:00+09:00")
