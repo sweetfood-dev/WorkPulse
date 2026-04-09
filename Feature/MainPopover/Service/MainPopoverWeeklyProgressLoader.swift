@@ -6,7 +6,6 @@ struct MainPopoverWeeklyProgressDayViewState {
     let dayText: String
     let timeRangeText: String
     let workedText: String
-    let quitTimeText: String
     let quitDeltaText: String
     let annotationText: String?
     let dayCategory: CalendarDayCategory
@@ -20,7 +19,6 @@ struct MainPopoverWeeklyProgressDayViewState {
         dayText: String,
         timeRangeText: String,
         workedText: String,
-        quitTimeText: String? = nil,
         quitDeltaText: String? = nil,
         annotationText: String?,
         dayCategory: CalendarDayCategory,
@@ -33,7 +31,6 @@ struct MainPopoverWeeklyProgressDayViewState {
         self.dayText = dayText
         self.timeRangeText = timeRangeText
         self.workedText = workedText
-        self.quitTimeText = quitTimeText ?? timeRangeText
         self.quitDeltaText = quitDeltaText ?? workedText
         self.annotationText = annotationText
         self.dayCategory = dayCategory
@@ -140,7 +137,6 @@ struct MainPopoverWeeklyProgressLoader {
                     dayText: dayFormatter.string(from: date),
                     timeRangeText: makeTimeRangeText(record: record),
                     workedText: formatWorkedDuration(duration),
-                    quitTimeText: quitTimeText(for: record),
                     quitDeltaText: quitDeltaText(for: duration),
                     annotationText: metadata.holiday?.annotationText,
                     dayCategory: metadata.category,
@@ -193,15 +189,6 @@ struct MainPopoverWeeklyProgressLoader {
 
     private func makeTimeRangeText(record: AttendanceRecord?) -> String {
         "\(formatTime(record?.startTime)) - \(formatTime(record?.endTime))"
-    }
-
-    private func quitTimeText(for record: AttendanceRecord?) -> String {
-        switch quitTimeInsightCalculator.make(record: record) {
-        case .noRecord, .invalidRecord:
-            return copy.timePlaceholderText
-        case let .available(_, earliestQuitTime, checkoutTime):
-            return formatTime(checkoutTime ?? earliestQuitTime)
-        }
     }
 
     private func formatTime(_ date: Date?) -> String {

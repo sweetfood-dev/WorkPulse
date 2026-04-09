@@ -695,7 +695,6 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.days.count == 7)
         #expect(state.days[1].timeRangeText == "09:00 - 18:00")
         #expect(state.days[1].workedText == "08:00")
-        #expect(state.days[1].quitTimeText == "18:00")
         #expect(state.days[1].quitDeltaText == "00:00")
     }
 
@@ -735,7 +734,6 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.visualState == .normal)
         #expect(state.days.first(where: { $0.isToday })?.timeRangeText == "09:00 - --:--")
         #expect(state.days.first(where: { $0.isToday })?.workedText == "03:00")
-        #expect(state.days.first(where: { $0.isToday })?.quitTimeText == "18:00")
         #expect(state.days.first(where: { $0.isToday })?.quitDeltaText == "-05:00")
     }
 
@@ -1094,7 +1092,6 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Sun 29",
             timeRangeText: "—:— - —:—",
             workedText: "--",
-            quitTimeText: "--:--",
             quitDeltaText: "--",
             annotationText: nil,
             dayCategory: .weekend,
@@ -1107,7 +1104,6 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Mon 30",
             timeRangeText: "08:00 - 17:30",
             workedText: "08:29",
-            quitTimeText: "17:30",
             quitDeltaText: "+00:29",
             annotationText: nil,
             dayCategory: .weekday,
@@ -1121,7 +1117,6 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Tue 31",
             timeRangeText: "08:24 - 17:30",
             workedText: "08:05",
-            quitTimeText: "17:30",
             quitDeltaText: "+00:05",
             annotationText: nil,
             dayCategory: .weekday,
@@ -1135,7 +1130,6 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Wed 1",
             timeRangeText: "08:45 - 17:36",
             workedText: "07:51",
-            quitTimeText: "17:36",
             quitDeltaText: "-00:09",
             annotationText: nil,
             dayCategory: .weekday,
@@ -1148,7 +1142,6 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Thu 2",
             timeRangeText: "08:22 - 18:31",
             workedText: "09:08",
-            quitTimeText: "18:31",
             quitDeltaText: "+01:08",
             annotationText: nil,
             dayCategory: .weekday,
@@ -1161,7 +1154,6 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Fri 3",
             timeRangeText: "08:10 - --:--",
             workedText: "03:38",
-            quitTimeText: "17:10",
             quitDeltaText: "-04:22",
             annotationText: nil,
             dayCategory: .weekday,
@@ -1174,7 +1166,6 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Sat 4",
             timeRangeText: "—:— - —:—",
             workedText: "--",
-            quitTimeText: "--:--",
             quitDeltaText: "--",
             annotationText: nil,
             dayCategory: .weekend,
