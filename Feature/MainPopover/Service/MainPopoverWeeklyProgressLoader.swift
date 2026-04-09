@@ -47,6 +47,7 @@ struct MainPopoverWeeklyProgressViewState {
     let totalDurationText: String
     let statusText: String
     let quitTimeStatusText: String
+    let todayDeltaStatusText: String
     let progressFraction: CGFloat
     let visualState: MainPopoverCurrentSessionVisualState
     let days: [MainPopoverWeeklyProgressDayViewState]
@@ -57,6 +58,7 @@ struct MainPopoverWeeklyProgressViewState {
         totalDurationText: String,
         statusText: String,
         quitTimeStatusText: String = "",
+        todayDeltaStatusText: String = "",
         progressFraction: CGFloat,
         visualState: MainPopoverCurrentSessionVisualState,
         days: [MainPopoverWeeklyProgressDayViewState]
@@ -66,6 +68,7 @@ struct MainPopoverWeeklyProgressViewState {
         self.totalDurationText = totalDurationText
         self.statusText = statusText
         self.quitTimeStatusText = quitTimeStatusText
+        self.todayDeltaStatusText = todayDeltaStatusText
         self.progressFraction = progressFraction
         self.visualState = visualState
         self.days = days
@@ -159,6 +162,7 @@ struct MainPopoverWeeklyProgressLoader {
             ? .warning
             : .normal
         let selectedRecord = recordStore.record(on: referenceDate, calendar: calendar)
+        let currentWeekDate = weekDates.first { calendar.isDate($0, inSameDayAs: currentDate) }
 
         return MainPopoverWeeklyProgressViewState(
             titleText: copy.weeklyProgressTitle,
@@ -168,6 +172,10 @@ struct MainPopoverWeeklyProgressLoader {
             quitTimeStatusText: quitTimeStatusText(
                 for: selectedRecord,
                 referenceDate: referenceDate,
+                currentDate: currentDate
+            ),
+            todayDeltaStatusText: todayDeltaStatusText(
+                for: currentWeekDate,
                 currentDate: currentDate
             ),
             progressFraction: progressFraction,
@@ -325,5 +333,43 @@ struct MainPopoverWeeklyProgressLoader {
 
             return copy.weeklyQuitTimeStatusText(timeText: earliestQuitText)
         }
+    }
+
+    private func todayDeltaStatusText(
+        for currentWeekDate: Date?,
+        currentDate: Date
+    ) -> String {
+        guard let currentWeekDate else { return "" }
+
+        let dailyGoalDuration = MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
+        guard let record = recordStore.record(on: currentWeekDate, calendar: calendar) else {
+            return copy.weeklyTodayRemainingStatusText(
+                durationText: formatStatusDuration(dailyGoalDuration),
+                goalHours: Int(dailyGoalDuration / 3_600)
+            )
+        }
+
+        guard let duration = workedDuration(
+            for: record,
+            referenceDate: currentWeekDate,
+            currentDate: currentDate
+        ) else {
+            return copy.weeklyTodayStatusUnavailableText
+        }
+
+        if duration > dailyGoalDuration {
+            return copy.weeklyTodayOvertimeStatusText(
+                durationText: formatStatusDuration(duration - dailyGoalDuration)
+            )
+        }
+
+        if duration < dailyGoalDuration {
+            return copy.weeklyTodayRemainingStatusText(
+                durationText: formatStatusDuration(dailyGoalDuration - duration),
+                goalHours: Int(dailyGoalDuration / 3_600)
+            )
+        }
+
+        return copy.weeklyTodayGoalMetText
     }
 }

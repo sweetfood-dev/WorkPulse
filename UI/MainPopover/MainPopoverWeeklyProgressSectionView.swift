@@ -4,6 +4,7 @@ struct MainPopoverWeeklyProgressSectionSnapshot {
     let titleText: String
     let weekText: String
     let statusText: String
+    let todayDeltaText: String
     let progressFraction: CGFloat
     let selectedStatusSegment: Int
     let dayCount: Int
@@ -217,6 +218,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
     private let weekLabel = NSTextField(labelWithString: "")
     private let statusIconView = NSImageView()
     private let statusLabel = NSTextField(labelWithString: "")
+    private let todayDeltaLabel = NSTextField(labelWithString: "")
     private let progressBar = CurrentSessionProgressBarView()
     private let statusSegmentedControl = NSSegmentedControl()
     private let headerRow = NSStackView()
@@ -277,6 +279,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             titleText: titleLabel.stringValue,
             weekText: weekLabel.stringValue,
             statusText: statusLabel.stringValue,
+            todayDeltaText: todayDeltaLabel.stringValue,
             progressFraction: progressBar.progressFraction,
             selectedStatusSegment: statusSegmentedControl.selectedSegment,
             dayCount: rowViews.count,
@@ -420,6 +423,12 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         statusIconView.image = NSImage(systemSymbolName: "scope", accessibilityDescription: nil)
         statusLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        todayDeltaLabel.font = .systemFont(ofSize: 11, weight: .medium)
+        todayDeltaLabel.textColor = MainPopoverStyle.Colors.secondaryText
+        todayDeltaLabel.lineBreakMode = .byTruncatingTail
+        todayDeltaLabel.alignment = .center
+        todayDeltaLabel.maximumNumberOfLines = 1
+        todayDeltaLabel.isHidden = true
 
         statusRow.orientation = .horizontal
         statusRow.alignment = .centerY
@@ -435,6 +444,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         cardContent.addArrangedSubview(headerRow)
         cardContent.addArrangedSubview(progressBar)
         cardContent.addArrangedSubview(statusContainer)
+        cardContent.addArrangedSubview(todayDeltaLabel)
 
         rowsStack.orientation = .vertical
         rowsStack.alignment = .leading
@@ -545,12 +555,20 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         layoutSubtreeIfNeeded()
         statusContainer.layoutSubtreeIfNeeded()
 
+        let todayDeltaHeight: CGFloat
+        if todayDeltaLabel.isHidden {
+            todayDeltaHeight = 0
+        } else {
+            todayDeltaHeight = LayoutMetrics.cardContentSpacing + ceil(todayDeltaLabel.fittingSize.height)
+        }
+
         let contentHeight =
             ceil(headerRow.fittingSize.height)
             + LayoutMetrics.cardContentSpacing
             + MainPopoverStyle.Metrics.weeklyProgressBarHeight
             + LayoutMetrics.cardContentSpacing
             + ceil(statusContainer.fittingSize.height)
+            + todayDeltaHeight
 
         cardHeightConstraint?.constant = LayoutMetrics.cardPadding * 2 + contentHeight
     }
@@ -576,6 +594,9 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             statusLabel.stringValue = currentState.quitTimeStatusText
             statusIconView.image = NSImage(systemSymbolName: "clock", accessibilityDescription: nil)
         }
+
+        todayDeltaLabel.stringValue = currentState.todayDeltaStatusText
+        todayDeltaLabel.isHidden = currentState.todayDeltaStatusText.isEmpty
 
         statusIconView.contentTintColor = statusLabel.textColor
     }
