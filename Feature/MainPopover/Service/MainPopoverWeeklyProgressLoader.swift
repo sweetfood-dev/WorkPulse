@@ -181,6 +181,7 @@ struct MainPopoverWeeklyProgressLoader {
             ? .warning
             : .normal
         let selectedRecord = recordStore.record(on: referenceDate, calendar: calendar)
+        let throughTodayDelta = throughTodayDelta(for: weekDates, currentDate: currentDate)
         return MainPopoverWeeklyProgressViewState(
             titleText: copy.weeklyProgressTitle,
             weekText: copy.weeklyLabelText(weekOfYear: weekOfYear),
@@ -191,14 +192,8 @@ struct MainPopoverWeeklyProgressLoader {
                 referenceDate: referenceDate,
                 currentDate: currentDate
             ),
-            todayDeltaStatusText: todayDeltaStatusText(
-                for: weekDates,
-                currentDate: currentDate
-            ),
-            todayDeltaVisualState: todayDeltaVisualState(
-                for: weekDates,
-                currentDate: currentDate
-            ),
+            todayDeltaStatusText: todayDeltaStatusText(for: throughTodayDelta),
+            todayDeltaVisualState: todayDeltaVisualState(for: throughTodayDelta),
             progressFraction: progressFraction,
             visualState: visualState,
             days: dayStatesWithDuration.map(\.0)
@@ -357,10 +352,9 @@ struct MainPopoverWeeklyProgressLoader {
     }
 
     private func todayDeltaStatusText(
-        for weekDates: [Date],
-        currentDate: Date
+        for throughTodayDelta: MainPopoverWeeklyThroughTodayDelta?
     ) -> String {
-        switch throughTodayDelta(for: weekDates, currentDate: currentDate) {
+        switch throughTodayDelta {
         case nil:
             return ""
         case .neutral?:
@@ -379,10 +373,9 @@ struct MainPopoverWeeklyProgressLoader {
     }
 
     private func todayDeltaVisualState(
-        for weekDates: [Date],
-        currentDate: Date
+        for throughTodayDelta: MainPopoverWeeklyThroughTodayDelta?
     ) -> MainPopoverWeeklyProgressDeltaVisualState {
-        switch throughTodayDelta(for: weekDates, currentDate: currentDate) {
+        switch throughTodayDelta {
         case .remaining?:
             return .remaining
         case .overtime?:
