@@ -6,6 +6,8 @@ struct MainPopoverWeeklyProgressDayViewState {
     let dayText: String
     let timeRangeText: String
     let workedText: String
+    let quitTimeText: String
+    let quitDeltaText: String
     let annotationText: String?
     let dayCategory: CalendarDayCategory
     let isOvertime: Bool
@@ -18,6 +20,8 @@ struct MainPopoverWeeklyProgressDayViewState {
         dayText: String,
         timeRangeText: String,
         workedText: String,
+        quitTimeText: String? = nil,
+        quitDeltaText: String? = nil,
         annotationText: String?,
         dayCategory: CalendarDayCategory,
         isOvertime: Bool = false,
@@ -29,6 +33,8 @@ struct MainPopoverWeeklyProgressDayViewState {
         self.dayText = dayText
         self.timeRangeText = timeRangeText
         self.workedText = workedText
+        self.quitTimeText = quitTimeText ?? timeRangeText
+        self.quitDeltaText = quitDeltaText ?? workedText
         self.annotationText = annotationText
         self.dayCategory = dayCategory
         self.isOvertime = isOvertime
@@ -134,6 +140,8 @@ struct MainPopoverWeeklyProgressLoader {
                     dayText: dayFormatter.string(from: date),
                     timeRangeText: makeTimeRangeText(record: record),
                     workedText: formatWorkedDuration(duration),
+                    quitTimeText: quitTimeText(for: record),
+                    quitDeltaText: quitDeltaText(for: duration),
                     annotationText: metadata.holiday?.annotationText,
                     dayCategory: metadata.category,
                     isOvertime: isOvertime(duration),
@@ -185,6 +193,15 @@ struct MainPopoverWeeklyProgressLoader {
 
     private func makeTimeRangeText(record: AttendanceRecord?) -> String {
         "\(formatTime(record?.startTime)) - \(formatTime(record?.endTime))"
+    }
+
+    private func quitTimeText(for record: AttendanceRecord?) -> String {
+        switch quitTimeInsightCalculator.make(record: record) {
+        case .noRecord, .invalidRecord:
+            return copy.timePlaceholderText
+        case let .available(_, earliestQuitTime, checkoutTime):
+            return formatTime(checkoutTime ?? earliestQuitTime)
+        }
     }
 
     private func formatTime(_ date: Date?) -> String {
@@ -248,6 +265,23 @@ struct MainPopoverWeeklyProgressLoader {
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
         return String(format: "%02d:%02d", hours, minutes)
+    }
+
+    private func quitDeltaText(for duration: TimeInterval?) -> String {
+        guard let duration, duration > 0 else {
+            return copy.totalPlaceholderText
+        }
+
+        let minuteDelta = Int(duration / 60) - Int(MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration / 60)
+        if minuteDelta == 0 {
+            return "00:00"
+        }
+
+        let sign = minuteDelta > 0 ? "+" : "-"
+        let absoluteMinutes = abs(minuteDelta)
+        let hours = absoluteMinutes / 60
+        let minutes = absoluteMinutes % 60
+        return String(format: "%@%02d:%02d", sign, hours, minutes)
     }
 
     private func formatTotalDuration(_ duration: TimeInterval) -> String {

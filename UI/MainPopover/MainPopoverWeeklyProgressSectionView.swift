@@ -8,6 +8,8 @@ struct MainPopoverWeeklyProgressSectionSnapshot {
     let selectedStatusSegment: Int
     let dayCount: Int
     let overtimeDayCount: Int
+    let dayDetailTexts: [String]
+    let dayValueTexts: [String]
     let annotationTexts: [String]
     let isShowingBackButton: Bool
     let isWarningState: Bool
@@ -31,6 +33,8 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     private var selectedDate: Date?
     private var isSelectable = false
     private var isOvertime = false
+    private var currentState: MainPopoverWeeklyProgressDayViewState?
+    private var displayMode: MainPopoverWeeklyProgressStatusSegment = .progress
     var onSelect: ((Date) -> Void)?
 
     override init(frame frameRect: NSRect) {
@@ -95,13 +99,12 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     }
 
     func apply(_ state: MainPopoverWeeklyProgressDayViewState) {
+        currentState = state
         selectedDate = state.date
         isSelectable = state.isSelectable
         dayLabel.stringValue = state.dayText
         annotationLabel.stringValue = state.annotationText ?? ""
         annotationLabel.isHidden = state.annotationText == nil
-        timeRangeLabel.stringValue = state.timeRangeText
-        workedLabel.stringValue = state.workedText
         progressBar.progressFraction = state.progressFraction
         isOvertime = state.isOvertime
         progressBar.applyVisualState(state.isOvertime ? .warning : .normal)
@@ -121,6 +124,12 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
             ?? MainPopoverStyle.Colors.secondaryText
         annotationLabel.textColor = accentColor?.withAlphaComponent(0.9)
             ?? MainPopoverStyle.Colors.secondaryText
+        updateDisplayedTexts()
+    }
+
+    func setDisplayMode(_ mode: MainPopoverWeeklyProgressStatusSegment) {
+        displayMode = mode
+        updateDisplayedTexts()
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -154,8 +163,29 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
         annotationLabel.stringValue
     }
 
+    var detailText: String {
+        timeRangeLabel.stringValue
+    }
+
+    var valueText: String {
+        workedLabel.stringValue
+    }
+
     var isOvertimeState: Bool {
         isOvertime
+    }
+
+    private func updateDisplayedTexts() {
+        guard let currentState else { return }
+
+        switch displayMode {
+        case .progress:
+            timeRangeLabel.stringValue = currentState.timeRangeText
+            workedLabel.stringValue = currentState.workedText
+        case .quitTime:
+            timeRangeLabel.stringValue = currentState.quitTimeText
+            workedLabel.stringValue = currentState.quitDeltaText
+        }
     }
 }
 
@@ -166,7 +196,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
     private enum LayoutMetrics {
         static let topInset: CGFloat = 18
-        static let backToCardSpacing: CGFloat = 10
+        static let backToSegmentSpacing: CGFloat = 10
+        static let segmentToCardSpacing: CGFloat = 10
         static let cardToRowsSpacing: CGFloat = 14
         static let bottomInset: CGFloat = 20
         static let cardPadding: CGFloat = 18
@@ -234,6 +265,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             }
             row.apply(day)
         }
+        updateSelectedStatusPresentation()
         detailEditorView.apply(editorState)
         applyEditorLayout(isVisible: editorState != nil)
         updateCardHeight()
@@ -249,6 +281,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             selectedStatusSegment: statusSegmentedControl.selectedSegment,
             dayCount: rowViews.count,
             overtimeDayCount: rowViews.filter(\.isOvertimeState).count,
+            dayDetailTexts: rowViews.map(\.detailText),
+            dayValueTexts: rowViews.map(\.valueText),
             annotationTexts: rowViews.map(\.annotationText).filter { $0.isEmpty == false },
             isShowingBackButton: backButton.isHidden == false,
             isWarningState: isWarningState,
@@ -293,7 +327,9 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         return LayoutMetrics.topInset
             + ceil(backButton.fittingSize.height)
-            + LayoutMetrics.backToCardSpacing
+            + LayoutMetrics.backToSegmentSpacing
+            + ceil(statusSegmentedControl.fittingSize.height)
+            + LayoutMetrics.segmentToCardSpacing
             + ceil(cardView.fittingSize.height)
             + LayoutMetrics.cardToRowsSpacing
             + ceil(rowsStack.fittingSize.height)
@@ -398,7 +434,6 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
         cardContent.addArrangedSubview(headerRow)
         cardContent.addArrangedSubview(progressBar)
-        cardContent.addArrangedSubview(statusSegmentedControl)
         cardContent.addArrangedSubview(statusContainer)
 
         rowsStack.orientation = .vertical
@@ -413,6 +448,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         }
 
         addSubview(backButton)
+        addSubview(statusSegmentedControl)
         addSubview(cardView)
         addSubview(rowsStack)
         addSubview(detailEditorView)
@@ -430,7 +466,11 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             backButton.topAnchor.constraint(equalTo: topAnchor, constant: LayoutMetrics.topInset),
             backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
 
-            cardView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: LayoutMetrics.backToCardSpacing),
+            statusSegmentedControl.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: LayoutMetrics.backToSegmentSpacing),
+            statusSegmentedControl.centerXAnchor.constraint(equalTo: centerXAnchor),
+            statusSegmentedControl.widthAnchor.constraint(equalToConstant: MainPopoverStyle.Metrics.weeklyProgressCardWidth),
+
+            cardView.topAnchor.constraint(equalTo: statusSegmentedControl.bottomAnchor, constant: LayoutMetrics.segmentToCardSpacing),
             cardView.centerXAnchor.constraint(equalTo: centerXAnchor),
             cardView.widthAnchor.constraint(equalToConstant: MainPopoverStyle.Metrics.weeklyProgressCardWidth),
             cardHeightConstraint,
@@ -447,7 +487,6 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             cardContent.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -LayoutMetrics.cardPadding),
 
             progressBar.widthAnchor.constraint(equalTo: cardContent.widthAnchor),
-            statusSegmentedControl.widthAnchor.constraint(equalTo: cardContent.widthAnchor),
             statusContainer.widthAnchor.constraint(equalTo: cardContent.widthAnchor),
 
             statusRow.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: LayoutMetrics.statusVerticalPadding),
@@ -511,8 +550,6 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
             + LayoutMetrics.cardContentSpacing
             + MainPopoverStyle.Metrics.weeklyProgressBarHeight
             + LayoutMetrics.cardContentSpacing
-            + ceil(statusSegmentedControl.fittingSize.height)
-            + LayoutMetrics.cardContentSpacing
             + ceil(statusContainer.fittingSize.height)
 
         cardHeightConstraint?.constant = LayoutMetrics.cardPadding * 2 + contentHeight
@@ -528,6 +565,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         let selectedSegment = MainPopoverWeeklyProgressStatusSegment(
             rawValue: max(0, statusSegmentedControl.selectedSegment)
         ) ?? .progress
+
+        rowViews.forEach { $0.setDisplayMode(selectedSegment) }
 
         switch selectedSegment {
         case .progress:
