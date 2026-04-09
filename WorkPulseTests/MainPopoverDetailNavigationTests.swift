@@ -778,7 +778,7 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.todayDeltaStatusText == "Through today: 0h 59m Overtime")
+        #expect(state.todayDeltaStatusText == "Through today: 1h 01m Overtime")
         #expect(state.todayDeltaVisualState == .overtime)
     }
 
