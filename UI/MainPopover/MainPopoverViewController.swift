@@ -288,6 +288,10 @@ final class MainPopoverViewController: NSViewController {
         weeklyDetailSectionView.simulateSelectDay(at: index)
     }
 
+    func simulateSelectWeeklyDetailStatusSegment(at index: Int) {
+        weeklyDetailSectionView.simulateSelectStatusSegment(at: index)
+    }
+
     func simulateSelectMonthlyDetailDay(at index: Int) {
         monthlyHistoryViewController.simulateSelectDay(at: index)
     }

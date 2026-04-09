@@ -91,6 +91,35 @@ struct TodayQuitReportBuilderTests {
             """
         )
     }
+
+    @Test
+    func reportsKnownStartTimeForInvalidCheckoutRecord() throws {
+        let builder = TodayQuitReportBuilder(
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "ko_KR"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+        )
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-07T08:10:00+09:00")
+        )
+        let invalidEndTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-07T07:30:00+09:00")
+        )
+
+        let report = builder.make(
+            todayRecord: AttendanceRecord(date: startTime, startTime: startTime, endTime: invalidEndTime),
+            now: startTime
+        )
+
+        #expect(
+            report == """
+            [퇴근 가능 시간 보고]
+            오늘 출근 시간: 08:10
+            오늘 퇴근 가능 시간: 계산 불가
+            현재 상태: 기록 이상
+            """
+        )
+    }
 }
 
 @Suite("QuitReportCopy")

@@ -23,6 +23,8 @@ struct MainPopoverCopy {
     let monthlyTitle: String
     let weeklyLabelPrefix: String
     let weeklyProgressTitle: String
+    let weeklyProgressSegmentTitle: String
+    let weeklyQuitTimeSegmentTitle: String
     let monthlyHistoryTitle: String
     let monthlyHistoryTotalTitle: String
     let monthlyHistoryEmptyText: String
@@ -55,6 +57,8 @@ struct MainPopoverCopy {
         monthlyTitle: "This Month",
         weeklyLabelPrefix: "Week",
         weeklyProgressTitle: "Weekly Progress",
+        weeklyProgressSegmentTitle: "Progress",
+        weeklyQuitTimeSegmentTitle: "Quit Time",
         monthlyHistoryTitle: "MONTHLY HISTORY",
         monthlyHistoryTotalTitle: "Monthly Total",
         monthlyHistoryEmptyText: "No attendance records yet",
@@ -96,5 +100,29 @@ struct MainPopoverCopy {
 
     func weeklyOvertimeStatusText(durationText: String) -> String {
         "\(durationText) Overtime"
+    }
+
+    var weeklyQuitTimeUnavailableText: String {
+        "Quit time unavailable"
+    }
+
+    var weeklyNoCheckInStatusText: String {
+        "No check-in record"
+    }
+
+    func weeklyQuitTimeStatusText(timeText: String) -> String {
+        "Quit at \(timeText)"
+    }
+
+    func weeklyCanQuitStatusText(timeText: String) -> String {
+        "Can leave since \(timeText)"
+    }
+
+    func weeklyCheckedOutStatusText(timeText: String) -> String {
+        "Checked out \(timeText)"
+    }
+
+    func weeklyEarlyCheckedOutStatusText(timeText: String) -> String {
+        "Left early at \(timeText)"
     }
 }

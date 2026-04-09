@@ -53,6 +53,7 @@ struct MainPopoverDetailNavigationTests {
         #expect(controller.snapshot.weeklyDetail.titleText == "Weekly Progress")
         #expect(controller.snapshot.weeklyDetail.weekText == "Week 14")
         #expect(controller.snapshot.weeklyDetail.statusText == "8h 45m remaining to 40h")
+        #expect(controller.snapshot.weeklyDetail.selectedStatusSegment == 0)
         #expect(controller.snapshot.weeklyDetail.progressFraction == 0.4)
         #expect(controller.snapshot.weeklyDetail.dayCount == 1)
         #expect(controller.snapshot.weeklyDetail.isWarningState == false)
@@ -122,6 +123,43 @@ struct MainPopoverDetailNavigationTests {
         controller.showWeeklyDetail(weeklyState)
 
         #expect(controller.snapshot.weeklyDetail.overtimeDayCount == 2)
+    }
+
+    @Test
+    @MainActor
+    func weeklyDetailAllowsSwitchingBetweenProgressAndQuitTimeStatuses() {
+        let controller = MainPopoverViewController(
+            state: MainPopoverViewStateFactory(copy: .english).makePlaceholder(),
+            currentTimeProvider: { Date(timeIntervalSince1970: 0) }
+        )
+        let weeklyState = MainPopoverWeeklyProgressViewState(
+            titleText: "Weekly Progress",
+            weekText: "Week 14",
+            totalDurationText: "33:35",
+            statusText: "1h 01m remaining to 40h",
+            quitTimeStatusText: "Quit at 17:10",
+            progressFraction: 0.97,
+            visualState: .normal,
+            days: makeWeeklyProgressDays()
+        )
+
+        controller.loadViewIfNeeded()
+        controller.showWeeklyDetail(weeklyState)
+        controller.simulateSelectWeeklyDetailStatusSegment(at: 1)
+
+        #expect(controller.snapshot.weeklyDetail.selectedStatusSegment == 1)
+        #expect(controller.snapshot.weeklyDetail.statusText == "Quit at 17:10")
+        #expect(controller.snapshot.weeklyDetail.dayDetailTexts[1] == "08:00 - 17:30")
+        #expect(controller.snapshot.weeklyDetail.dayValueTexts[1] == "+00:29")
+        #expect(controller.snapshot.weeklyDetail.dayDetailTexts[5] == "08:10 - --:--")
+        #expect(controller.snapshot.weeklyDetail.dayValueTexts[5] == "-04:22")
+
+        controller.simulateSelectWeeklyDetailStatusSegment(at: 0)
+
+        #expect(controller.snapshot.weeklyDetail.selectedStatusSegment == 0)
+        #expect(controller.snapshot.weeklyDetail.statusText == "1h 01m remaining to 40h")
+        #expect(controller.snapshot.weeklyDetail.dayDetailTexts[1] == "08:00 - 17:30")
+        #expect(controller.snapshot.weeklyDetail.dayValueTexts[1] == "08:29")
     }
 
     @Test
@@ -651,11 +689,13 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.weekText == "Week 14")
         #expect(state.totalDurationText == "16:00")
         #expect(state.statusText == "24h 00m remaining to 40h")
+        #expect(state.quitTimeStatusText == "No check-in record")
         #expect(state.progressFraction == 0.4)
         #expect(state.visualState == .normal)
         #expect(state.days.count == 7)
         #expect(state.days[1].timeRangeText == "09:00 - 18:00")
         #expect(state.days[1].workedText == "08:00")
+        #expect(state.days[1].quitDeltaText == "00:00")
     }
 
     @Test
@@ -688,11 +728,41 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.weekText == "Week 14")
         #expect(state.totalDurationText == "11:00")
         #expect(state.statusText == "29h 00m remaining to 40h")
+        #expect(state.quitTimeStatusText == "Quit at 18:00")
         #expect(state.progressFraction > 0.27)
         #expect(state.progressFraction < 0.28)
         #expect(state.visualState == .normal)
         #expect(state.days.first(where: { $0.isToday })?.timeRangeText == "09:00 - --:--")
         #expect(state.days.first(where: { $0.isToday })?.workedText == "03:00")
+        #expect(state.days.first(where: { $0.isToday })?.quitDeltaText == "-05:00")
+    }
+
+    @Test
+    func weeklyProgressLoaderShowsFullDeficitForZeroWorkedDay() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-01T12:00:00+09:00")
+        )
+        let startTime = try #require(makeDate("2026-03-31T09:00:00+09:00"))
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-03-31T00:00:00+09:00")),
+                startTime: startTime,
+                endTime: startTime
+            )
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.days[2].timeRangeText == "09:00 - 09:00")
+        #expect(state.days[2].workedText == "--")
+        #expect(state.days[2].quitDeltaText == "-08:00")
     }
 
     @Test
@@ -933,8 +1003,35 @@ struct MainPopoverDetailLoadersTests {
 
         #expect(state.totalDurationText == "42:30")
         #expect(state.statusText == "2h 30m Overtime")
+        #expect(state.quitTimeStatusText == "Checked out 18:30")
         #expect(state.progressFraction == 1)
         #expect(state.visualState == .warning)
+        #expect(state.days[1].quitDeltaText == "+01:30")
+    }
+
+    @Test
+    func weeklyProgressLoaderShowsCanLeaveSinceForTodayAfterEarliestQuitTime() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-03T18:30:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-03T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-03T08:00:00+09:00")),
+                endTime: nil
+            ),
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.quitTimeStatusText == "Can leave since 17:00")
     }
 
     @Test
@@ -1023,6 +1120,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Sun 29",
             timeRangeText: "—:— - —:—",
             workedText: "--",
+            quitDeltaText: "--",
             annotationText: nil,
             dayCategory: .weekend,
             progressFraction: 0,
@@ -1034,6 +1132,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Mon 30",
             timeRangeText: "08:00 - 17:30",
             workedText: "08:29",
+            quitDeltaText: "+00:29",
             annotationText: nil,
             dayCategory: .weekday,
             isOvertime: true,
@@ -1046,6 +1145,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Tue 31",
             timeRangeText: "08:24 - 17:30",
             workedText: "08:05",
+            quitDeltaText: "+00:05",
             annotationText: nil,
             dayCategory: .weekday,
             isOvertime: true,
@@ -1058,6 +1158,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Wed 1",
             timeRangeText: "08:45 - 17:36",
             workedText: "07:51",
+            quitDeltaText: "-00:09",
             annotationText: nil,
             dayCategory: .weekday,
             progressFraction: 0.98,
@@ -1069,6 +1170,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Thu 2",
             timeRangeText: "08:22 - 18:31",
             workedText: "09:08",
+            quitDeltaText: "+01:08",
             annotationText: nil,
             dayCategory: .weekday,
             progressFraction: 1,
@@ -1080,6 +1182,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Fri 3",
             timeRangeText: "08:10 - --:--",
             workedText: "03:38",
+            quitDeltaText: "-04:22",
             annotationText: nil,
             dayCategory: .weekday,
             progressFraction: 0.45,
@@ -1091,6 +1194,7 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
             dayText: "Sat 4",
             timeRangeText: "—:— - —:—",
             workedText: "--",
+            quitDeltaText: "--",
             annotationText: nil,
             dayCategory: .weekend,
             progressFraction: 0,
