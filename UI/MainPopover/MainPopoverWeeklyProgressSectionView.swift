@@ -178,12 +178,12 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     private func updateDisplayedTexts() {
         guard let currentState else { return }
 
+        timeRangeLabel.stringValue = currentState.timeRangeText
+
         switch displayMode {
         case .progress:
-            timeRangeLabel.stringValue = currentState.timeRangeText
             workedLabel.stringValue = currentState.workedText
         case .quitTime:
-            timeRangeLabel.stringValue = currentState.quitTimeText
             workedLabel.stringValue = currentState.quitDeltaText
         }
     }

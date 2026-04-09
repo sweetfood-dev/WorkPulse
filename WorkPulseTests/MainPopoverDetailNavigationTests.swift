@@ -149,9 +149,9 @@ struct MainPopoverDetailNavigationTests {
 
         #expect(controller.snapshot.weeklyDetail.selectedStatusSegment == 1)
         #expect(controller.snapshot.weeklyDetail.statusText == "Quit at 17:10")
-        #expect(controller.snapshot.weeklyDetail.dayDetailTexts[1] == "17:30")
+        #expect(controller.snapshot.weeklyDetail.dayDetailTexts[1] == "08:00 - 17:30")
         #expect(controller.snapshot.weeklyDetail.dayValueTexts[1] == "+00:29")
-        #expect(controller.snapshot.weeklyDetail.dayDetailTexts[5] == "17:10")
+        #expect(controller.snapshot.weeklyDetail.dayDetailTexts[5] == "08:10 - --:--")
         #expect(controller.snapshot.weeklyDetail.dayValueTexts[5] == "-04:22")
 
         controller.simulateSelectWeeklyDetailStatusSegment(at: 0)
