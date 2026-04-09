@@ -738,6 +738,34 @@ struct MainPopoverDetailLoadersTests {
     }
 
     @Test
+    func weeklyProgressLoaderShowsFullDeficitForZeroWorkedDay() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-01T12:00:00+09:00")
+        )
+        let startTime = try #require(makeDate("2026-03-31T09:00:00+09:00"))
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-03-31T00:00:00+09:00")),
+                startTime: startTime,
+                endTime: startTime
+            )
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.days[2].timeRangeText == "09:00 - 09:00")
+        #expect(state.days[2].workedText == "--")
+        #expect(state.days[2].quitDeltaText == "-08:00")
+    }
+
+    @Test
     func monthlyHistoryLoaderSortsNewestFirstAndMarksInProgressRows() throws {
         let referenceDate = try #require(
             makeDate("2026-04-02T10:00:00+09:00")

@@ -255,7 +255,7 @@ struct MainPopoverWeeklyProgressLoader {
     }
 
     private func quitDeltaText(for duration: TimeInterval?) -> String {
-        guard let duration, duration > 0 else {
+        guard let duration else {
             return copy.totalPlaceholderText
         }
 
