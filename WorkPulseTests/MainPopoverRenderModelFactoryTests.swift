@@ -79,6 +79,8 @@ struct MainPopoverRenderModelFactoryTests {
                 weeklyProgressTitle: "Weekly Progress",
                 weeklyProgressSegmentTitle: "Progress",
                 weeklyQuitTimeSegmentTitle: "Quit Time",
+                weeklyTodayGoalMetText: "Today: Goal met",
+                weeklyTodayStatusUnavailableText: "Today: Unavailable",
                 monthlyHistoryTitle: "Monthly History",
                 monthlyHistoryTotalTitle: "Monthly Total",
                 monthlyHistoryEmptyText: "Empty",

@@ -690,6 +690,8 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.totalDurationText == "16:00")
         #expect(state.statusText == "24h 00m remaining to 40h")
         #expect(state.quitTimeStatusText == "No check-in record")
+        #expect(state.todayDeltaStatusText == "Through today: On track")
+        #expect(state.todayDeltaVisualState == .neutral)
         #expect(state.progressFraction == 0.4)
         #expect(state.visualState == .normal)
         #expect(state.days.count == 7)
@@ -729,12 +731,91 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.totalDurationText == "11:00")
         #expect(state.statusText == "29h 00m remaining to 40h")
         #expect(state.quitTimeStatusText == "Quit at 18:00")
+        #expect(state.todayDeltaStatusText == "Through today: 8h 00m remaining")
+        #expect(state.todayDeltaVisualState == .remaining)
         #expect(state.progressFraction > 0.27)
         #expect(state.progressFraction < 0.28)
         #expect(state.visualState == .normal)
         #expect(state.days.first(where: { $0.isToday })?.timeRangeText == "09:00 - --:--")
         #expect(state.days.first(where: { $0.isToday })?.workedText == "03:00")
         #expect(state.days.first(where: { $0.isToday })?.quitDeltaText == "-05:00")
+    }
+
+    @Test
+    func weeklyProgressLoaderKeepsPriorOvertimeWhileTodayIsStillInProgress() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-09T12:13:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-06T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-06T07:40:00+09:00")),
+                endTime: try #require(makeDate("2026-04-06T17:00:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-07T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-07T08:05:00+09:00")),
+                endTime: try #require(makeDate("2026-04-07T17:31:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-08T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-08T08:15:00+09:00")),
+                endTime: try #require(makeDate("2026-04-08T17:30:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-09T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-09T09:48:00+09:00")),
+                endTime: nil
+            ),
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.todayDeltaStatusText == "Through today: 1h 01m Overtime")
+        #expect(state.todayDeltaVisualState == .overtime)
+    }
+
+    @Test
+    func weeklyProgressLoaderCountsWeekendWorkInThroughTodayDelta() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-08T12:00:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-05T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-05T09:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-05T13:00:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-06T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-06T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-06T17:00:00+09:00"))
+            ),
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-07T00:00:00+09:00")),
+                startTime: try #require(makeDate("2026-04-07T08:00:00+09:00")),
+                endTime: try #require(makeDate("2026-04-07T17:00:00+09:00"))
+            )
+        ])
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+
+        #expect(state.todayDeltaStatusText == "Through today: 3h 00m Overtime")
+        #expect(state.todayDeltaVisualState == .overtime)
     }
 
     @Test
@@ -1004,6 +1085,8 @@ struct MainPopoverDetailLoadersTests {
         #expect(state.totalDurationText == "42:30")
         #expect(state.statusText == "2h 30m Overtime")
         #expect(state.quitTimeStatusText == "Checked out 18:30")
+        #expect(state.todayDeltaStatusText == "Through today: 2h 30m Overtime")
+        #expect(state.todayDeltaVisualState == .overtime)
         #expect(state.progressFraction == 1)
         #expect(state.visualState == .warning)
         #expect(state.days[1].quitDeltaText == "+01:30")
