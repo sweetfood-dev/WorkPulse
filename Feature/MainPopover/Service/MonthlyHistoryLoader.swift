@@ -5,6 +5,7 @@ enum MonthlyHistoryDayCellActivity: Equatable {
     case empty
     case worked
     case active
+    case vacation
 }
 
 struct MonthlyHistoryDayCellViewState: Equatable {
@@ -161,7 +162,10 @@ struct MonthlyHistoryLoader {
             let activity: MonthlyHistoryDayCellActivity
             let cellStatusText: String
 
-            if isToday, record?.startTime != nil, record?.endTime == nil {
+            if record?.isVacation == true {
+                activity = .vacation
+                cellStatusText = copy.monthlyHistoryVacationText
+            } else if isToday, record?.startTime != nil, record?.endTime == nil {
                 activity = .active
                 cellStatusText = copy.monthlyHistoryActiveText
             } else if let workedDuration, workedDuration > 0 {
@@ -182,7 +186,7 @@ struct MonthlyHistoryLoader {
                     dayCategory: metadata.category,
                     isOvertime: isOvertime,
                     isDimmed: isFuture,
-                    isSelectable: isFuture == false
+                    isSelectable: true
                 )
             )
         }

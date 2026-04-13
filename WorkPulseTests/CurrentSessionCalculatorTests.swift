@@ -701,6 +701,30 @@ struct SwiftDataAttendanceRecordStoreTests {
         #expect(store.loadRecords() == [legacyRecord])
     }
 
+    @Test
+    func deleteRecordRemovesAllSameDayRows() throws {
+        let duplicateDate = try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00"))
+        let firstRecord = AttendanceRecord(
+            date: duplicateDate,
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+        let duplicateRecord = AttendanceRecord(
+            date: duplicateDate,
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+        )
+        let store = try SwiftDataAttendanceRecordStore(
+            calendar: Self.seoulCalendar,
+            legacyRecords: [firstRecord, duplicateRecord]
+        )
+
+        try store.deleteRecord(on: duplicateDate, calendar: Self.seoulCalendar)
+
+        #expect(store.record(on: duplicateDate, calendar: Self.seoulCalendar) == nil)
+        #expect(store.loadRecords().isEmpty)
+    }
+
     private func makeStore() throws -> SwiftDataAttendanceRecordStore {
         let configuration = ModelConfiguration(
             for: AttendanceRecordEntity.self,
@@ -1723,6 +1747,27 @@ struct TodayTimeEditModeStateTests {
 
         #expect(state.hasValidDraftTimes == false)
     }
+
+    @Test
+    func selectingVacationClearsTimesAndMakesDraftValid() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let endTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00")
+        )
+        var state = TodayTimeEditModeState()
+        state.loadSavedTimes(startTime: startTime, endTime: endTime)
+
+        let appliedTimes = state.setVacation(true)
+
+        #expect(appliedTimes.startTime == nil)
+        #expect(appliedTimes.endTime == nil)
+        #expect(state.savedStartTime == nil)
+        #expect(state.savedEndTime == nil)
+        #expect(state.isVacationSelected)
+        #expect(state.hasValidDraftTimes)
+    }
 }
 
 private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
@@ -1756,6 +1801,10 @@ private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
 
         records.append(record)
     }
+
+    func deleteRecord(on date: Date, calendar: Calendar) throws {
+        records.removeAll { calendar.isDate($0.date, inSameDayAs: date) }
+    }
 }
 
 private struct ThrowingAttendanceRecordStore: AttendanceRecordStore {
@@ -1778,6 +1827,10 @@ private struct ThrowingAttendanceRecordStore: AttendanceRecordStore {
     }
 
     func upsertRecord(_ record: AttendanceRecord) throws {
+        throw TestError.saveFailed
+    }
+
+    func deleteRecord(on date: Date, calendar: Calendar) throws {
         throw TestError.saveFailed
     }
 }

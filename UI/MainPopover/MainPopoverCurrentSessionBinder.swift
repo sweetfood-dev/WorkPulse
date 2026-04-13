@@ -53,8 +53,26 @@ final class MainPopoverCurrentSessionBinder {
         runtime.apply(startTime: startTime, endTime: endTime)
     }
 
+    func apply(startTime: Date?, endTime: Date?, isVacation: Bool) {
+        attendanceState = MainPopoverAttendanceState.make(
+            startTime: startTime,
+            endTime: endTime,
+            isVacation: isVacation
+        )
+        runtime.apply(startTime: startTime, endTime: endTime)
+    }
+
     func begin(startTime: Date?, endTime: Date?) {
         attendanceState = MainPopoverAttendanceState.make(startTime: startTime, endTime: endTime)
+        runtime.begin(startTime: startTime, endTime: endTime)
+    }
+
+    func begin(startTime: Date?, endTime: Date?, isVacation: Bool) {
+        attendanceState = MainPopoverAttendanceState.make(
+            startTime: startTime,
+            endTime: endTime,
+            isVacation: isVacation
+        )
         runtime.begin(startTime: startTime, endTime: endTime)
     }
 
@@ -90,6 +108,8 @@ final class MainPopoverCurrentSessionBinder {
             return isWarningState ? copy.currentSessionWarningTitle : copy.currentSessionTitle
         case .checkedOut:
             return isWarningState ? copy.workedTodayWarningTitle : copy.workedTodayTitle
+        case .vacation:
+            return copy.currentSessionVacationTitle
         }
     }
 

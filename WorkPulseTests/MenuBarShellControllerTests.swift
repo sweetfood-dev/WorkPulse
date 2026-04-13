@@ -56,6 +56,12 @@ struct MenuBarShellControllerTests {
         #expect(button.toolTip == "퇴근")
         #expect(button.image != nil)
         #expect(button.contentTintColor == nil)
+
+        controller.updateStatusItem(attendanceState: .vacation)
+        #expect(button.title == "")
+        #expect(button.toolTip == "휴가")
+        #expect(button.image != nil)
+        #expect(button.contentTintColor == nil)
     }
 
     @Test

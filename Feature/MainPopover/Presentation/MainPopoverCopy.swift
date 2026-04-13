@@ -5,6 +5,7 @@ struct MainPopoverCopy {
     let notCheckedInSummaryText: String
     let checkedInSummaryPrefix: String
     let checkedOutSummaryPrefix: String
+    let vacationSummaryText: String
     let currentSessionPlaceholderText: String
     let timePlaceholderText: String
     let totalPlaceholderText: String
@@ -13,9 +14,11 @@ struct MainPopoverCopy {
     let currentSessionWarningTitle: String
     let workedTodayTitle: String
     let workedTodayWarningTitle: String
+    let currentSessionVacationTitle: String
     let currentSessionLeadingCaption: String
     let startTimeTitle: String
     let endTimeTitle: String
+    let vacationToggleTitle: String
     let deleteActionTitle: String
     let backActionTitle: String
     let reportActionTitle: String
@@ -25,6 +28,7 @@ struct MainPopoverCopy {
     let weeklyProgressTitle: String
     let weeklyProgressSegmentTitle: String
     let weeklyQuitTimeSegmentTitle: String
+    let weeklyGoalMetStatusText: String
     let weeklyTodayGoalMetText: String
     let weeklyTodayStatusUnavailableText: String
     let monthlyHistoryTitle: String
@@ -34,6 +38,8 @@ struct MainPopoverCopy {
     let monthlyHistoryOffText: String
     let monthlyHistoryHolidayText: String
     let monthlyHistoryActiveText: String
+    let monthlyHistoryVacationText: String
+    let weeklyVacationText: String
     let currentSessionGoalLabelPrefix: String
 
     static let english = MainPopoverCopy(
@@ -41,6 +47,7 @@ struct MainPopoverCopy {
         notCheckedInSummaryText: "Not checked in yet",
         checkedInSummaryPrefix: "Checked in at",
         checkedOutSummaryPrefix: "Checked out at",
+        vacationSummaryText: "Vacation day",
         currentSessionPlaceholderText: "--:--:--",
         timePlaceholderText: "--:--",
         totalPlaceholderText: "--",
@@ -49,9 +56,11 @@ struct MainPopoverCopy {
         currentSessionWarningTitle: "🔥 CURRENT SESSION",
         workedTodayTitle: "WORKED TODAY",
         workedTodayWarningTitle: "🔥 WORKED TODAY",
+        currentSessionVacationTitle: "VACATION DAY",
         currentSessionLeadingCaption: "0H",
         startTimeTitle: "Start Time",
         endTimeTitle: "End Time",
+        vacationToggleTitle: "Vacation Day",
         deleteActionTitle: "Delete",
         backActionTitle: "Back",
         reportActionTitle: "Report",
@@ -61,6 +70,7 @@ struct MainPopoverCopy {
         weeklyProgressTitle: "Weekly Progress",
         weeklyProgressSegmentTitle: "Progress",
         weeklyQuitTimeSegmentTitle: "Quit Time",
+        weeklyGoalMetStatusText: "On track",
         weeklyTodayGoalMetText: "Through today: On track",
         weeklyTodayStatusUnavailableText: "Through today: Unavailable",
         monthlyHistoryTitle: "MONTHLY HISTORY",
@@ -70,6 +80,8 @@ struct MainPopoverCopy {
         monthlyHistoryOffText: "Off",
         monthlyHistoryHolidayText: "Holiday",
         monthlyHistoryActiveText: "Active",
+        monthlyHistoryVacationText: "Vacation",
+        weeklyVacationText: "Vacation",
         currentSessionGoalLabelPrefix: "Goal:"
     )
 

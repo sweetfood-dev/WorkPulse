@@ -8,6 +8,7 @@ protocol AttendanceRecordQuerying {
 
 protocol AttendanceRecordWriting {
     func upsertRecord(_ record: AttendanceRecord) throws
+    func deleteRecord(on date: Date, calendar: Calendar) throws
 }
 
 protocol AttendanceRecordStore: AttendanceRecordQuerying, AttendanceRecordWriting {}
@@ -45,6 +46,11 @@ struct MirroredAttendanceRecordStore: AttendanceRecordStore {
         try primary.upsertRecord(record)
         try fallback.upsertRecord(record)
     }
+
+    func deleteRecord(on date: Date, calendar: Calendar) throws {
+        try primary.deleteRecord(on: date, calendar: calendar)
+        try fallback.deleteRecord(on: date, calendar: calendar)
+    }
 }
 
 @Model
@@ -52,18 +58,21 @@ final class AttendanceRecordEntity {
     var date: Date
     var startTime: Date?
     var endTime: Date?
+    var isVacation: Bool
 
-    init(date: Date, startTime: Date?, endTime: Date?) {
+    init(date: Date, startTime: Date?, endTime: Date?, isVacation: Bool = false) {
         self.date = date
         self.startTime = startTime
         self.endTime = endTime
+        self.isVacation = isVacation
     }
 
     convenience init(record: AttendanceRecord) {
         self.init(
             date: record.date,
             startTime: record.startTime,
-            endTime: record.endTime
+            endTime: record.endTime,
+            isVacation: record.isVacation
         )
     }
 
@@ -71,7 +80,8 @@ final class AttendanceRecordEntity {
         AttendanceRecord(
             date: date,
             startTime: startTime,
-            endTime: endTime
+            endTime: endTime,
+            isVacation: isVacation
         )
     }
 }
@@ -120,10 +130,21 @@ final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
             entity.date = record.date
             entity.startTime = record.startTime
             entity.endTime = record.endTime
+            entity.isVacation = record.isVacation
         } else {
             modelContext.insert(AttendanceRecordEntity(record: record))
         }
 
+        try saveContext()
+    }
+
+    func deleteRecord(on date: Date, calendar: Calendar) throws {
+        let matchingEntities = loadAllEntities().filter { calendar.isDate($0.date, inSameDayAs: date) }
+        guard matchingEntities.isEmpty == false else {
+            return
+        }
+
+        matchingEntities.forEach(modelContext.delete)
         try saveContext()
     }
 
@@ -205,6 +226,15 @@ struct UserDefaultsAttendanceRecordStore: AttendanceRecordStore {
             records[index] = record
         } else {
             records.append(record)
+        }
+
+        let data = try encoder.encode(records)
+        userDefaults.set(data, forKey: key)
+    }
+
+    func deleteRecord(on date: Date, calendar: Calendar) throws {
+        let records = loadAllRecords().filter {
+            calendar.isDate($0.date, inSameDayAs: date) == false
         }
 
         let data = try encoder.encode(records)

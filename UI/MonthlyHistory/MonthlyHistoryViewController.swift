@@ -94,6 +94,9 @@ private final class MonthlyHistoryDayCellView: NSView {
         case .active:
             applyActivePalette(for: state.dayCategory, isOvertime: state.isOvertime)
             alphaValue = state.isDimmed ? 0.55 : 1
+        case .vacation:
+            applyVacationPalette()
+            alphaValue = state.isDimmed ? 0.55 : 1
         case .empty:
             applyEmptyPalette(for: state.dayCategory)
             alphaValue = state.isDimmed ? 0.55 : 0.78
@@ -108,6 +111,9 @@ private final class MonthlyHistoryDayCellView: NSView {
             dayLabel.font = .systemFont(ofSize: 10, weight: .semibold)
             statusLabel.font = .systemFont(ofSize: 9, weight: .bold)
         case .active:
+            dayLabel.font = .systemFont(ofSize: 10, weight: .bold)
+            statusLabel.font = .systemFont(ofSize: 9, weight: .bold)
+        case .vacation:
             dayLabel.font = .systemFont(ofSize: 10, weight: .bold)
             statusLabel.font = .systemFont(ofSize: 9, weight: .bold)
         case .empty:
@@ -177,6 +183,13 @@ private final class MonthlyHistoryDayCellView: NSView {
         }
     }
 
+    private func applyVacationPalette() {
+        layer?.backgroundColor = MainPopoverStyle.Colors.vacationBackground.cgColor
+        layer?.borderColor = MainPopoverStyle.Colors.vacationBorder.cgColor
+        dayLabel.textColor = MainPopoverStyle.Colors.vacationAccent
+        statusLabel.textColor = MainPopoverStyle.Colors.vacationAccent
+    }
+
     private func accentColor(for category: CalendarDayCategory) -> NSColor? {
         switch category {
         case .weekday:
@@ -200,6 +213,10 @@ private final class MonthlyHistoryDayCellView: NSView {
 
     var isActive: Bool {
         activity == .active
+    }
+
+    var isVacationState: Bool {
+        activity == .vacation
     }
 
     var isOvertimeState: Bool {
@@ -248,7 +265,7 @@ final class MonthlyHistoryViewController: NSViewController {
     var onNavigatePrevious: (() -> Void)?
     var onNavigateNext: (() -> Void)?
     var onSelectDay: ((Date) -> Void)?
-    var onApplyEditedDayTimes: ((Date, Date?, Date?) -> Void)?
+    var onApplyEditedDayTimes: ((Date, Date?, Date?, Bool) -> Void)?
 
     private let previousButton = NSButton(title: "", target: nil, action: nil)
     private let nextButton = NSButton(title: "", target: nil, action: nil)
@@ -381,8 +398,8 @@ final class MonthlyHistoryViewController: NSViewController {
 
         footerView.addSubview(footerRow)
 
-        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime in
-            self?.onApplyEditedDayTimes?(date, startTime, endTime)
+        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime, isVacation in
+            self?.onApplyEditedDayTimes?(date, startTime, endTime, isVacation)
         }
 
         rootView.addSubview(headerView)

@@ -59,6 +59,7 @@ struct MainPopoverRenderModelFactoryTests {
                 notCheckedInSummaryText: "Waiting to start",
                 checkedInSummaryPrefix: "Checked in at",
                 checkedOutSummaryPrefix: "Checked out at",
+                vacationSummaryText: "Vacation day",
                 currentSessionPlaceholderText: "--:--:--",
                 timePlaceholderText: "--:--",
                 totalPlaceholderText: "--",
@@ -67,9 +68,11 @@ struct MainPopoverRenderModelFactoryTests {
                 currentSessionWarningTitle: "🔥 SESSION",
                 workedTodayTitle: "DONE",
                 workedTodayWarningTitle: "🔥 DONE",
+                currentSessionVacationTitle: "VACATION",
                 currentSessionLeadingCaption: "START",
                 startTimeTitle: "In",
                 endTimeTitle: "Out",
+                vacationToggleTitle: "Vacation",
                 deleteActionTitle: "Delete",
                 backActionTitle: "Back",
                 reportActionTitle: "Report",
@@ -79,6 +82,7 @@ struct MainPopoverRenderModelFactoryTests {
                 weeklyProgressTitle: "Weekly Progress",
                 weeklyProgressSegmentTitle: "Progress",
                 weeklyQuitTimeSegmentTitle: "Quit Time",
+                weeklyGoalMetStatusText: "On track",
                 weeklyTodayGoalMetText: "Today: Goal met",
                 weeklyTodayStatusUnavailableText: "Today: Unavailable",
                 monthlyHistoryTitle: "Monthly History",
@@ -88,6 +92,8 @@ struct MainPopoverRenderModelFactoryTests {
                 monthlyHistoryOffText: "Off",
                 monthlyHistoryHolidayText: "Holiday",
                 monthlyHistoryActiveText: "Active",
+                monthlyHistoryVacationText: "Vacation",
+                weeklyVacationText: "Vacation",
                 currentSessionGoalLabelPrefix: "Target"
             )
         )

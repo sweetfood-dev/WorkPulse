@@ -67,7 +67,7 @@ struct MainPopoverViewStateFactory {
             return copy.notCheckedInSummaryText
         }
 
-        switch MainPopoverAttendanceState.make(startTime: record.startTime, endTime: record.endTime) {
+        switch MainPopoverAttendanceState.make(record: record) {
         case .checkedOut:
             guard let endTime = record.endTime else {
                 return copy.notCheckedInSummaryText
@@ -78,14 +78,15 @@ struct MainPopoverViewStateFactory {
                 return copy.notCheckedInSummaryText
             }
             return copy.checkedInSummaryText(for: timeFormatter.string(from: startTime))
+        case .vacation:
+            return copy.vacationSummaryText
         case .notCheckedIn:
             return copy.notCheckedInSummaryText
         }
     }
 
     private func attendanceState(for record: AttendanceRecord?) -> MainPopoverAttendanceState {
-        guard let record else { return .notCheckedIn }
-        return MainPopoverAttendanceState.make(startTime: record.startTime, endTime: record.endTime)
+        MainPopoverAttendanceState.make(record: record)
     }
 
     private func timeText(for date: Date?) -> String {
