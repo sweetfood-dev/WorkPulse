@@ -998,6 +998,26 @@ struct MainPopoverDetailLoadersTests {
     }
 
     @Test
+    func monthlyHistoryLoaderAllowsSelectingFutureDaysForVacationPlanning() throws {
+        let currentDate = try #require(
+            makeDate("2026-04-02T12:00:00+09:00")
+        )
+        let loader = MonthlyHistoryLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: []),
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { currentDate }
+        )
+
+        let state = loader.load(referenceDate: currentDate)
+        let futureCell = try #require(state.cells.first(where: { $0.dayText == "3" }))
+
+        #expect(futureCell.isDimmed)
+        #expect(futureCell.isSelectable)
+    }
+
+    @Test
     func weeklyProgressLoaderAnnotatesHolidayRowsWithoutChangingTotals() throws {
         let referenceDate = try #require(
             makeDate("2026-03-02T12:00:00+09:00")
@@ -1070,6 +1090,25 @@ struct MainPopoverDetailLoadersTests {
         #expect(mondayState.workedText == "Vacation")
         #expect(mondayState.annotationText == "Vacation")
         #expect(state.todayDeltaStatusText == "Through today: On track")
+    }
+
+    @Test
+    func weeklyProgressLoaderAllowsSelectingFutureDaysForVacationPlanning() throws {
+        let currentDate = try #require(
+            makeDate("2026-04-07T10:00:00+09:00")
+        )
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: []),
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { currentDate }
+        )
+
+        let state = loader.load(referenceDate: currentDate, currentDate: currentDate)
+        let futureDay = try #require(state.days.first(where: { $0.dayText == "Wed 8" }))
+
+        #expect(futureDay.isSelectable)
     }
 
     @Test

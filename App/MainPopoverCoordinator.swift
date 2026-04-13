@@ -342,6 +342,8 @@ final class MainPopoverCoordinator {
 
     private func makeDetailDayEditingState(referenceDate: Date) -> MainPopoverDetailDayEditingState {
         let loadedState = stateLoader.load(referenceDate: referenceDate)
+        let currentDayStart = runtimeDependencies.calendar.startOfDay(for: runtimeDependencies.currentDateProvider())
+        let referenceDayStart = runtimeDependencies.calendar.startOfDay(for: referenceDate)
         let fallbackStartTime = fallbackTime(on: referenceDate, hour: 9, minute: 0)
         let fallbackEndTime = loadedState.todayRecord?.startTime
             ?? fallbackTime(on: referenceDate, hour: 18, minute: 0)
@@ -354,6 +356,7 @@ final class MainPopoverCoordinator {
             startTime: loadedState.todayRecord?.startTime,
             endTime: loadedState.todayRecord?.endTime,
             isVacation: loadedState.todayRecord?.isVacation ?? false,
+            allowsTimeEditing: referenceDayStart <= currentDayStart,
             fallbackStartTime: loadedState.todayRecord?.startTime ?? fallbackStartTime,
             fallbackEndTime: loadedState.todayRecord?.endTime ?? fallbackEndTime
         )

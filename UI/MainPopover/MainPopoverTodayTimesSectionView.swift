@@ -6,6 +6,7 @@ struct MainPopoverTimeRowSnapshot {
     let isValueVisible: Bool
     let isPickerVisible: Bool
     let pickerDateValue: Date
+    let isEnabled: Bool
 }
 
 struct MainPopoverTodayTimesDraft {
@@ -59,7 +60,8 @@ final class MainPopoverTimeRowView: NSView {
             valueText: valueLabel.stringValue,
             isValueVisible: valueLabel.isHidden == false,
             isPickerVisible: picker.isHidden == false,
-            pickerDateValue: picker.dateValue
+            pickerDateValue: picker.dateValue,
+            isEnabled: picker.isEnabled
         )
     }
 
@@ -213,6 +215,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
     )
     private let editingActionRow = NSStackView()
     private var isVacationSelected = false
+    private var allowsTimeRowInteraction = true
 
     var onEvent: ((MainPopoverTodayTimesSectionEvent) -> Void)?
 
@@ -228,6 +231,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
 
     func apply(_ renderModel: MainPopoverTodayTimesRenderModel) {
         isVacationSelected = renderModel.isVacationSelected
+        allowsTimeRowInteraction = renderModel.startRow.isEnabled || renderModel.endRow.isEnabled
         vacationToggleButton.title = renderModel.vacationToggleTitle
         vacationToggleButton.state = renderModel.isVacationSelected ? .on : .off
         startRowView.apply(renderModel.startRow)
@@ -360,13 +364,13 @@ final class MainPopoverTodayTimesSectionView: NSView {
 
     @objc
     private func handleStartRowTap() {
-        guard isVacationSelected == false else { return }
+        guard isVacationSelected == false, allowsTimeRowInteraction else { return }
         onEvent?(.beginEditing(.startTime))
     }
 
     @objc
     private func handleEndRowTap() {
-        guard isVacationSelected == false else { return }
+        guard isVacationSelected == false, allowsTimeRowInteraction else { return }
         onEvent?(.beginEditing(.endTime))
     }
 
@@ -445,6 +449,7 @@ final class MainPopoverDetailDayEditorView: NSView {
             startTime: editingState.startTime,
             endTime: editingState.endTime,
             isVacation: editingState.isVacation,
+            allowsTimeEditing: editingState.allowsTimeEditing,
             forceReload: true
         )
         render()

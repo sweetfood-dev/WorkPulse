@@ -615,6 +615,33 @@ struct MainPopoverTodayTimesBinderTests {
         #expect(section.snapshot.isApplyEnabled)
     }
 
+    @Test
+    @MainActor
+    func futureDatesDisableTimeEditingWhileKeepingVacationToggleAvailable() throws {
+        let startTime = try #require(
+            ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")
+        )
+        let (binder, section) = makeBinderAndSection()
+
+        binder.loadSavedTimes(startTime: startTime, endTime: nil, allowsTimeEditing: false)
+        binder.beginEditing(.startTime)
+        section.sectionView.apply(
+            binder.makeRenderModel(
+                displayState: makeDisplayState(startTimeText: "09:00", endTimeText: "--:--"),
+                fallbackStartTime: startTime,
+                fallbackEndTime: startTime
+            )
+        )
+
+        let snapshot = section.snapshot
+
+        #expect(snapshot.startRow.isEnabled == false)
+        #expect(snapshot.endRow.isEnabled == false)
+        #expect(snapshot.startRow.isPickerVisible == false)
+        #expect(snapshot.isStartApplyVisible == false)
+        #expect(snapshot.isVacationSelected == false)
+    }
+
     @MainActor
     private func makeBinderAndSection() -> (MainPopoverTodayTimesBinder, MainPopoverViewSnapshottingSection) {
         let section = MainPopoverViewSnapshottingSection()

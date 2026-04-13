@@ -48,6 +48,7 @@ struct MainPopoverDetailDayEditingState {
     let startTime: Date?
     let endTime: Date?
     let isVacation: Bool
+    let allowsTimeEditing: Bool
     let fallbackStartTime: Date
     let fallbackEndTime: Date
 
@@ -59,6 +60,7 @@ struct MainPopoverDetailDayEditingState {
         startTime: Date?,
         endTime: Date?,
         isVacation: Bool = false,
+        allowsTimeEditing: Bool = true,
         fallbackStartTime: Date,
         fallbackEndTime: Date
     ) {
@@ -69,6 +71,7 @@ struct MainPopoverDetailDayEditingState {
         self.startTime = startTime
         self.endTime = endTime
         self.isVacation = isVacation
+        self.allowsTimeEditing = allowsTimeEditing
         self.fallbackStartTime = fallbackStartTime
         self.fallbackEndTime = fallbackEndTime
     }

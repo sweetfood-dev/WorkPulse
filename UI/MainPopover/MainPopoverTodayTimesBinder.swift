@@ -22,6 +22,7 @@ final class MainPopoverTodayTimesBinder {
     private let sectionView: MainPopoverTodayTimesSectionView
     private let copy: MainPopoverCopy
     private var editModeState = TodayTimeEditModeState()
+    private var allowsTimeEditing = true
 
     var onDidChange: (() -> Void)?
     var onDidApplyTimes: ((MainPopoverAppliedTodayTimes) -> Void)?
@@ -40,15 +41,18 @@ final class MainPopoverTodayTimesBinder {
         startTime: Date?,
         endTime: Date?,
         isVacation: Bool = false,
+        allowsTimeEditing: Bool = true,
         forceReload: Bool = false
     ) {
         if forceReload {
             editModeState = TodayTimeEditModeState()
         }
+        self.allowsTimeEditing = allowsTimeEditing
         editModeState.loadSavedTimes(startTime: startTime, endTime: endTime, isVacation: isVacation)
     }
 
     func beginEditing(_ field: TodayTimeField) {
+        guard allowsTimeEditing else { return }
         editModeState.beginEditing(field)
         onDidChange?()
     }
@@ -190,7 +194,7 @@ final class MainPopoverTodayTimesBinder {
             isValueVisible: !isEditing,
             isPickerVisible: isEditing,
             pickerDateValue: draftTime ?? fallbackTime,
-            isEnabled: editModeState.isVacationSelected == false
+            isEnabled: allowsTimeEditing && editModeState.isVacationSelected == false
         )
     }
 }

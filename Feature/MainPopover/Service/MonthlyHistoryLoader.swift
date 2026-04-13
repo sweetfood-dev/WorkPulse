@@ -186,7 +186,7 @@ struct MonthlyHistoryLoader {
                     dayCategory: metadata.category,
                     isOvertime: isOvertime,
                     isDimmed: isFuture,
-                    isSelectable: isFuture == false
+                    isSelectable: true
                 )
             )
         }

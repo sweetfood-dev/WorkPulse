@@ -146,7 +146,6 @@ struct MainPopoverWeeklyProgressLoader {
 
     func load(referenceDate: Date, currentDate: Date) -> MainPopoverWeeklyProgressViewState {
         let weekDates = makeWeekDates(for: referenceDate)
-        let currentDayStart = calendar.startOfDay(for: currentDate)
         let dayStatesWithDuration = weekDates.map { date in
             let record = recordStore.record(on: date, calendar: calendar)
             let metadata = calendarDayMetadataProvider.metadata(for: date)
@@ -169,7 +168,7 @@ struct MainPopoverWeeklyProgressLoader {
                     isOvertime: isOvertime(duration),
                     progressFraction: dailyProgressFraction(for: duration),
                     isToday: calendar.isDate(date, inSameDayAs: referenceDate),
-                    isSelectable: calendar.startOfDay(for: date) <= currentDayStart
+                    isSelectable: true
                 ),
                 duration
             )
