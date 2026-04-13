@@ -101,15 +101,20 @@ final class MainPopoverCoordinator {
     ) {
         self.popoverViewController = popoverViewController
         displayedReferenceDate = referenceDate
-        popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime in
-            self?.handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
+        popoverViewController.onApplyEditedTimes = { [weak self] startTime, endTime, isVacation in
+            self?.handleAppliedTodayTimes(
+                startTime: startTime,
+                endTime: endTime,
+                isVacation: isVacation
+            )
         }
-        popoverViewController.onApplyEditedDetailTimes = { [weak self] surface, referenceDate, startTime, endTime in
+        popoverViewController.onApplyEditedDetailTimes = { [weak self] surface, referenceDate, startTime, endTime, isVacation in
             self?.handleAppliedDetailTimes(
                 surface: surface,
                 referenceDate: referenceDate,
                 startTime: startTime,
-                endTime: endTime
+                endTime: endTime,
+                isVacation: isVacation
             )
         }
         popoverViewController.onOpenWeeklyProgress = { [weak self] in
@@ -154,20 +159,19 @@ final class MainPopoverCoordinator {
         popoverViewController?.stopCurrentSessionUpdates()
     }
 
-    func applyEditedTimes(startTime: Date?, endTime: Date?) {
-        handleAppliedTodayTimes(startTime: startTime, endTime: endTime)
+    func applyEditedTimes(startTime: Date?, endTime: Date?, isVacation: Bool = false) {
+        handleAppliedTodayTimes(startTime: startTime, endTime: endTime, isVacation: isVacation)
     }
 
-    private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?) {
+    private func handleAppliedTodayTimes(startTime: Date?, endTime: Date?, isVacation: Bool) {
         let referenceDate = currentReferenceDateForPopoverOpen()
         logGeometryEvent("handleAppliedTodayTimes", referenceDate: referenceDate)
         do {
-            try recordStore.upsertRecord(
-                AttendanceRecord(
-                    date: referenceDate,
-                    startTime: startTime,
-                    endTime: endTime
-                )
+            try persistAttendanceRecord(
+                referenceDate: referenceDate,
+                startTime: startTime,
+                endTime: endTime,
+                isVacation: isVacation
             )
         } catch {
             NSLog("Failed to save attendance record: %@", String(describing: error))
@@ -199,6 +203,7 @@ final class MainPopoverCoordinator {
                 viewState: loadedState.viewState,
                 startTime: loadedState.todayRecord?.startTime,
                 endTime: loadedState.todayRecord?.endTime,
+                isVacation: loadedState.todayRecord?.isVacation ?? false,
                 allowsLiveCurrentSessionUpdates: runtimeDependencies.calendar.isDate(
                     referenceDate,
                     inSameDayAs: currentDate
@@ -281,16 +286,16 @@ final class MainPopoverCoordinator {
         surface: MainPopoverDetailSurface,
         referenceDate: Date,
         startTime: Date?,
-        endTime: Date?
+        endTime: Date?,
+        isVacation: Bool
     ) {
         logGeometryEvent("handleAppliedDetailTimes[\(surface)]", referenceDate: referenceDate)
         do {
-            try recordStore.upsertRecord(
-                AttendanceRecord(
-                    date: referenceDate,
-                    startTime: startTime,
-                    endTime: endTime
-                )
+            try persistAttendanceRecord(
+                referenceDate: referenceDate,
+                startTime: startTime,
+                endTime: endTime,
+                isVacation: isVacation
             )
         } catch {
             NSLog("Failed to save detail attendance record: %@", String(describing: error))
@@ -348,8 +353,30 @@ final class MainPopoverCoordinator {
             endTimeText: loadedState.viewState.endTimeText,
             startTime: loadedState.todayRecord?.startTime,
             endTime: loadedState.todayRecord?.endTime,
+            isVacation: loadedState.todayRecord?.isVacation ?? false,
             fallbackStartTime: loadedState.todayRecord?.startTime ?? fallbackStartTime,
             fallbackEndTime: loadedState.todayRecord?.endTime ?? fallbackEndTime
+        )
+    }
+
+    private func persistAttendanceRecord(
+        referenceDate: Date,
+        startTime: Date?,
+        endTime: Date?,
+        isVacation: Bool
+    ) throws {
+        if isVacation == false, startTime == nil, endTime == nil {
+            try recordStore.deleteRecord(on: referenceDate, calendar: runtimeDependencies.calendar)
+            return
+        }
+
+        try recordStore.upsertRecord(
+            AttendanceRecord(
+                date: referenceDate,
+                startTime: startTime,
+                endTime: endTime,
+                isVacation: isVacation
+            )
         )
     }
 

@@ -156,6 +156,8 @@ final class MenuBarShellController: NSObject {
             return .systemBlue
         case .checkedOut:
             return .systemGreen
+        case .vacation:
+            return .systemTeal
         }
     }
 
@@ -167,6 +169,8 @@ final class MenuBarShellController: NSObject {
             return "업무 중"
         case .checkedOut:
             return "퇴근"
+        case .vacation:
+            return "휴가"
         }
     }
 }

@@ -128,6 +128,39 @@ struct TodayQuitReportBuilderTests {
             """
         )
     }
+
+    @Test
+    func reportsVacationDay() throws {
+        let builder = TodayQuitReportBuilder(
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "ko_KR"),
+            timeZone: try #require(TimeZone(secondsFromGMT: 9 * 60 * 60))
+        )
+        let now = try #require(
+            ISO8601DateFormatter().date(from: "2026-04-07T10:00:00+09:00")
+        )
+
+        let report = builder.make(
+            todayRecord: AttendanceRecord(
+                date: now,
+                startTime: nil,
+                endTime: nil,
+                isVacation: true
+            ),
+            now: now,
+            throughTodayStatusText: "Through today: On track"
+        )
+
+        #expect(
+            report == """
+            [퇴근 가능 시간 보고]
+            오늘 출근 시간: 휴가
+            오늘 퇴근 가능 시간: 해당 없음
+            현재 상태: 휴가
+            오늘까지 누적 상태: 정상
+            """
+        )
+    }
 }
 
 @Suite("QuitReportCopy")
@@ -251,6 +284,10 @@ private final class InMemoryAttendanceRecordStoreForQuitReport: AttendanceRecord
         } else {
             records.append(record)
         }
+    }
+
+    func deleteRecord(on date: Date, calendar: Calendar) throws {
+        records.removeAll { calendar.isDate($0.date, inSameDayAs: date) }
     }
 }
 

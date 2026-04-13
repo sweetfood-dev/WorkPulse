@@ -32,8 +32,8 @@ final class MainPopoverViewController: NSViewController {
     private let currentSessionCalculator: CurrentSessionCalculator
     private let currentSessionScheduler: any CurrentSessionScheduling
     private let renderModelFactory: MainPopoverRenderModelFactory
-    var onApplyEditedTimes: ((Date?, Date?) -> Void)?
-    var onApplyEditedDetailTimes: ((MainPopoverDetailSurface, Date, Date?, Date?) -> Void)?
+    var onApplyEditedTimes: ((Date?, Date?, Bool) -> Void)?
+    var onApplyEditedDetailTimes: ((MainPopoverDetailSurface, Date, Date?, Date?, Bool) -> Void)?
     var onOpenWeeklyProgress: (() -> Void)?
     var onOpenMonthlyHistory: (() -> Void)?
     var onSelectDetailDate: ((MainPopoverDetailSurface, Date) -> Void)?
@@ -77,7 +77,7 @@ final class MainPopoverViewController: NSViewController {
             self?.render()
         }
         binder.onDidApplyTimes = { [weak self] appliedTimes in
-            self?.onApplyEditedTimes?(appliedTimes.startTime, appliedTimes.endTime)
+            self?.onApplyEditedTimes?(appliedTimes.startTime, appliedTimes.endTime, appliedTimes.isVacation)
         }
         return binder
     }()
@@ -113,8 +113,8 @@ final class MainPopoverViewController: NSViewController {
         weeklyDetailSectionView.onSelectDay = { [weak self] selectedDate in
             self?.onSelectDetailDate?(.weekly, selectedDate)
         }
-        weeklyDetailSectionView.onApplyEditedDayTimes = { [weak self] date, startTime, endTime in
-            self?.onApplyEditedDetailTimes?(.weekly, date, startTime, endTime)
+        weeklyDetailSectionView.onApplyEditedDayTimes = { [weak self] date, startTime, endTime, isVacation in
+            self?.onApplyEditedDetailTimes?(.weekly, date, startTime, endTime, isVacation)
         }
         monthlyHistoryViewController.onNavigatePrevious = { [weak self] in
             self?.onNavigateMonthlyHistory?(-1)
@@ -125,8 +125,8 @@ final class MainPopoverViewController: NSViewController {
         monthlyHistoryViewController.onSelectDay = { [weak self] selectedDate in
             self?.onSelectDetailDate?(.monthly, selectedDate)
         }
-        monthlyHistoryViewController.onApplyEditedDayTimes = { [weak self] date, startTime, endTime in
-            self?.onApplyEditedDetailTimes?(.monthly, date, startTime, endTime)
+        monthlyHistoryViewController.onApplyEditedDayTimes = { [weak self] date, startTime, endTime, isVacation in
+            self?.onApplyEditedDetailTimes?(.monthly, date, startTime, endTime, isVacation)
         }
     }
 
@@ -216,14 +216,33 @@ final class MainPopoverViewController: NSViewController {
 
     func display(_ intent: MainPopoverDisplayIntent) {
         state = intent.viewState
-        todayTimesBinder.loadSavedTimes(startTime: intent.startTime, endTime: intent.endTime)
+        todayTimesBinder.loadSavedTimes(
+            startTime: intent.startTime,
+            endTime: intent.endTime,
+            isVacation: intent.isVacation
+        )
         currentSessionBinder.load(viewState: intent.viewState)
 
-        if intent.allowsLiveCurrentSessionUpdates {
-            currentSessionBinder.begin(startTime: intent.startTime, endTime: intent.endTime)
+        if intent.isVacation {
+            currentSessionBinder.stop()
+            currentSessionBinder.apply(
+                startTime: intent.startTime,
+                endTime: intent.endTime,
+                isVacation: true
+            )
+        } else if intent.allowsLiveCurrentSessionUpdates {
+            currentSessionBinder.begin(
+                startTime: intent.startTime,
+                endTime: intent.endTime,
+                isVacation: false
+            )
         } else if intent.endTime != nil {
             currentSessionBinder.stop()
-            currentSessionBinder.apply(startTime: intent.startTime, endTime: intent.endTime)
+            currentSessionBinder.apply(
+                startTime: intent.startTime,
+                endTime: intent.endTime,
+                isVacation: false
+            )
         } else {
             currentSessionBinder.stop()
         }
@@ -236,7 +255,7 @@ final class MainPopoverViewController: NSViewController {
     }
 
     func beginCurrentSessionUpdates(startTime: Date?, endTime: Date?) {
-        todayTimesBinder.loadSavedTimes(startTime: startTime, endTime: endTime)
+        todayTimesBinder.loadSavedTimes(startTime: startTime, endTime: endTime, isVacation: false)
         currentSessionBinder.begin(startTime: startTime, endTime: endTime)
         render()
     }

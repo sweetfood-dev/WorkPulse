@@ -35,6 +35,7 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
     private var selectedDate: Date?
     private var isSelectable = false
     private var isOvertime = false
+    private var isVacation = false
     private var currentState: MainPopoverWeeklyProgressDayViewState?
     private var displayMode: MainPopoverWeeklyProgressStatusSegment = .progress
     var onSelect: ((Date) -> Void)?
@@ -109,9 +110,12 @@ private final class MainPopoverWeeklyProgressDayRowView: NSView {
         annotationLabel.isHidden = state.annotationText == nil
         progressBar.progressFraction = state.progressFraction
         isOvertime = state.isOvertime
+        isVacation = state.isVacation
         progressBar.applyVisualState(state.isOvertime ? .warning : .normal)
 
-        let accentColor = state.isOvertime
+        let accentColor = state.isVacation
+            ? MainPopoverStyle.Colors.vacationAccent
+            : state.isOvertime
             ? MainPopoverStyle.Colors.detailOvertimeAccent
             : accentColor(for: state.dayCategory)
         dayLabel.font = .systemFont(
@@ -209,7 +213,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
 
     var onBack: (() -> Void)?
     var onSelectDay: ((Date) -> Void)?
-    var onApplyEditedDayTimes: ((Date, Date?, Date?) -> Void)?
+    var onApplyEditedDayTimes: ((Date, Date?, Date?, Bool) -> Void)?
     private let copy: MainPopoverCopy
 
     private let backButton = NSButton(title: "", target: nil, action: nil)
@@ -455,8 +459,8 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
         rowsStack.setContentHuggingPriority(.required, for: .vertical)
         rowsStack.setContentCompressionResistancePriority(.required, for: .vertical)
 
-        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime in
-            self?.onApplyEditedDayTimes?(date, startTime, endTime)
+        detailEditorView.onApplyEditedTimes = { [weak self] date, startTime, endTime, isVacation in
+            self?.onApplyEditedDayTimes?(date, startTime, endTime, isVacation)
         }
 
         addSubview(backButton)

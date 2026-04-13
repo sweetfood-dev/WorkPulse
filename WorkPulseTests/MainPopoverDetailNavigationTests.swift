@@ -970,6 +970,34 @@ struct MainPopoverDetailLoadersTests {
     }
 
     @Test
+    func monthlyHistoryLoaderMarksVacationDays() throws {
+        let referenceDate = try #require(
+            makeDate("2026-04-02T12:00:00+09:00")
+        )
+        let store = DetailTestAttendanceRecordStore(records: [
+            AttendanceRecord(
+                date: try #require(makeDate("2026-04-02T00:00:00+09:00")),
+                startTime: nil,
+                endTime: nil,
+                isVacation: true
+            ),
+        ])
+        let loader = MonthlyHistoryLoader(
+            recordStore: store,
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { referenceDate }
+        )
+
+        let state = loader.load(referenceDate: referenceDate)
+        let vacationCell = try #require(state.cells.first(where: { $0.dayText == "2" }))
+
+        #expect(vacationCell.activity == .vacation)
+        #expect(vacationCell.statusText == "Vacation")
+    }
+
+    @Test
     func weeklyProgressLoaderAnnotatesHolidayRowsWithoutChangingTotals() throws {
         let referenceDate = try #require(
             makeDate("2026-03-02T12:00:00+09:00")
@@ -1010,6 +1038,38 @@ struct MainPopoverDetailLoadersTests {
         #expect(mondayState.dayCategory == .substituteHoliday)
         #expect(mondayState.annotationText?.contains("대체공휴일") == true)
         #expect(mondayState.annotationText?.contains("3·1절") == true)
+    }
+
+    @Test
+    func weeklyProgressLoaderTreatsVacationWeekdaysAsZeroGoalDays() throws {
+        let currentDate = try #require(
+            makeDate("2026-04-07T10:00:00+09:00")
+        )
+        let vacationDate = try #require(
+            makeDate("2026-04-06T00:00:00+09:00")
+        )
+        let loader = MainPopoverWeeklyProgressLoader(
+            recordStore: DetailTestAttendanceRecordStore(records: [
+                AttendanceRecord(
+                    date: vacationDate,
+                    startTime: nil,
+                    endTime: nil,
+                    isVacation: true
+                ),
+            ]),
+            calendar: makeSeoulCalendar(),
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!,
+            currentDateProvider: { currentDate }
+        )
+
+        let state = loader.load(referenceDate: currentDate, currentDate: currentDate)
+        let mondayState = try #require(state.days.first(where: { $0.dayText == "Mon 6" }))
+
+        #expect(mondayState.timeRangeText == "Vacation")
+        #expect(mondayState.workedText == "Vacation")
+        #expect(mondayState.annotationText == "Vacation")
+        #expect(state.todayDeltaStatusText == "Through today: On track")
     }
 
     @Test
@@ -1178,6 +1238,10 @@ private struct DetailTestAttendanceRecordStore: AttendanceRecordStore {
 
     func upsertRecord(_ record: AttendanceRecord) throws {
         Issue.record("upsertRecord should not be called in detail loader tests")
+    }
+
+    func deleteRecord(on date: Date, calendar: Calendar) throws {
+        Issue.record("deleteRecord should not be called in detail loader tests")
     }
 }
 

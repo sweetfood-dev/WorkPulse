@@ -89,6 +89,9 @@ enum MainPopoverStyle {
         static var weekendAccent: NSColor { .systemTeal }
         static var holidayAccent: NSColor { .systemRed }
         static var substituteHolidayAccent: NSColor { .systemOrange }
+        static var vacationAccent: NSColor { .systemIndigo }
+        static var vacationBackground: NSColor { .systemIndigo.withAlphaComponent(0.10) }
+        static var vacationBorder: NSColor { .systemIndigo.withAlphaComponent(0.18) }
         static var progressTrackBackground: NSColor { .secondarySystemFill }
         static var progressTrackBorder: NSColor { .separatorColor }
         static var weeklyProgressTrackBackground: NSColor { .black.withAlphaComponent(0.05) }

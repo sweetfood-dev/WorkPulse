@@ -36,6 +36,8 @@ final class MainPopoverTimeRowView: NSView {
         valueLabel.stringValue = renderModel.valueText
         valueLabel.isHidden = !renderModel.isValueVisible
         picker.isHidden = !renderModel.isPickerVisible
+        picker.isEnabled = renderModel.isEnabled
+        alphaValue = renderModel.isEnabled ? 1 : 0.55
         if renderModel.isPickerVisible == false {
             isPickerTextEditing = false
         }
@@ -174,6 +176,7 @@ final class MainPopoverTimeRowView: NSView {
 struct MainPopoverTodayTimesSectionSnapshot {
     let startRow: MainPopoverTimeRowSnapshot
     let endRow: MainPopoverTimeRowSnapshot
+    let isVacationSelected: Bool
     let isStartApplyVisible: Bool
     let isStartCancelVisible: Bool
     let isEndApplyVisible: Bool
@@ -189,12 +192,14 @@ enum MainPopoverTodayTimesSectionEvent {
     case applyEditing
     case cancelEditing
     case deleteEndTime
+    case toggleVacation(Bool)
     case draftChanged(MainPopoverTodayTimesDraft)
 }
 
 final class MainPopoverTodayTimesSectionView: NSView {
     private let startRowView = MainPopoverTimeRowView(iconSystemName: "arrow.right.to.line")
     private let endRowView = MainPopoverTimeRowView(iconSystemName: "rectangle.portrait.and.arrow.right")
+    private let vacationToggleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let startTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
     private let startTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let endTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
@@ -207,6 +212,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
         shadow: true
     )
     private let editingActionRow = NSStackView()
+    private var isVacationSelected = false
 
     var onEvent: ((MainPopoverTodayTimesSectionEvent) -> Void)?
 
@@ -221,8 +227,13 @@ final class MainPopoverTodayTimesSectionView: NSView {
     }
 
     func apply(_ renderModel: MainPopoverTodayTimesRenderModel) {
+        isVacationSelected = renderModel.isVacationSelected
+        vacationToggleButton.title = renderModel.vacationToggleTitle
+        vacationToggleButton.state = renderModel.isVacationSelected ? .on : .off
         startRowView.apply(renderModel.startRow)
         endRowView.apply(renderModel.endRow)
+        startRowView.alphaValue = renderModel.startRow.isEnabled ? 1 : 0.55
+        endRowView.alphaValue = renderModel.endRow.isEnabled ? 1 : 0.55
 
         editingActionRow.isHidden = !renderModel.showsEditingActions
         startTimeApplyButton.isHidden = !renderModel.showsStartActions
@@ -255,6 +266,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
         return MainPopoverTodayTimesSectionSnapshot(
             startRow: startRowView.snapshot,
             endRow: endRowView.snapshot,
+            isVacationSelected: vacationToggleButton.state == .on,
             isStartApplyVisible: startTimeApplyButton.isHidden == false,
             isStartCancelVisible: startTimeCancelButton.isHidden == false,
             isEndApplyVisible: endTimeApplyButton.isHidden == false,
@@ -280,6 +292,12 @@ final class MainPopoverTodayTimesSectionView: NSView {
         container.translatesAutoresizingMaskIntoConstraints = false
         container.contentStack.spacing = MainPopoverStyle.Metrics.todayTimesSpacing
 
+        vacationToggleButton.setButtonType(.switch)
+        vacationToggleButton.controlSize = .small
+        vacationToggleButton.font = .systemFont(ofSize: 11, weight: .semibold)
+        vacationToggleButton.target = self
+        vacationToggleButton.action = #selector(handleToggleVacation)
+
         [startTimeApplyButton, startTimeCancelButton, endTimeApplyButton, endTimeCancelButton, endTimeDeleteButton].forEach { button in
             button.bezelStyle = .rounded
             button.controlSize = .small
@@ -302,6 +320,7 @@ final class MainPopoverTodayTimesSectionView: NSView {
         editingActionRow.addArrangedSubview(endTimeApplyButton)
         editingActionRow.isHidden = true
 
+        container.contentStack.addArrangedSubview(vacationToggleButton)
         container.contentStack.addArrangedSubview(startRowView)
         container.contentStack.addArrangedSubview(endRowView)
         container.contentStack.addArrangedSubview(editingActionRow)
@@ -341,11 +360,13 @@ final class MainPopoverTodayTimesSectionView: NSView {
 
     @objc
     private func handleStartRowTap() {
+        guard isVacationSelected == false else { return }
         onEvent?(.beginEditing(.startTime))
     }
 
     @objc
     private func handleEndRowTap() {
+        guard isVacationSelected == false else { return }
         onEvent?(.beginEditing(.endTime))
     }
 
@@ -362,6 +383,12 @@ final class MainPopoverTodayTimesSectionView: NSView {
     @objc
     private func handleDeleteEndTime() {
         onEvent?(.deleteEndTime)
+    }
+
+    @objc
+    private func handleToggleVacation() {
+        isVacationSelected = vacationToggleButton.state == .on
+        onEvent?(.toggleVacation(isVacationSelected))
     }
 
 }
@@ -384,7 +411,7 @@ final class MainPopoverDetailDayEditorView: NSView {
     private lazy var collapsedHeightConstraint = heightAnchor.constraint(equalToConstant: 0)
     private var editingState: MainPopoverDetailDayEditingState?
 
-    var onApplyEditedTimes: ((Date, Date?, Date?) -> Void)?
+    var onApplyEditedTimes: ((Date, Date?, Date?, Bool) -> Void)?
 
     override init(frame frameRect: NSRect) {
         self.binder = MainPopoverTodayTimesBinder(sectionView: todayTimesSectionView)
@@ -417,6 +444,7 @@ final class MainPopoverDetailDayEditorView: NSView {
         binder.loadSavedTimes(
             startTime: editingState.startTime,
             endTime: editingState.endTime,
+            isVacation: editingState.isVacation,
             forceReload: true
         )
         render()
@@ -476,7 +504,8 @@ final class MainPopoverDetailDayEditorView: NSView {
             self.onApplyEditedTimes?(
                 editingState.referenceDate,
                 appliedTimes.startTime,
-                appliedTimes.endTime
+                appliedTimes.endTime,
+                appliedTimes.isVacation
             )
         }
     }

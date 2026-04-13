@@ -41,6 +41,14 @@ struct TodayQuitReportBuilder {
                 checkoutTimeText: nil,
                 throughTodayStatusText: throughTodayStatusText
             )
+        case .vacation:
+            return report(
+                startTimeText: "휴가",
+                earliestQuitTimeText: "해당 없음",
+                statusText: "휴가",
+                checkoutTimeText: nil,
+                throughTodayStatusText: throughTodayStatusText
+            )
         case let .invalidRecord(startTime):
             return report(
                 startTimeText: startTime.map { timeFormatter.string(from: $0) } ?? "기록 이상",

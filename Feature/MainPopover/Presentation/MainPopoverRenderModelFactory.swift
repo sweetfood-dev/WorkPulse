@@ -27,16 +27,57 @@ struct MainPopoverTimeRowRenderModel {
     let isValueVisible: Bool
     let isPickerVisible: Bool
     let pickerDateValue: Date
+    let isEnabled: Bool
+
+    init(
+        titleText: String,
+        valueText: String,
+        isValueVisible: Bool,
+        isPickerVisible: Bool,
+        pickerDateValue: Date,
+        isEnabled: Bool = true
+    ) {
+        self.titleText = titleText
+        self.valueText = valueText
+        self.isValueVisible = isValueVisible
+        self.isPickerVisible = isPickerVisible
+        self.pickerDateValue = pickerDateValue
+        self.isEnabled = isEnabled
+    }
 }
 
 struct MainPopoverTodayTimesRenderModel {
     let startRow: MainPopoverTimeRowRenderModel
     let endRow: MainPopoverTimeRowRenderModel
+    let vacationToggleTitle: String
+    let isVacationSelected: Bool
     let showsEditingActions: Bool
     let showsStartActions: Bool
     let showsEndActions: Bool
     let showsEndDeleteAction: Bool
     let isApplyEnabled: Bool
+
+    init(
+        startRow: MainPopoverTimeRowRenderModel,
+        endRow: MainPopoverTimeRowRenderModel,
+        vacationToggleTitle: String = MainPopoverCopy.english.vacationToggleTitle,
+        isVacationSelected: Bool = false,
+        showsEditingActions: Bool,
+        showsStartActions: Bool,
+        showsEndActions: Bool,
+        showsEndDeleteAction: Bool,
+        isApplyEnabled: Bool
+    ) {
+        self.startRow = startRow
+        self.endRow = endRow
+        self.vacationToggleTitle = vacationToggleTitle
+        self.isVacationSelected = isVacationSelected
+        self.showsEditingActions = showsEditingActions
+        self.showsStartActions = showsStartActions
+        self.showsEndActions = showsEndActions
+        self.showsEndDeleteAction = showsEndDeleteAction
+        self.isApplyEnabled = isApplyEnabled
+    }
 }
 
 struct MainPopoverSummaryItemRenderModel {

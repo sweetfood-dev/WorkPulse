@@ -9,6 +9,7 @@ struct MainPopoverWeeklyProgressDayViewState {
     let quitDeltaText: String
     let annotationText: String?
     let dayCategory: CalendarDayCategory
+    let isVacation: Bool
     let isOvertime: Bool
     let progressFraction: CGFloat
     let isToday: Bool
@@ -22,6 +23,7 @@ struct MainPopoverWeeklyProgressDayViewState {
         quitDeltaText: String? = nil,
         annotationText: String?,
         dayCategory: CalendarDayCategory,
+        isVacation: Bool = false,
         isOvertime: Bool = false,
         progressFraction: CGFloat,
         isToday: Bool,
@@ -34,6 +36,7 @@ struct MainPopoverWeeklyProgressDayViewState {
         self.quitDeltaText = quitDeltaText ?? workedText
         self.annotationText = annotationText
         self.dayCategory = dayCategory
+        self.isVacation = isVacation
         self.isOvertime = isOvertime
         self.progressFraction = progressFraction
         self.isToday = isToday
@@ -158,10 +161,11 @@ struct MainPopoverWeeklyProgressLoader {
                     date: date,
                     dayText: dayFormatter.string(from: date),
                     timeRangeText: makeTimeRangeText(record: record),
-                    workedText: formatWorkedDuration(duration),
-                    quitDeltaText: quitDeltaText(for: duration),
-                    annotationText: metadata.holiday?.annotationText,
+                    workedText: workedText(for: record, duration: duration),
+                    quitDeltaText: quitDeltaText(for: record, duration: duration),
+                    annotationText: annotationText(for: record, metadata: metadata),
                     dayCategory: metadata.category,
+                    isVacation: record?.isVacation ?? false,
                     isOvertime: isOvertime(duration),
                     progressFraction: dailyProgressFraction(for: duration),
                     isToday: calendar.isDate(date, inSameDayAs: referenceDate),
@@ -212,7 +216,21 @@ struct MainPopoverWeeklyProgressLoader {
     }
 
     private func makeTimeRangeText(record: AttendanceRecord?) -> String {
-        "\(formatTime(record?.startTime)) - \(formatTime(record?.endTime))"
+        if record?.isVacation == true {
+            return copy.weeklyVacationText
+        }
+        return "\(formatTime(record?.startTime)) - \(formatTime(record?.endTime))"
+    }
+
+    private func annotationText(
+        for record: AttendanceRecord?,
+        metadata: CalendarDayMetadata
+    ) -> String? {
+        if record?.isVacation == true {
+            return copy.weeklyVacationText
+        }
+
+        return metadata.holiday?.annotationText
     }
 
     private func formatTime(_ date: Date?) -> String {
@@ -278,7 +296,19 @@ struct MainPopoverWeeklyProgressLoader {
         return String(format: "%02d:%02d", hours, minutes)
     }
 
-    private func quitDeltaText(for duration: TimeInterval?) -> String {
+    private func workedText(for record: AttendanceRecord?, duration: TimeInterval?) -> String {
+        if record?.isVacation == true {
+            return copy.weeklyVacationText
+        }
+
+        return formatWorkedDuration(duration)
+    }
+
+    private func quitDeltaText(for record: AttendanceRecord?, duration: TimeInterval?) -> String {
+        if record?.isVacation == true {
+            return copy.totalPlaceholderText
+        }
+
         guard let duration else {
             return copy.totalPlaceholderText
         }
@@ -332,6 +362,8 @@ struct MainPopoverWeeklyProgressLoader {
         switch quitTimeInsightCalculator.make(record: record) {
         case .noRecord:
             return copy.weeklyNoCheckInStatusText
+        case .vacation:
+            return copy.weeklyVacationText
         case .invalidRecord:
             return copy.weeklyQuitTimeUnavailableText
         case let .available(_, earliestQuitTime, checkoutTime):
@@ -398,10 +430,15 @@ struct MainPopoverWeeklyProgressLoader {
         var delta: TimeInterval = 0
 
         for date in priorDates {
-            let dailyGoalDuration = goalDuration(for: date)
+            let record = recordStore.record(on: date, calendar: calendar)
+            let dailyGoalDuration = goalDuration(for: date, record: record)
             delta -= dailyGoalDuration
 
-            guard let record = recordStore.record(on: date, calendar: calendar) else {
+            guard let record else {
+                continue
+            }
+
+            if record.isVacation {
                 continue
             }
 
@@ -420,6 +457,10 @@ struct MainPopoverWeeklyProgressLoader {
             return deltaState(for: delta)
         }
 
+        if todayRecord.isVacation {
+            return deltaState(for: delta)
+        }
+
         guard let todayDuration = workedDuration(
             for: todayRecord,
             referenceDate: todayDate,
@@ -428,7 +469,7 @@ struct MainPopoverWeeklyProgressLoader {
             return .unavailable
         }
 
-        let todayGoalDuration = goalDuration(for: todayDate)
+        let todayGoalDuration = goalDuration(for: todayDate, record: todayRecord)
         if todayRecord.endTime != nil {
             delta += todayDuration - todayGoalDuration
         } else if todayGoalDuration == 0 {
@@ -440,8 +481,12 @@ struct MainPopoverWeeklyProgressLoader {
         return deltaState(for: delta)
     }
 
-    private func goalDuration(for date: Date) -> TimeInterval {
-        calendarDayMetadataProvider.metadata(for: date).category == .weekday
+    private func goalDuration(for date: Date, record: AttendanceRecord? = nil) -> TimeInterval {
+        guard record?.isVacation != true else {
+            return 0
+        }
+
+        return calendarDayMetadataProvider.metadata(for: date).category == .weekday
             ? MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
             : 0
     }

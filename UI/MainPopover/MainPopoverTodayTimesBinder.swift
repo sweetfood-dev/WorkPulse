@@ -8,6 +8,13 @@ struct MainPopoverTodayTimesDisplayState {
 struct MainPopoverAppliedTodayTimes {
     let startTime: Date?
     let endTime: Date?
+    let isVacation: Bool
+
+    init(startTime: Date?, endTime: Date?, isVacation: Bool = false) {
+        self.startTime = startTime
+        self.endTime = endTime
+        self.isVacation = isVacation
+    }
 }
 
 @MainActor
@@ -29,11 +36,16 @@ final class MainPopoverTodayTimesBinder {
         bindSectionEvents()
     }
 
-    func loadSavedTimes(startTime: Date?, endTime: Date?, forceReload: Bool = false) {
+    func loadSavedTimes(
+        startTime: Date?,
+        endTime: Date?,
+        isVacation: Bool = false,
+        forceReload: Bool = false
+    ) {
         if forceReload {
             editModeState = TodayTimeEditModeState()
         }
-        editModeState.loadSavedTimes(startTime: startTime, endTime: endTime)
+        editModeState.loadSavedTimes(startTime: startTime, endTime: endTime, isVacation: isVacation)
     }
 
     func beginEditing(_ field: TodayTimeField) {
@@ -67,7 +79,8 @@ final class MainPopoverTodayTimesBinder {
         onDidApplyTimes?(
             MainPopoverAppliedTodayTimes(
                 startTime: appliedTimes.startTime,
-                endTime: appliedTimes.endTime
+                endTime: appliedTimes.endTime,
+                isVacation: editModeState.isVacationSelected
             )
         )
         onDidChange?()
@@ -79,7 +92,20 @@ final class MainPopoverTodayTimesBinder {
         onDidApplyTimes?(
             MainPopoverAppliedTodayTimes(
                 startTime: appliedTimes.startTime,
-                endTime: appliedTimes.endTime
+                endTime: appliedTimes.endTime,
+                isVacation: false
+            )
+        )
+        onDidChange?()
+    }
+
+    func setVacation(_ isVacation: Bool) {
+        let appliedTimes = editModeState.setVacation(isVacation)
+        onDidApplyTimes?(
+            MainPopoverAppliedTodayTimes(
+                startTime: appliedTimes.startTime,
+                endTime: appliedTimes.endTime,
+                isVacation: isVacation
             )
         )
         onDidChange?()
@@ -109,6 +135,8 @@ final class MainPopoverTodayTimesBinder {
                 draftTime: editModeState.draftEndTime,
                 fallbackTime: fallbackEndTime
             ),
+            vacationToggleTitle: copy.vacationToggleTitle,
+            isVacationSelected: editModeState.isVacationSelected,
             showsEditingActions: editModeState.editingField != nil,
             showsStartActions: editModeState.isEditingStartTime,
             showsEndActions: editModeState.isEditingEndTime,
@@ -128,6 +156,8 @@ final class MainPopoverTodayTimesBinder {
                 self?.cancelEditing()
             case .deleteEndTime:
                 self?.deleteEndTime()
+            case .toggleVacation(let isVacation):
+                self?.setVacation(isVacation)
             case .draftChanged(let draft):
                 self?.updateDraft(draft)
             }
@@ -159,7 +189,8 @@ final class MainPopoverTodayTimesBinder {
             valueText: valueText,
             isValueVisible: !isEditing,
             isPickerVisible: isEditing,
-            pickerDateValue: draftTime ?? fallbackTime
+            pickerDateValue: draftTime ?? fallbackTime,
+            isEnabled: editModeState.isVacationSelected == false
         )
     }
 }
