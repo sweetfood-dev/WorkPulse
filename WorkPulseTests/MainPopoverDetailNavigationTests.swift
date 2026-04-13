@@ -1089,6 +1089,8 @@ struct MainPopoverDetailLoadersTests {
         #expect(mondayState.timeRangeText == "Vacation")
         #expect(mondayState.workedText == "Vacation")
         #expect(mondayState.annotationText == "Vacation")
+        #expect(state.statusText == "32h 00m remaining to 32h")
+        #expect(state.progressFraction == 0)
         #expect(state.todayDeltaStatusText == "Through today: On track")
     }
 

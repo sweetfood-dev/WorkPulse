@@ -728,6 +728,7 @@ struct MainPopoverViewStateFactoryTests {
             weeklyProgressTitle: "Weekly Progress",
             weeklyProgressSegmentTitle: "Progress",
             weeklyQuitTimeSegmentTitle: "Quit Time",
+            weeklyGoalMetStatusText: "On track",
             weeklyTodayGoalMetText: "Today: Goal met",
             weeklyTodayStatusUnavailableText: "Today: Unavailable",
             monthlyHistoryTitle: "Monthly History",

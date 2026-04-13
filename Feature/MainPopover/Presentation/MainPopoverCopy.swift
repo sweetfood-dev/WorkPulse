@@ -28,6 +28,7 @@ struct MainPopoverCopy {
     let weeklyProgressTitle: String
     let weeklyProgressSegmentTitle: String
     let weeklyQuitTimeSegmentTitle: String
+    let weeklyGoalMetStatusText: String
     let weeklyTodayGoalMetText: String
     let weeklyTodayStatusUnavailableText: String
     let monthlyHistoryTitle: String
@@ -69,6 +70,7 @@ struct MainPopoverCopy {
         weeklyProgressTitle: "Weekly Progress",
         weeklyProgressSegmentTitle: "Progress",
         weeklyQuitTimeSegmentTitle: "Quit Time",
+        weeklyGoalMetStatusText: "On track",
         weeklyTodayGoalMetText: "Through today: On track",
         weeklyTodayStatusUnavailableText: "Through today: Unavailable",
         monthlyHistoryTitle: "MONTHLY HISTORY",

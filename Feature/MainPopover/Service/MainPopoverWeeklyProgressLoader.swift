@@ -101,7 +101,6 @@ struct MainPopoverWeeklyProgressLoader {
     private let calendarDayMetadataProvider: any CalendarDayMetadataProviding
     private let currentDateProvider: () -> Date
     private let copy: MainPopoverCopy
-    private let goalDuration: TimeInterval
     private let quitTimeInsightCalculator: QuitTimeInsightCalculator
     private let dayFormatter: DateFormatter
     private let timeFormatter: DateFormatter
@@ -122,7 +121,6 @@ struct MainPopoverWeeklyProgressLoader {
             ?? KoreanCalendarDayMetadataProvider(timeZone: timeZone)
         self.currentDateProvider = currentDateProvider
         self.copy = copy
-        self.goalDuration = 40 * 60 * 60
         self.quitTimeInsightCalculator = QuitTimeInsightCalculator(calendar: calendar)
 
         let dayFormatter = DateFormatter()
@@ -170,7 +168,8 @@ struct MainPopoverWeeklyProgressLoader {
                     isToday: calendar.isDate(date, inSameDayAs: referenceDate),
                     isSelectable: true
                 ),
-                duration
+                duration,
+                record
             )
         }
         let totalDuration = dayStatesWithDuration
@@ -178,9 +177,12 @@ struct MainPopoverWeeklyProgressLoader {
                 entry.1
             }
             .reduce(0, +)
-        let progressFraction = progressFraction(for: totalDuration)
+        let weekGoalDuration = dayStatesWithDuration.reduce(0 as TimeInterval) { partialResult, entry in
+            partialResult + goalDuration(for: entry.0.date, record: entry.2)
+        }
+        let progressFraction = progressFraction(for: totalDuration, goalDuration: weekGoalDuration)
         let weekOfYear = calendar.component(.weekOfYear, from: referenceDate)
-        let visualState: MainPopoverCurrentSessionVisualState = totalDuration > goalDuration
+        let visualState: MainPopoverCurrentSessionVisualState = totalDuration > weekGoalDuration
             ? .warning
             : .normal
         let selectedRecord = recordStore.record(on: referenceDate, calendar: calendar)
@@ -189,7 +191,11 @@ struct MainPopoverWeeklyProgressLoader {
             titleText: copy.weeklyProgressTitle,
             weekText: copy.weeklyLabelText(weekOfYear: weekOfYear),
             totalDurationText: formatTotalDuration(totalDuration),
-            statusText: statusText(for: totalDuration, visualState: visualState),
+            statusText: statusText(
+                for: totalDuration,
+                goalDuration: weekGoalDuration,
+                visualState: visualState
+            ),
             quitTimeStatusText: quitTimeStatusText(
                 for: selectedRecord,
                 referenceDate: referenceDate,
@@ -261,10 +267,14 @@ struct MainPopoverWeeklyProgressLoader {
 
     private func statusText(
         for totalDuration: TimeInterval,
+        goalDuration: TimeInterval,
         visualState: MainPopoverCurrentSessionVisualState
     ) -> String {
         switch visualState {
         case .normal:
+            guard goalDuration > 0 else {
+                return copy.weeklyGoalMetStatusText
+            }
             let remainingDuration = max(0, goalDuration - totalDuration)
             return copy.weeklyRemainingStatusText(
                 durationText: formatStatusDuration(remainingDuration),
@@ -340,8 +350,9 @@ struct MainPopoverWeeklyProgressLoader {
         return min(1, max(0, fraction))
     }
 
-    private func progressFraction(for duration: TimeInterval) -> CGFloat {
+    private func progressFraction(for duration: TimeInterval, goalDuration: TimeInterval) -> CGFloat {
         guard duration > 0 else { return 0 }
+        guard goalDuration > 0 else { return 1 }
         if duration >= goalDuration {
             return 1
         }
