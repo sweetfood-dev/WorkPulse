@@ -139,11 +139,12 @@ final class SwiftDataAttendanceRecordStore: AttendanceRecordStore {
     }
 
     func deleteRecord(on date: Date, calendar: Calendar) throws {
-        guard let entity = loadAllEntities().last(where: { calendar.isDate($0.date, inSameDayAs: date) }) else {
+        let matchingEntities = loadAllEntities().filter { calendar.isDate($0.date, inSameDayAs: date) }
+        guard matchingEntities.isEmpty == false else {
             return
         }
 
-        modelContext.delete(entity)
+        matchingEntities.forEach(modelContext.delete)
         try saveContext()
     }
 

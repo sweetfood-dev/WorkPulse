@@ -701,6 +701,30 @@ struct SwiftDataAttendanceRecordStoreTests {
         #expect(store.loadRecords() == [legacyRecord])
     }
 
+    @Test
+    func deleteRecordRemovesAllSameDayRows() throws {
+        let duplicateDate = try #require(ISO8601DateFormatter().date(from: "2026-03-31T00:00:00+09:00"))
+        let firstRecord = AttendanceRecord(
+            date: duplicateDate,
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T09:00:00+09:00")),
+            endTime: nil
+        )
+        let duplicateRecord = AttendanceRecord(
+            date: duplicateDate,
+            startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")),
+            endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
+        )
+        let store = try SwiftDataAttendanceRecordStore(
+            calendar: Self.seoulCalendar,
+            legacyRecords: [firstRecord, duplicateRecord]
+        )
+
+        try store.deleteRecord(on: duplicateDate, calendar: Self.seoulCalendar)
+
+        #expect(store.record(on: duplicateDate, calendar: Self.seoulCalendar) == nil)
+        #expect(store.loadRecords().isEmpty)
+    }
+
     private func makeStore() throws -> SwiftDataAttendanceRecordStore {
         let configuration = ModelConfiguration(
             for: AttendanceRecordEntity.self,

@@ -351,8 +351,8 @@ struct MainPopoverWeeklyProgressLoader {
     }
 
     private func progressFraction(for duration: TimeInterval, goalDuration: TimeInterval) -> CGFloat {
-        guard duration > 0 else { return 0 }
         guard goalDuration > 0 else { return 1 }
+        guard duration > 0 else { return 0 }
         if duration >= goalDuration {
             return 1
         }
