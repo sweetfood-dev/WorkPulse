@@ -41,7 +41,7 @@ struct MainPopoverViewControllerTests {
 
         #expect(snapshot.currentSession.valueText == "08:30:00")
         #expect(snapshot.currentSession.progressFraction == 1)
-        #expect(snapshot.currentSession.titleText == "🔥 CURRENT SESSION")
+        #expect(snapshot.currentSession.titleText == "🔥 현재 근무")
         #expect(snapshot.currentSession.isWarningState)
     }
 
@@ -62,7 +62,7 @@ struct MainPopoverViewControllerTests {
         let snapshot = controller.snapshot
 
         #expect(snapshot.currentSession.valueText == "08:00:00")
-        #expect(snapshot.currentSession.titleText == "CURRENT SESSION")
+        #expect(snapshot.currentSession.titleText == "현재 근무")
         #expect(snapshot.currentSession.isWarningState == false)
     }
 
@@ -77,7 +77,7 @@ struct MainPopoverViewControllerTests {
         controller.applyCurrentSession(startTime: nil, endTime: nil)
 
         #expect(controller.snapshot.currentSession.valueText == "--:--:--")
-        #expect(controller.snapshot.currentSession.titleText == "READY TO CHECK IN")
+        #expect(controller.snapshot.currentSession.titleText == "출근 전")
     }
 
     @Test
@@ -106,7 +106,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: startTime, endTime: endTime)
 
-        #expect(controller.snapshot.currentSession.titleText == "🔥 WORKED TODAY")
+        #expect(controller.snapshot.currentSession.titleText == "🔥 오늘 근무")
     }
 
     @Test
@@ -134,7 +134,7 @@ struct MainPopoverViewControllerTests {
 
         controller.loadViewIfNeeded()
 
-        #expect(controller.snapshot.currentSession.titleText == "WORKED TODAY")
+        #expect(controller.snapshot.currentSession.titleText == "오늘 근무")
     }
 
     @Test
@@ -160,7 +160,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: nil, endTime: endTime)
 
-        #expect(controller.snapshot.currentSession.titleText == "READY TO CHECK IN")
+        #expect(controller.snapshot.currentSession.titleText == "출근 전")
         #expect(controller.snapshot.currentSession.valueText == "--:--:--")
     }
 
@@ -178,7 +178,7 @@ struct MainPopoverViewControllerTests {
         controller.loadViewIfNeeded()
         controller.applyCurrentSession(startTime: startTime, endTime: endTime)
 
-        #expect(controller.snapshot.currentSession.titleText == "CURRENT SESSION")
+        #expect(controller.snapshot.currentSession.titleText == "현재 근무")
         #expect(controller.snapshot.currentSession.valueText == "--:--:--")
     }
 
@@ -303,7 +303,7 @@ struct MainPopoverViewControllerTests {
 
         #expect(snapshot.header.dateText == "Wednesday, Apr 1")
         #expect(snapshot.header.checkedInSummaryText == "Checked in at 08:45")
-        #expect(snapshot.header.reportButtonTitle == "Report")
+        #expect(snapshot.header.reportButtonTitle == "보고")
         #expect(snapshot.summary.weeklyValueText == "09:05")
         #expect(snapshot.summary.monthlyValueText == "--")
     }
@@ -770,8 +770,8 @@ struct MainPopoverViewStateFactoryTests {
             todayRecord: nil
         )
 
-        #expect(state.dateText == "Tuesday, Mar 31")
-        #expect(state.checkedInSummaryText == "Not checked in yet")
+        #expect(state.dateText == "3월 31일 Tuesday")
+        #expect(state.checkedInSummaryText == "출근 전")
         #expect(state.startTimeText == "--:--")
         #expect(state.endTimeText == "--:--")
         #expect(state.currentSessionText == "--:--:--")
@@ -805,8 +805,8 @@ struct MainPopoverViewStateFactoryTests {
             monthlyTotalText: "44:10"
         )
 
-        #expect(state.dateText == "Tuesday, Mar 31")
-        #expect(state.checkedInSummaryText == "Checked out at 18:30")
+        #expect(state.dateText == "3월 31일 Tuesday")
+        #expect(state.checkedInSummaryText == "퇴근 18:30")
         #expect(state.startTimeText == "09:00")
         #expect(state.endTimeText == "18:30")
         #expect(state.weeklyTotalText == "12:30")
@@ -837,7 +837,7 @@ struct MainPopoverViewStateFactoryTests {
             todayRecord: record
         )
 
-        #expect(state.checkedInSummaryText == "Not checked in yet")
+        #expect(state.checkedInSummaryText == "출근 전")
         #expect(state.startTimeText == "--:--")
         #expect(state.endTimeText == "18:30")
         #expect(state.attendanceState == .notCheckedIn)
@@ -868,7 +868,7 @@ struct MainPopoverViewStateFactoryTests {
             todayRecord: record
         )
 
-        #expect(state.checkedInSummaryText == "Checked in at 18:30")
+        #expect(state.checkedInSummaryText == "출근 18:30")
         #expect(state.startTimeText == "18:30")
         #expect(state.endTimeText == "09:00")
         #expect(state.attendanceState == .checkedIn)
@@ -896,7 +896,7 @@ struct MainPopoverViewStateFactoryTests {
             todayRecord: record
         )
 
-        #expect(state.checkedInSummaryText == "Vacation day")
+        #expect(state.checkedInSummaryText == "휴가")
         #expect(state.startTimeText == "--:--")
         #expect(state.endTimeText == "--:--")
         #expect(state.attendanceState == .vacation)

@@ -29,7 +29,7 @@ final class MainPopoverTodayTimesBinder {
 
     init(
         sectionView: MainPopoverTodayTimesSectionView,
-        copy: MainPopoverCopy = .english
+        copy: MainPopoverCopy = .korean
     ) {
         self.sectionView = sectionView
         self.copy = copy

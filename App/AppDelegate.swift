@@ -9,13 +9,14 @@ struct MainPopoverRuntimeDependencies {
     let currentSessionScheduler: any CurrentSessionScheduling
 
     static var live: MainPopoverRuntimeDependencies {
-        let timeZone = TimeZone.current
+        let timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
         var calendar = Calendar.current
+        calendar.locale = Locale(identifier: "ko_KR")
         calendar.timeZone = timeZone
 
         return MainPopoverRuntimeDependencies(
             calendar: calendar,
-            locale: .current,
+            locale: Locale(identifier: "ko_KR"),
             timeZone: timeZone,
             calendarDayMetadataProvider: KoreanCalendarDayMetadataProvider(timeZone: timeZone),
             currentDateProvider: Date.init,

@@ -66,11 +66,11 @@ struct MonthlyHistoryLoader {
         recordStore: any AttendanceRecordQuerying,
         totalsCalculator: AttendanceRecordTotalsCalculator = AttendanceRecordTotalsCalculator(),
         calendar: Calendar = .current,
-        locale: Locale = .current,
-        timeZone: TimeZone = .current,
+        locale: Locale = Locale(identifier: "ko_KR"),
+        timeZone: TimeZone = TimeZone(identifier: "Asia/Seoul") ?? .current,
         calendarDayMetadataProvider: (any CalendarDayMetadataProviding)? = nil,
         currentDateProvider: @escaping () -> Date,
-        copy: MainPopoverCopy = .english
+        copy: MainPopoverCopy = .korean
     ) {
         self.recordStore = recordStore
         self.totalsCalculator = totalsCalculator
@@ -85,7 +85,7 @@ struct MonthlyHistoryLoader {
         monthFormatter.calendar = calendar
         monthFormatter.locale = locale
         monthFormatter.timeZone = timeZone
-        monthFormatter.dateFormat = "MMMM yyyy"
+        monthFormatter.dateFormat = "yyyy년 M월"
         self.monthFormatter = monthFormatter
     }
 
@@ -107,7 +107,7 @@ struct MonthlyHistoryLoader {
             referenceDate: monthStart,
             titleText: copy.monthlyHistoryTitle,
             monthText: monthFormatter.string(from: monthStart),
-            weekdayTexts: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+            weekdayTexts: ["일", "월", "화", "수", "목", "금", "토"],
             totalLabelText: copy.monthlyHistoryTotalTitle,
             totalDurationText: formatTotalDuration(totalDuration),
             cells: makeDayCells(
@@ -220,12 +220,12 @@ struct MonthlyHistoryLoader {
         let totalMinutes = max(Int(duration) / 60, 0)
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        return "\(hours)h \(String(format: "%02dm", minutes))"
+        return "\(hours)시간 \(String(format: "%02d", minutes))분"
     }
 
     private func formatTotalDuration(_ duration: TimeInterval) -> String {
         guard duration > 0 else {
-            return "0h 00m"
+            return "0시간 00분"
         }
 
         return formatWorkedDuration(duration)

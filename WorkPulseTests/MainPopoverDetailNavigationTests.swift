@@ -656,7 +656,7 @@ struct MainPopoverDetailNavigationTests {
     }
 }
 
-@Suite("MainPopoverDetailLoaders")
+@Suite("MainPopoverDetailLoaders", .serialized)
 struct MainPopoverDetailLoadersTests {
     @Test
     func weeklyProgressLoaderBuildsWeeklyCardAndDailyRows() throws {
@@ -685,12 +685,12 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.titleText == "Weekly Progress")
-        #expect(state.weekText == "Week 14")
+        #expect(state.titleText == "주간 근무 현황")
+        #expect(state.weekText == "14주차")
         #expect(state.totalDurationText == "16:00")
-        #expect(state.statusText == "24h 00m remaining to 40h")
-        #expect(state.quitTimeStatusText == "No check-in record")
-        #expect(state.todayDeltaStatusText == "Through today: On track")
+        #expect(state.statusText == "40시간 목표까지 24시간 00분 남음")
+        #expect(state.quitTimeStatusText == "출근 기록 없음")
+        #expect(state.todayDeltaStatusText == "오늘 기준 목표 달성")
         #expect(state.todayDeltaVisualState == .neutral)
         #expect(state.progressFraction == 0.4)
         #expect(state.visualState == .normal)
@@ -727,11 +727,11 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.weekText == "Week 14")
+        #expect(state.weekText == "14주차")
         #expect(state.totalDurationText == "11:00")
-        #expect(state.statusText == "29h 00m remaining to 40h")
-        #expect(state.quitTimeStatusText == "Quit at 18:00")
-        #expect(state.todayDeltaStatusText == "Through today: 8h 00m remaining")
+        #expect(state.statusText == "40시간 목표까지 29시간 00분 남음")
+        #expect(state.quitTimeStatusText == "18:00 퇴근 가능")
+        #expect(state.todayDeltaStatusText == "오늘 기준 8시간 00분 부족")
         #expect(state.todayDeltaVisualState == .remaining)
         #expect(state.progressFraction > 0.27)
         #expect(state.progressFraction < 0.28)
@@ -778,7 +778,7 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.todayDeltaStatusText == "Through today: 1h 01m Overtime")
+        #expect(state.todayDeltaStatusText == "오늘 기준 1시간 01분 초과")
         #expect(state.todayDeltaVisualState == .overtime)
     }
 
@@ -814,7 +814,7 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.todayDeltaStatusText == "Through today: 3h 00m Overtime")
+        #expect(state.todayDeltaStatusText == "오늘 기준 3시간 00분 초과")
         #expect(state.todayDeltaVisualState == .overtime)
     }
 
@@ -873,15 +873,15 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.titleText == "MONTHLY HISTORY")
-        #expect(state.monthText == "April 2026")
-        #expect(state.totalLabelText == "Monthly Total")
-        #expect(state.totalDurationText == "0h 00m")
-        #expect(state.weekdayTexts == ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
+        #expect(state.titleText == "월간 근무 기록")
+        #expect(state.monthText == "2026년 4월")
+        #expect(state.totalLabelText == "월 누적")
+        #expect(state.totalDurationText == "0시간 00분")
+        #expect(state.weekdayTexts == ["일", "월", "화", "수", "목", "금", "토"])
         #expect(state.cells.count == 35)
         #expect(state.cells.first(where: { $0.dayText == "1" })?.activity == .empty)
         #expect(state.cells.first(where: { $0.dayText == "2" })?.activity == .active)
-        #expect(state.cells.first(where: { $0.dayText == "2" })?.statusText == "Active")
+        #expect(state.cells.first(where: { $0.dayText == "2" })?.statusText == "근무 중")
         #expect(state.cells.first(where: { $0.dayText == "4" })?.dayCategory == .weekend)
     }
 
@@ -994,7 +994,7 @@ struct MainPopoverDetailLoadersTests {
         let vacationCell = try #require(state.cells.first(where: { $0.dayText == "2" }))
 
         #expect(vacationCell.activity == .vacation)
-        #expect(vacationCell.statusText == "Vacation")
+        #expect(vacationCell.statusText == "휴가")
     }
 
     @Test
@@ -1086,12 +1086,12 @@ struct MainPopoverDetailLoadersTests {
         let state = loader.load(referenceDate: currentDate, currentDate: currentDate)
         let mondayState = try #require(state.days.first(where: { $0.dayText == "Mon 6" }))
 
-        #expect(mondayState.timeRangeText == "Vacation")
-        #expect(mondayState.workedText == "Vacation")
-        #expect(mondayState.annotationText == "Vacation")
-        #expect(state.statusText == "On track")
-        #expect(state.progressFraction == 1)
-        #expect(state.todayDeltaStatusText == "Through today: On track")
+        #expect(mondayState.timeRangeText == "휴가")
+        #expect(mondayState.workedText == "휴가")
+        #expect(mondayState.annotationText == "휴가")
+        #expect(state.statusText == "32시간 목표까지 32시간 00분 남음")
+        #expect(state.progressFraction == 0)
+        #expect(state.todayDeltaStatusText == "오늘 기준 목표 달성")
     }
 
     @Test
@@ -1183,10 +1183,10 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.totalDurationText == "42:30")
-        #expect(state.statusText == "2h 30m Overtime")
-        #expect(state.quitTimeStatusText == "Checked out 18:30")
-        #expect(state.todayDeltaStatusText == "Through today: 2h 30m Overtime")
+        #expect(state.totalDurationText == "47:30")
+        #expect(state.statusText == "7시간 30분 초과")
+        #expect(state.quitTimeStatusText == "18:30 퇴근 완료")
+        #expect(state.todayDeltaStatusText == "오늘 기준 7시간 30분 초과")
         #expect(state.todayDeltaVisualState == .overtime)
         #expect(state.progressFraction == 1)
         #expect(state.visualState == .warning)
@@ -1215,7 +1215,7 @@ struct MainPopoverDetailLoadersTests {
 
         let state = loader.load(referenceDate: referenceDate)
 
-        #expect(state.quitTimeStatusText == "Can leave since 17:00")
+        #expect(state.quitTimeStatusText == "17:00부터 퇴근 가능")
     }
 
     @Test
@@ -1394,12 +1394,26 @@ private func makeWeeklyProgressDays() -> [MainPopoverWeeklyProgressDayViewState]
 
 private func makeMonthlyHistoryCells(dayCount: Int) -> [MonthlyHistoryDayCellViewState] {
     (1...dayCount).map { index in
-        MonthlyHistoryDayCellViewState(
+        let statusText: String
+        let activity: MonthlyHistoryDayCellActivity
+
+        if index == 2 {
+            statusText = "Active"
+            activity = .active
+        } else if index == 3 {
+            statusText = "08:05"
+            activity = .worked
+        } else {
+            statusText = "—"
+            activity = .empty
+        }
+
+        return MonthlyHistoryDayCellViewState(
             date: makeDate(String(format: "2026-04-%02dT00:00:00+09:00", index)),
             dayText: "\(index)",
-            statusText: index == 2 ? "Active" : (index == 3 ? "08:05" : "—"),
+            statusText: statusText,
             annotationText: nil,
-            activity: index == 2 ? .active : (index == 3 ? .worked : .empty),
+            activity: activity,
             dayCategory: .weekday,
             isOvertime: index == 3,
             isDimmed: index > 7,

@@ -6,8 +6,8 @@ struct TodayQuitReportBuilder {
 
     init(
         calendar: Calendar = .current,
-        locale: Locale = .current,
-        timeZone: TimeZone = .current,
+        locale: Locale = Locale(identifier: "ko_KR"),
+        timeZone: TimeZone = TimeZone(identifier: "Asia/Seoul") ?? .current,
         goalDuration: TimeInterval = MainPopoverCurrentSessionProgressPolicy.defaultGoalDuration
     ) {
         var calendar = calendar
@@ -111,9 +111,10 @@ struct TodayQuitReportBuilder {
 
         let normalized = statusText
             .replacingOccurrences(of: "Through today: ", with: "")
+            .replacingOccurrences(of: "오늘 기준 ", with: "")
             .replacingOccurrences(of: " Overtime", with: " 초과")
             .replacingOccurrences(of: " remaining", with: " 부족")
-            .replacingOccurrences(of: "On track", with: "정상")
+            .replacingOccurrences(of: "On track", with: "목표 달성")
             .replacingOccurrences(of: "Unavailable", with: "계산 불가")
 
         return "오늘까지 누적 상태: \(normalized)"

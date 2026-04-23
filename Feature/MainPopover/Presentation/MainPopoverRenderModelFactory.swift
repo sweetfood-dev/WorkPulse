@@ -60,7 +60,7 @@ struct MainPopoverTodayTimesRenderModel {
     init(
         startRow: MainPopoverTimeRowRenderModel,
         endRow: MainPopoverTimeRowRenderModel,
-        vacationToggleTitle: String = MainPopoverCopy.english.vacationToggleTitle,
+        vacationToggleTitle: String = MainPopoverCopy.korean.vacationToggleTitle,
         isVacationSelected: Bool = false,
         showsEditingActions: Bool,
         showsStartActions: Bool,
@@ -101,7 +101,7 @@ struct MainPopoverRenderModelFactory {
     private let copy: MainPopoverCopy
 
     init(
-        copy: MainPopoverCopy = .english
+        copy: MainPopoverCopy = .korean
     ) {
         self.copy = copy
     }

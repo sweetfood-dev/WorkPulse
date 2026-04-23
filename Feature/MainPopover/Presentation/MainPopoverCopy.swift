@@ -42,48 +42,50 @@ struct MainPopoverCopy {
     let weeklyVacationText: String
     let currentSessionGoalLabelPrefix: String
 
-    static let english = MainPopoverCopy(
-        placeholderDateText: "Today",
-        notCheckedInSummaryText: "Not checked in yet",
-        checkedInSummaryPrefix: "Checked in at",
-        checkedOutSummaryPrefix: "Checked out at",
-        vacationSummaryText: "Vacation day",
+    static let korean = MainPopoverCopy(
+        placeholderDateText: "오늘",
+        notCheckedInSummaryText: "출근 전",
+        checkedInSummaryPrefix: "출근",
+        checkedOutSummaryPrefix: "퇴근",
+        vacationSummaryText: "휴가",
         currentSessionPlaceholderText: "--:--:--",
         timePlaceholderText: "--:--",
         totalPlaceholderText: "--",
-        currentSessionReadyTitle: "READY TO CHECK IN",
-        currentSessionTitle: "CURRENT SESSION",
-        currentSessionWarningTitle: "🔥 CURRENT SESSION",
-        workedTodayTitle: "WORKED TODAY",
-        workedTodayWarningTitle: "🔥 WORKED TODAY",
-        currentSessionVacationTitle: "VACATION DAY",
-        currentSessionLeadingCaption: "0H",
-        startTimeTitle: "Start Time",
-        endTimeTitle: "End Time",
-        vacationToggleTitle: "Vacation Day",
-        deleteActionTitle: "Delete",
-        backActionTitle: "Back",
-        reportActionTitle: "Report",
-        weeklyTitle: "This Week",
-        monthlyTitle: "This Month",
-        weeklyLabelPrefix: "Week",
-        weeklyProgressTitle: "Weekly Progress",
-        weeklyProgressSegmentTitle: "Progress",
-        weeklyQuitTimeSegmentTitle: "Quit Time",
-        weeklyGoalMetStatusText: "On track",
-        weeklyTodayGoalMetText: "Through today: On track",
-        weeklyTodayStatusUnavailableText: "Through today: Unavailable",
-        monthlyHistoryTitle: "MONTHLY HISTORY",
-        monthlyHistoryTotalTitle: "Monthly Total",
-        monthlyHistoryEmptyText: "No attendance records yet",
-        monthlyHistoryInProgressText: "In progress",
-        monthlyHistoryOffText: "Off",
-        monthlyHistoryHolidayText: "Holiday",
-        monthlyHistoryActiveText: "Active",
-        monthlyHistoryVacationText: "Vacation",
-        weeklyVacationText: "Vacation",
-        currentSessionGoalLabelPrefix: "Goal:"
+        currentSessionReadyTitle: "출근 전",
+        currentSessionTitle: "현재 근무",
+        currentSessionWarningTitle: "🔥 현재 근무",
+        workedTodayTitle: "오늘 근무",
+        workedTodayWarningTitle: "🔥 오늘 근무",
+        currentSessionVacationTitle: "휴가",
+        currentSessionLeadingCaption: "0시간",
+        startTimeTitle: "출근 시간",
+        endTimeTitle: "퇴근 시간",
+        vacationToggleTitle: "휴가",
+        deleteActionTitle: "삭제",
+        backActionTitle: "뒤로",
+        reportActionTitle: "보고",
+        weeklyTitle: "이번 주",
+        monthlyTitle: "이번 달",
+        weeklyLabelPrefix: "주차",
+        weeklyProgressTitle: "주간 근무 현황",
+        weeklyProgressSegmentTitle: "진행",
+        weeklyQuitTimeSegmentTitle: "퇴근",
+        weeklyGoalMetStatusText: "목표 달성",
+        weeklyTodayGoalMetText: "오늘 기준 목표 달성",
+        weeklyTodayStatusUnavailableText: "오늘 기준 계산 불가",
+        monthlyHistoryTitle: "월간 근무 기록",
+        monthlyHistoryTotalTitle: "월 누적",
+        monthlyHistoryEmptyText: "기록 없음",
+        monthlyHistoryInProgressText: "진행 중",
+        monthlyHistoryOffText: "휴무",
+        monthlyHistoryHolidayText: "공휴일",
+        monthlyHistoryActiveText: "근무 중",
+        monthlyHistoryVacationText: "휴가",
+        weeklyVacationText: "휴가",
+        currentSessionGoalLabelPrefix: "목표"
     )
+
+    static let english = korean
 
     var checkedInSummaryPlaceholder: String {
         notCheckedInSummaryText
@@ -91,6 +93,10 @@ struct MainPopoverCopy {
 
     func currentSessionTrailingCaption(goalDuration: TimeInterval) -> String {
         let goalHours = Int(goalDuration / 3_600)
+        if currentSessionGoalLabelPrefix == "목표" {
+            return "\(currentSessionGoalLabelPrefix) \(goalHours)시간"
+        }
+
         return "\(currentSessionGoalLabelPrefix) \(goalHours)h"
     }
 
@@ -103,50 +109,54 @@ struct MainPopoverCopy {
     }
 
     func summaryTotalText(totalDurationText: String) -> String {
-        "Total: \(totalDurationText)"
+        "총 \(totalDurationText)"
     }
 
     func weeklyLabelText(weekOfYear: Int) -> String {
-        "\(weeklyLabelPrefix) \(weekOfYear)"
+        if weeklyLabelPrefix == "주차" {
+            return "\(weekOfYear)\(weeklyLabelPrefix)"
+        }
+
+        return "\(weeklyLabelPrefix) \(weekOfYear)"
     }
 
     func weeklyRemainingStatusText(durationText: String, goalHours: Int) -> String {
-        "\(durationText) remaining to \(goalHours)h"
+        "\(goalHours)시간 목표까지 \(durationText) 남음"
     }
 
     func weeklyOvertimeStatusText(durationText: String) -> String {
-        "\(durationText) Overtime"
+        "\(durationText) 초과"
     }
 
     func weeklyTodayRemainingStatusText(durationText: String) -> String {
-        "Through today: \(durationText) remaining"
+        "오늘 기준 \(durationText) 부족"
     }
 
     func weeklyTodayOvertimeStatusText(durationText: String) -> String {
-        "Through today: \(durationText) Overtime"
+        "오늘 기준 \(durationText) 초과"
     }
 
     var weeklyQuitTimeUnavailableText: String {
-        "Quit time unavailable"
+        "퇴근 가능 시간 계산 불가"
     }
 
     var weeklyNoCheckInStatusText: String {
-        "No check-in record"
+        "출근 기록 없음"
     }
 
     func weeklyQuitTimeStatusText(timeText: String) -> String {
-        "Quit at \(timeText)"
+        "\(timeText) 퇴근 가능"
     }
 
     func weeklyCanQuitStatusText(timeText: String) -> String {
-        "Can leave since \(timeText)"
+        "\(timeText)부터 퇴근 가능"
     }
 
     func weeklyCheckedOutStatusText(timeText: String) -> String {
-        "Checked out \(timeText)"
+        "\(timeText) 퇴근 완료"
     }
 
     func weeklyEarlyCheckedOutStatusText(timeText: String) -> String {
-        "Left early at \(timeText)"
+        "\(timeText) 조기 퇴근"
     }
 }

@@ -124,7 +124,7 @@ struct TodayQuitReportBuilderTests {
             오늘 출근 시간: 08:10
             오늘 퇴근 가능 시간: 계산 불가
             현재 상태: 기록 이상
-            오늘까지 누적 상태: 정상
+            오늘까지 누적 상태: 목표 달성
             """
         )
     }
@@ -157,13 +157,13 @@ struct TodayQuitReportBuilderTests {
             오늘 출근 시간: 휴가
             오늘 퇴근 가능 시간: 해당 없음
             현재 상태: 휴가
-            오늘까지 누적 상태: 정상
+            오늘까지 누적 상태: 목표 달성
             """
         )
     }
 }
 
-@Suite("QuitReportCopy")
+@Suite("QuitReportCopy", .serialized)
 struct QuitReportCopyTests {
     @Test
     @MainActor
@@ -200,7 +200,7 @@ struct QuitReportCopyTests {
             오늘 출근 시간: 08:10
             오늘 퇴근 가능 시간: 17:10
             현재 상태: 업무 중
-            오늘까지 누적 상태: 8h 00m 부족
+            오늘까지 누적 상태: 8시간 00분 부족
             """
         )
     }
@@ -249,7 +249,7 @@ struct QuitReportCopyTests {
             오늘 출근 시간: 08:10
             오늘 퇴근 가능 시간: 17:10
             현재 상태: 업무 중
-            오늘까지 누적 상태: 정상
+            오늘까지 누적 상태: 목표 달성
             """
         )
     }
@@ -265,9 +265,11 @@ private final class ClipboardSpy: StringClipboardWriting {
 
 private final class InMemoryAttendanceRecordStoreForQuitReport: AttendanceRecordStore {
     private var records: [AttendanceRecord]
+    private let mutationCalendar: Calendar
 
-    init(records: [AttendanceRecord]) {
+    init(records: [AttendanceRecord], mutationCalendar: Calendar = makeSeoulCalendar()) {
         self.records = records
+        self.mutationCalendar = mutationCalendar
     }
 
     func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
@@ -279,7 +281,7 @@ private final class InMemoryAttendanceRecordStoreForQuitReport: AttendanceRecord
     }
 
     func upsertRecord(_ record: AttendanceRecord) throws {
-        if let index = records.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: record.date) }) {
+        if let index = records.firstIndex(where: { mutationCalendar.isDate($0.date, inSameDayAs: record.date) }) {
             records[index] = record
         } else {
             records.append(record)

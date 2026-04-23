@@ -247,11 +247,7 @@ struct AttendanceRecordTotalsCalculatorTests {
 
     @Test
     func weeklyTotalDerivesLunchDeductionFromPassedCalendar() throws {
-        let originalTimeZone = NSTimeZone.default
         let utc = try #require(TimeZone(secondsFromGMT: 0))
-        NSTimeZone.default = utc
-        defer { NSTimeZone.default = originalTimeZone }
-
         let calculator = AttendanceRecordTotalsCalculator()
         let referenceDate = try #require(
             ISO8601DateFormatter().date(from: "2026-03-31T12:00:00+09:00")
@@ -264,13 +260,23 @@ struct AttendanceRecordTotalsCalculatorTests {
             )
         ]
 
-        let total = calculator.weeklyTotal(
+        let seoulTotal = calculator.weeklyTotal(
             records: records,
             referenceDate: referenceDate,
             calendar: Self.seoulCalendar
         )
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = utc
+        utcCalendar.locale = Locale(identifier: "ko_KR")
 
-        #expect(total == 28_800)
+        let utcTotal = calculator.weeklyTotal(
+            records: records,
+            referenceDate: referenceDate,
+            calendar: utcCalendar
+        )
+
+        #expect(seoulTotal == 28_800)
+        #expect(utcTotal == 32_400)
     }
 
     @Test
@@ -380,8 +386,8 @@ struct MainPopoverStateLoaderTests {
         let loadedState = loader.load(referenceDate: referenceDate)
 
         #expect(loadedState.todayRecord == todayRecord)
-        #expect(loadedState.viewState.dateText == "Tuesday, Mar 31")
-        #expect(loadedState.viewState.checkedInSummaryText == "Checked in at 09:00")
+        #expect(loadedState.viewState.dateText == "3월 31일 Tuesday")
+        #expect(loadedState.viewState.checkedInSummaryText == "출근 09:00")
         #expect(loadedState.viewState.attendanceState == .checkedIn)
         #expect(loadedState.viewState.startTimeText == "09:00")
         #expect(loadedState.viewState.endTimeText == "--:--")
@@ -407,7 +413,7 @@ struct MainPopoverStateLoaderTests {
         let loadedState = loader.load(referenceDate: referenceDate)
 
         #expect(loadedState.todayRecord == nil)
-        #expect(loadedState.viewState.checkedInSummaryText == "Not checked in yet")
+        #expect(loadedState.viewState.checkedInSummaryText == "출근 전")
         #expect(loadedState.viewState.attendanceState == .notCheckedIn)
         #expect(loadedState.viewState.startTimeText == "--:--")
         #expect(loadedState.viewState.endTimeText == "--:--")
@@ -714,7 +720,16 @@ struct SwiftDataAttendanceRecordStoreTests {
             startTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T08:30:00+09:00")),
             endTime: try #require(ISO8601DateFormatter().date(from: "2026-03-31T18:00:00+09:00"))
         )
+        let configuration = ModelConfiguration(
+            for: AttendanceRecordEntity.self,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(
+            for: AttendanceRecordEntity.self,
+            configurations: configuration
+        )
         let store = try SwiftDataAttendanceRecordStore(
+            modelContainer: container,
             calendar: Self.seoulCalendar,
             legacyRecords: [firstRecord, duplicateRecord]
         )
@@ -1084,7 +1099,7 @@ struct AppDelegateTests {
         controller.loadViewIfNeeded()
         appDelegate.configurePopoverViewController(controller, referenceDate: referenceDate)
 
-        #expect(controller.snapshot.header.dateText == "Wednesday, Apr 1")
+        #expect(controller.snapshot.header.dateText == "4월 1일 Wednesday")
     }
 
     @Test
@@ -1143,7 +1158,7 @@ struct AppDelegateTests {
         )
         #expect(currentDayRecord.startTime == startTime)
         #expect(currentDayRecord.endTime == endTime)
-        #expect(controller.snapshot.header.dateText == "Wednesday, Apr 1")
+        #expect(controller.snapshot.header.dateText == "4월 1일 Wednesday")
         #expect(
             store.loadRecords().contains(where: {
                 Self.seoulCalendar.isDate($0.date, inSameDayAs: displayedReferenceDate) &&
@@ -1205,7 +1220,7 @@ struct AppDelegateTests {
 
         #expect(snapshot.todayTimes.isEndApplyVisible == false)
         #expect(snapshot.todayTimes.isEndCancelVisible == false)
-        #expect(snapshot.header.dateText == "Wednesday, Apr 1")
+        #expect(snapshot.header.dateText == "4월 1일 Wednesday")
         #expect(snapshot.todayTimes.endRow.valueText == "--:--")
 
         controller.applyEditing()
@@ -1386,7 +1401,7 @@ struct AppDelegateTests {
         let selectedSnapshot = controller.snapshot
         #expect(selectedSnapshot.isShowingWeeklyDetail)
         #expect(selectedSnapshot.weeklyDetail.isShowingEditor)
-        #expect(selectedSnapshot.weeklyDetail.editorDateText == "Wednesday, Apr 1")
+        #expect(selectedSnapshot.weeklyDetail.editorDateText == "4월 1일 Wednesday")
 
         controller.beginEditingSelectedDetailDay(.endTime)
         controller.setSelectedDetailPickerDate(editedPastEndTime, for: .endTime)
@@ -1408,7 +1423,7 @@ struct AppDelegateTests {
         #expect(persistedCurrentRecord.endTime == nil)
         #expect(controller.snapshot.isShowingWeeklyDetail)
         #expect(controller.snapshot.weeklyDetail.isShowingEditor)
-        #expect(controller.snapshot.weeklyDetail.editorDateText == "Wednesday, Apr 1")
+        #expect(controller.snapshot.weeklyDetail.editorDateText == "4월 1일 Wednesday")
     }
 
     @Test
@@ -1552,7 +1567,7 @@ struct AppDelegateTests {
         let selectedSnapshot = controller.snapshot
         #expect(selectedSnapshot.isShowingMonthlyDetail)
         #expect(selectedSnapshot.monthlyDetail.isShowingEditor)
-        #expect(selectedSnapshot.monthlyDetail.editorDateText == "Wednesday, Apr 1")
+        #expect(selectedSnapshot.monthlyDetail.editorDateText == "4월 1일 Wednesday")
 
         controller.beginEditingSelectedDetailDay(.endTime)
         controller.setSelectedDetailPickerDate(editedPastEndTime, for: .endTime)
@@ -1574,7 +1589,7 @@ struct AppDelegateTests {
         #expect(persistedCurrentRecord.endTime == nil)
         #expect(controller.snapshot.isShowingMonthlyDetail)
         #expect(controller.snapshot.monthlyDetail.isShowingEditor)
-        #expect(controller.snapshot.monthlyDetail.editorDateText == "Wednesday, Apr 1")
+        #expect(controller.snapshot.monthlyDetail.editorDateText == "4월 1일 Wednesday")
     }
 
     @Test
@@ -1772,9 +1787,11 @@ struct TodayTimeEditModeStateTests {
 
 private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
     private var records: [AttendanceRecord]
+    private let mutationCalendar: Calendar
 
-    init(records: [AttendanceRecord]) {
+    init(records: [AttendanceRecord], mutationCalendar: Calendar = makeSeoulCalendar()) {
         self.records = records
+        self.mutationCalendar = mutationCalendar
     }
 
     func record(on date: Date, calendar: Calendar) -> AttendanceRecord? {
@@ -1794,7 +1811,7 @@ private final class InMemoryAttendanceRecordStore: AttendanceRecordStore {
     }
 
     func upsertRecord(_ record: AttendanceRecord) throws {
-        if let index = records.lastIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: record.date) }) {
+        if let index = records.lastIndex(where: { mutationCalendar.isDate($0.date, inSameDayAs: record.date) }) {
             records[index] = record
             return
         }

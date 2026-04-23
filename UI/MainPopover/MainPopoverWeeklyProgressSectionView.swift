@@ -242,7 +242,7 @@ final class MainPopoverWeeklyProgressSectionView: NSView {
     private var isEditorVisible = false
     private var currentState: MainPopoverWeeklyProgressViewState?
 
-    init(copy: MainPopoverCopy = .english) {
+    init(copy: MainPopoverCopy = .korean) {
         self.copy = copy
         super.init(frame: .zero)
         backButton.title = copy.backActionTitle

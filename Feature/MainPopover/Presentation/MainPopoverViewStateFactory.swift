@@ -7,9 +7,9 @@ struct MainPopoverViewStateFactory {
 
     init(
         calendar: Calendar = .current,
-        locale: Locale = .current,
-        timeZone: TimeZone = .current,
-        copy: MainPopoverCopy = .english
+        locale: Locale = Locale(identifier: "ko_KR"),
+        timeZone: TimeZone = TimeZone(identifier: "Asia/Seoul") ?? .current,
+        copy: MainPopoverCopy = .korean
     ) {
         self.copy = copy
         var calendar = calendar
@@ -20,7 +20,7 @@ struct MainPopoverViewStateFactory {
         dateFormatter.calendar = calendar
         dateFormatter.locale = locale
         dateFormatter.timeZone = timeZone
-        dateFormatter.dateFormat = "EEEE, MMM d"
+        dateFormatter.dateFormat = "M월 d일 EEEE"
         self.dateFormatter = dateFormatter
 
         let timeFormatter = DateFormatter()
