@@ -108,11 +108,11 @@ struct MainPopoverWeeklyProgressLoader {
     init(
         recordStore: any AttendanceRecordQuerying,
         calendar: Calendar = .current,
-        locale: Locale = .current,
-        timeZone: TimeZone = .current,
+        locale: Locale = Locale(identifier: "ko_KR"),
+        timeZone: TimeZone = TimeZone(identifier: "Asia/Seoul") ?? .current,
         calendarDayMetadataProvider: (any CalendarDayMetadataProviding)? = nil,
         currentDateProvider: @escaping () -> Date,
-        copy: MainPopoverCopy = .english
+        copy: MainPopoverCopy = .korean
     ) {
         self.recordStore = recordStore
         self.workedDurationCalculator = WorkedDurationCalculator(calendar: calendar)
@@ -127,7 +127,7 @@ struct MainPopoverWeeklyProgressLoader {
         dayFormatter.calendar = calendar
         dayFormatter.locale = locale
         dayFormatter.timeZone = timeZone
-        dayFormatter.dateFormat = "EEE d"
+        dayFormatter.dateFormat = "E d"
         self.dayFormatter = dayFormatter
 
         let timeFormatter = DateFormatter()
@@ -291,7 +291,7 @@ struct MainPopoverWeeklyProgressLoader {
         let totalMinutes = max(0, Int(duration) / 60)
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        return "\(hours)h \(String(format: "%02d", minutes))m"
+        return "\(hours)시간 \(String(format: "%02d", minutes))분"
     }
 
     private func formatWorkedDuration(_ duration: TimeInterval?) -> String {

@@ -17,7 +17,7 @@ struct MainPopoverStateLoader {
         viewStateFactory: MainPopoverViewStateFactory? = nil,
         totalsCalculator: AttendanceRecordTotalsCalculator = AttendanceRecordTotalsCalculator(),
         calendar: Calendar = .current,
-        copy: MainPopoverCopy = .english
+        copy: MainPopoverCopy = .korean
     ) {
         self.recordStore = recordStore
         self.totalsCalculator = totalsCalculator

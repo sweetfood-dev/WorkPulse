@@ -26,7 +26,7 @@ final class MainPopoverCurrentSessionBinder {
     init(
         initialText: String,
         initialAttendanceState: MainPopoverAttendanceState = .notCheckedIn,
-        copy: MainPopoverCopy = .english,
+        copy: MainPopoverCopy = .korean,
         progressPolicy: MainPopoverCurrentSessionProgressPolicy = MainPopoverCurrentSessionProgressPolicy(),
         currentSessionCalculator: CurrentSessionCalculator = CurrentSessionCalculator(),
         currentTimeProvider: @escaping () -> Date,

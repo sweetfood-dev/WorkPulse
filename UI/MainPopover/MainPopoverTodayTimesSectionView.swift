@@ -202,11 +202,11 @@ final class MainPopoverTodayTimesSectionView: NSView {
     private let startRowView = MainPopoverTimeRowView(iconSystemName: "arrow.right.to.line")
     private let endRowView = MainPopoverTimeRowView(iconSystemName: "rectangle.portrait.and.arrow.right")
     private let vacationToggleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
-    private let startTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
-    private let startTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
-    private let endTimeApplyButton = NSButton(title: "Apply", target: nil, action: nil)
-    private let endTimeCancelButton = NSButton(title: "Cancel", target: nil, action: nil)
-    private let endTimeDeleteButton = NSButton(title: MainPopoverCopy.english.deleteActionTitle, target: nil, action: nil)
+    private let startTimeApplyButton = NSButton(title: "적용", target: nil, action: nil)
+    private let startTimeCancelButton = NSButton(title: "취소", target: nil, action: nil)
+    private let endTimeApplyButton = NSButton(title: "적용", target: nil, action: nil)
+    private let endTimeCancelButton = NSButton(title: "취소", target: nil, action: nil)
+    private let endTimeDeleteButton = NSButton(title: MainPopoverCopy.korean.deleteActionTitle, target: nil, action: nil)
 
     private let container = MainPopoverSectionContainerView(
         insets: MainPopoverStyle.Metrics.todayTimesInsets,
