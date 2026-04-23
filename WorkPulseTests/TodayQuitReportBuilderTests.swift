@@ -207,7 +207,7 @@ struct QuitReportCopyTests {
 
     @Test
     @MainActor
-    func tappingReportUsesSingleTimestampForRecordAndThroughTodayStatus() throws {
+    func tappingReportUsesCurrentTimestampAtCopyTime() throws {
         let mondayMorning = try #require(
             ISO8601DateFormatter().date(from: "2026-04-06T10:00:00+09:00")
         )
@@ -246,10 +246,10 @@ struct QuitReportCopyTests {
         #expect(
             clipboard.lastCopiedString == """
             [퇴근 가능 시간 보고]
-            오늘 출근 시간: 08:10
-            오늘 퇴근 가능 시간: 17:10
-            현재 상태: 업무 중
-            오늘까지 누적 상태: 목표 달성
+            오늘 출근 시간: 기록 없음
+            오늘 퇴근 가능 시간: 계산 불가
+            현재 상태: 출근 전
+            오늘까지 누적 상태: 계산 불가
             """
         )
     }

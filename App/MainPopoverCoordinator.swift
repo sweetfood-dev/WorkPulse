@@ -19,7 +19,6 @@ final class MainPopoverCoordinator {
 
     private weak var popoverViewController: MainPopoverViewController?
     private var displayedReferenceDate: Date?
-    private var displayedCurrentDate: Date?
     private var displayedWeeklyProgressReferenceDate: Date?
     private var displayedMonthlyHistoryReferenceDate: Date?
     private let runtimeDependencies: MainPopoverRuntimeDependencies
@@ -196,7 +195,6 @@ final class MainPopoverCoordinator {
         logGeometryEvent("refreshPopover", referenceDate: referenceDate)
         displayedReferenceDate = referenceDate
         let currentDate = runtimeDependencies.currentDateProvider()
-        displayedCurrentDate = currentDate
 
         let loadedState = stateLoader.load(referenceDate: referenceDate)
         syncMenuBarAttendanceState()
@@ -215,15 +213,15 @@ final class MainPopoverCoordinator {
     }
 
     private func copyTodayQuitReport() {
-        let reportDate = displayedCurrentDate ?? runtimeDependencies.currentDateProvider()
-        let todayRecord = recordStore.record(on: reportDate, calendar: runtimeDependencies.calendar)
+        let currentDate = runtimeDependencies.currentDateProvider()
+        let todayRecord = recordStore.record(on: currentDate, calendar: runtimeDependencies.calendar)
         let throughTodayStatusText = weeklyProgressLoader.load(
-            referenceDate: reportDate,
-            currentDate: reportDate
+            referenceDate: currentDate,
+            currentDate: currentDate
         ).todayDeltaStatusText
         let reportText = todayQuitReportBuilder.make(
             todayRecord: todayRecord,
-            now: reportDate,
+            now: currentDate,
             throughTodayStatusText: throughTodayStatusText
         )
         clipboardWriter.copy(reportText)
