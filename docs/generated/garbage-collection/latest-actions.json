@@ -1,0 +1,26 @@
+{
+  "active_plan": [
+    {
+      "confidence": "high",
+      "kind": "stale-active-plan",
+      "next_action": "active-plan",
+      "path": "docs/exec-plans/active/2026-04-02-weekend-korean-holiday-detail.md",
+      "principle_id": "GP-03",
+      "severity": "major",
+      "title": "Stale active plan",
+      "why": "Active plan has been open for 182 days, which exceeds the configured stale threshold of 45 days."
+    },
+    {
+      "confidence": "high",
+      "kind": "stale-active-plan",
+      "next_action": "active-plan",
+      "path": "docs/exec-plans/active/2026-04-03-edit-past-days-from-detail-surfaces.md",
+      "principle_id": "GP-03",
+      "severity": "major",
+      "title": "Stale active plan",
+      "why": "Active plan has been open for 181 days, which exceeds the configured stale threshold of 45 days."
+    }
+  ],
+  "autofix": [],
+  "debt": []
+}
